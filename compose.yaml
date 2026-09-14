@@ -1,0 +1,28 @@
+name: friend-on-campus
+
+# Structure-only orchestration manifest. Build/runtime details will be added
+# after the team selects the implementation stack.
+services:
+  web-app:
+    build:
+      context: ./web-app
+
+  user-service:
+    build:
+      context: ./user-service
+
+  supplier-service:
+    build:
+      context: ./supplier-service
+
+  order-service:
+    build:
+      context: ./order-service
+
+  credit-service:
+    build:
+      context: ./credit-service
+
+networks:
+  default:
+    name: foc-network
