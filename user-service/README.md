@@ -15,7 +15,8 @@ The account domain defines framework-independent validation for usernames, NUS
 email addresses, phone numbers, passwords, and safe new-account defaults.
 The registration application use case coordinates validation, uniqueness
 checks, password hashing, ID generation, and account persistence through ports.
-Infrastructure adapters, HTTP transport, authentication workflows, and email
+Infrastructure adapters implement those ports with Prisma, PostgreSQL,
+Argon2id, and native UUIDs. HTTP transport, authentication workflows, and email
 delivery remain deferred to later commits.
 
 ## Architecture
@@ -58,7 +59,11 @@ corepack pnpm install
 corepack pnpm start:dev
 corepack pnpm check
 corepack pnpm build
+corepack pnpm test:integration
 ```
+
+The integration suite starts an isolated PostgreSQL 18 container and therefore
+requires a running Docker-compatible container runtime.
 
 Copy `.env.example` to `.env` for local development. The service listens on port
 `3001` by default, while the local PostgreSQL container is exposed on `5433` to

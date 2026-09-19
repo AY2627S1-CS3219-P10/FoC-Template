@@ -4,5 +4,9 @@ saveExact: true
 allowBuilds:
   '@parcel/watcher': true
   '@prisma/engines': true
+  argon2: true
+  cpu-features: false
   prisma: true
+  protobufjs: false
+  ssh2: false
   unrs-resolver: true
