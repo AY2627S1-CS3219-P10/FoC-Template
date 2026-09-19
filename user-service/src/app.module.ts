@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
+import { AccountsModule } from './modules/accounts/accounts.module.js';
 import { validateEnvironment } from './platform/config/environment.schema.js';
-import { DatabaseModule } from './platform/database/database.module.js';
 
 @Module({
   imports: [
@@ -11,7 +11,7 @@ import { DatabaseModule } from './platform/database/database.module.js';
       isGlobal: true,
       validate: validateEnvironment,
     }),
-    DatabaseModule,
+    AccountsModule,
   ],
 })
 export class AppModule {}

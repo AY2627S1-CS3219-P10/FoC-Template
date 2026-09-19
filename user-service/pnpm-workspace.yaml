@@ -4,6 +4,7 @@ saveExact: true
 allowBuilds:
   '@parcel/watcher': true
   '@prisma/engines': true
+  '@scarf/scarf': false
   argon2: true
   cpu-features: false
   prisma: true

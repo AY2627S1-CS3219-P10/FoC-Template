@@ -16,8 +16,9 @@ email addresses, phone numbers, passwords, and safe new-account defaults.
 The registration application use case coordinates validation, uniqueness
 checks, password hashing, ID generation, and account persistence through ports.
 Infrastructure adapters implement those ports with Prisma, PostgreSQL,
-Argon2id, and native UUIDs. HTTP transport, authentication workflows, and email
-delivery remain deferred to later commits.
+Argon2id, and native UUIDs. `POST /api/accounts/register` exposes the registration
+workflow and returns only the account ID, username, and pending status. Email
+verification, login, and token handling remain deferred to later commits.
 
 ## Architecture
 
@@ -64,6 +65,8 @@ corepack pnpm test:integration
 
 The integration suite starts an isolated PostgreSQL 18 container and therefore
 requires a running Docker-compatible container runtime.
+
+When the service is running, its OpenAPI UI is available at `/api/docs`.
 
 Copy `.env.example` to `.env` for local development. The service listens on port
 `3001` by default, while the local PostgreSQL container is exposed on `5433` to

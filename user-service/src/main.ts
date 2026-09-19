@@ -7,6 +7,7 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module.js';
+import { configureHttpApplication } from './platform/http/configure-http-application.js';
 
 const DEFAULT_PORT = 3001;
 
@@ -16,7 +17,7 @@ async function bootstrap(): Promise<void> {
     new FastifyAdapter(),
   );
 
-  app.setGlobalPrefix('api');
+  configureHttpApplication(app);
   app.enableShutdownHooks();
 
   const port = Number(process.env.PORT ?? DEFAULT_PORT);
