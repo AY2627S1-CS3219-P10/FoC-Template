@@ -6,10 +6,10 @@ and credits circulate within the platform as a closed, non-monetary economy.
 
 ## Current milestone
 
-This repository currently contains structure only. No application runtime,
-API, persistence model, or business logic has been selected or implemented.
-That decision is deliberate: the project brief defines system behaviour but
-does not prescribe a language or framework.
+This repository currently contains structure only. The implementation stack
+has been selected, but no application runtime, dependency, API, persistence
+model, or business logic has been installed or implemented yet. See
+[docs/tech-stack.md](docs/tech-stack.md) for the accepted technology decision.
 
 ## Repository layout
 
@@ -26,7 +26,7 @@ does not prescribe a language or framework.
 `-- .env.example             Shared environment-variable catalogue
 ```
 
-Each backend service uses the same stack-neutral internal layout:
+Each backend service uses the same layered internal layout:
 
 ```text
 <service>/
@@ -45,14 +45,15 @@ Each backend service uses the same stack-neutral internal layout:
 
 The web client follows a similarly neutral feature-oriented layout. See
 [docs/architecture.md](docs/architecture.md) for ownership rules and allowed
-dependencies.
+dependencies, and [docs/tech-stack.md](docs/tech-stack.md) for the technology
+choices all contributors and coding agents must follow.
 
 ## Setup status
 
 - Service and client boundaries are scaffolded.
 - Empty directories are retained with `.gitkeep` files.
-- Container and orchestration files are intentionally placeholders until the
-  team selects its runtime, database, and messaging technologies.
+- Container and orchestration files remain placeholders until their respective
+  implementation tasks begin.
 - No endpoint, schema, UI component, or business workflow is implemented.
 
 ## Team members

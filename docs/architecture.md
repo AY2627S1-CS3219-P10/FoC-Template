@@ -35,16 +35,20 @@ The domain layer should not depend on transport, database, or vendor-specific
 code. The application layer coordinates domain behaviour through interfaces;
 infrastructure supplies those interfaces later.
 
-## Deferred decisions
+## Technology decision
 
-The following choices are intentionally outside this setup sprint:
+The project technology stack is recorded in
+[tech-stack.md](tech-stack.md). That document is the canonical source for
+runtime, framework, persistence, messaging, testing, and tooling choices.
 
-- frontend and backend frameworks
-- language and package-management tooling
-- database technology and schema design
-- synchronous versus asynchronous service communication
-- API gateway and authentication-token strategy
-- notification, email, observability, and deployment providers
+The following details remain intentionally deferred until the relevant
+implementation task:
+
+- exact database schemas and API payloads
+- API gateway deployment topology
+- notification and email providers
+- observability hosting
+- production deployment provider
 
 Record each material choice as an architecture decision before adding
 stack-specific files across the repository.
