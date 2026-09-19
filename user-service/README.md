@@ -11,8 +11,10 @@ The service foundation is initialized with NestJS, Fastify, TypeScript, strict
 static analysis, PostgreSQL 18, Prisma ORM 7, configuration validation, a smoke
 test, and a production-oriented container build. Its initial database structure
 contains users, email-verification codes, and authentication sessions.
-Registration, authentication workflows, and email delivery remain deferred to
-later commits.
+The account domain defines framework-independent validation for usernames, NUS
+email addresses, phone numbers, passwords, and safe new-account defaults.
+Registration orchestration, authentication workflows, and email delivery remain
+deferred to later commits.
 
 ## Architecture
 
