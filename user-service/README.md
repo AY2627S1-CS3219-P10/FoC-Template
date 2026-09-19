@@ -13,8 +13,10 @@ test, and a production-oriented container build. Its initial database structure
 contains users, email-verification codes, and authentication sessions.
 The account domain defines framework-independent validation for usernames, NUS
 email addresses, phone numbers, passwords, and safe new-account defaults.
-Registration orchestration, authentication workflows, and email delivery remain
-deferred to later commits.
+The registration application use case coordinates validation, uniqueness
+checks, password hashing, ID generation, and account persistence through ports.
+Infrastructure adapters, HTTP transport, authentication workflows, and email
+delivery remain deferred to later commits.
 
 ## Architecture
 
