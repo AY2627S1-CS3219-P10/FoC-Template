@@ -9,9 +9,10 @@ service's persistence store directly.
 
 The service foundation is initialized with NestJS, Fastify, TypeScript, strict
 static analysis, PostgreSQL 18, Prisma ORM 7, configuration validation, a smoke
-test, and a production-oriented container build. The Prisma schema intentionally
-contains no domain models yet. Registration, authentication, and email delivery
-are deferred to later commits.
+test, and a production-oriented container build. Its initial database structure
+contains users, email-verification codes, and authentication sessions.
+Registration, authentication workflows, and email delivery remain deferred to
+later commits.
 
 ## Architecture
 
@@ -82,9 +83,8 @@ committed.
 
 ## Deferred milestones
 
-1. Account domain model and initial database migration
-2. Registration use case and endpoint
-3. NUS email verification
-4. Login, JWT access tokens, and rotating refresh tokens
-5. Profile and credential updates
-6. Administrator authorization and initial account seeding
+1. Registration use case and endpoint
+2. NUS email verification
+3. Login, JWT access tokens, and rotating refresh tokens
+4. Profile and credential updates
+5. Administrator authorization and initial account seeding
