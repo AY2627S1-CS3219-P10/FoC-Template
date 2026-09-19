@@ -1,0 +1,6 @@
+engineStrict: true
+saveExact: true
+
+allowBuilds:
+  '@parcel/watcher': true
+  unrs-resolver: true
