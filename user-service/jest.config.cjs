@@ -10,6 +10,7 @@ module.exports = {
   },
   preset: 'ts-jest/presets/default-esm',
   rootDir: '.',
+  setupFiles: ['<rootDir>/tests/setup-env.ts'],
   testEnvironment: 'node',
   testMatch: ['<rootDir>/tests/**/*.spec.ts'],
   transform: {

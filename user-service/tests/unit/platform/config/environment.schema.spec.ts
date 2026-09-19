@@ -1,0 +1,31 @@
+import { environmentSchema } from '../../../../src/platform/config/environment.schema.js';
+
+describe('environmentSchema', () => {
+  it('accepts a PostgreSQL connection string and applies defaults', () => {
+    const result = environmentSchema.validate({
+      DATABASE_URL:
+        'postgresql://foc_user:foc_user_test@localhost:5433/foc_user_test?schema=public',
+    });
+    const value: unknown = result.value;
+
+    expect(result.error).toBeUndefined();
+    expect(value).toMatchObject({
+      NODE_ENV: 'development',
+      PORT: 3001,
+    });
+  });
+
+  it('rejects a missing database connection string', () => {
+    const { error } = environmentSchema.validate({});
+
+    expect(error?.message).toContain('DATABASE_URL');
+  });
+
+  it('rejects a non-PostgreSQL connection string', () => {
+    const { error } = environmentSchema.validate({
+      DATABASE_URL: 'mysql://user:password@localhost:3306/database',
+    });
+
+    expect(error?.message).toContain('DATABASE_URL');
+  });
+});

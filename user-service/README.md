@@ -8,9 +8,10 @@ service's persistence store directly.
 ## Current scope
 
 The service foundation is initialized with NestJS, Fastify, TypeScript, strict
-static analysis, a smoke test, and a production-oriented container build.
-Registration, authentication, persistence, and email delivery are intentionally
-deferred to later commits.
+static analysis, PostgreSQL 18, Prisma ORM 7, configuration validation, a smoke
+test, and a production-oriented container build. The Prisma schema intentionally
+contains no domain models yet. Registration, authentication, and email delivery
+are deferred to later commits.
 
 ## Architecture
 
@@ -54,13 +55,35 @@ corepack pnpm check
 corepack pnpm build
 ```
 
-Copy `.env.example` to `.env` for local overrides. The service listens on port
-`3001` by default.
+Copy `.env.example` to `.env` for local development. The service listens on port
+`3001` by default, while the local PostgreSQL container is exposed on `5433` to
+avoid colliding with a system PostgreSQL installation.
+
+Start only the User Service database:
+
+```text
+docker compose up -d database
+```
+
+Prisma commands:
+
+```text
+corepack pnpm prisma:validate
+corepack pnpm prisma:generate
+corepack pnpm db:migrate:dev
+corepack pnpm db:migrate:deploy
+corepack pnpm db:studio
+```
+
+The application uses `DATABASE_URL`. Prisma migrations live under
+`prisma/migrations/`. The generated client is written to
+`src/generated/prisma/`, regenerated during checks and builds, and is not
+committed.
 
 ## Deferred milestones
 
-1. PostgreSQL and Prisma foundation
-2. Account domain model and registration
+1. Account domain model and initial database migration
+2. Registration use case and endpoint
 3. NUS email verification
 4. Login, JWT access tokens, and rotating refresh tokens
 5. Profile and credential updates

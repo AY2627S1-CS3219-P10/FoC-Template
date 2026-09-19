@@ -9,7 +9,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
-COPY nest-cli.json tsconfig.json tsconfig.build.json ./
+COPY nest-cli.json prisma.config.ts tsconfig.json tsconfig.build.json ./
+COPY prisma ./prisma
 COPY src ./src
 RUN pnpm build && pnpm prune --prod
 
