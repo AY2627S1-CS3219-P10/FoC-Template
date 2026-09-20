@@ -1,0 +1,13 @@
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+src/generated/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store

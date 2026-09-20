@@ -1,0 +1,56 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SupplierCategory {
+  FOOD
+  FOOD_COFFEE
+  PRINTING
+  SHOPPING
+
+  @@map("supplier_category")
+}
+
+model Supplier {
+  id        String           @id @default(uuid()) @db.Uuid
+  name      String           @unique @db.Citext
+  category  SupplierCategory
+  isActive  Boolean          @default(true) @map("is_active")
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  locations SupplierLocation[]
+
+  @@map("suppliers")
+}
+
+model SupplierLocation {
+  id                  String   @id @default(uuid()) @db.Uuid
+  supplierId          String   @map("supplier_id") @db.Uuid
+  supplierAtLocation  String   @unique @map("supplier_at_location") @db.Citext
+  building            String   @db.VarChar(160)
+  floor               Int
+  locationDescription String   @map("location_description") @db.VarChar(500)
+  latitude            Decimal  @db.Decimal(11, 8)
+  longitude           Decimal  @db.Decimal(11, 8)
+  opensAt             DateTime @map("opens_at") @db.Time(0)
+  closesAt            DateTime @map("closes_at") @db.Time(0)
+  isOpenOvernight     Boolean  @default(false) @map("is_open_overnight")
+  imageUrl            String?  @map("image_url") @db.Text
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@unique([supplierId, building, floor, locationDescription])
+  @@index([building, isActive])
+  @@index([supplierId, isActive])
+  @@map("supplier_locations")
+}

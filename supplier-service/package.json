@@ -1,0 +1,29 @@
+{
+  "name": "@foc/supplier-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Supplier and campus pickup-location service for Friend on Campus",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=12 <13"
+  },
+  "scripts": {
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "prisma:format": "prisma format",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate"
+  },
+  "dependencies": {
+    "@prisma/client": "7.10.0",
+    "dotenv": "18.0.0"
+  },
+  "devDependencies": {
+    "prisma": "7.10.0",
+    "typescript": "6.0.3"
+  }
+}

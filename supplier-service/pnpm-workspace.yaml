@@ -1,0 +1,7 @@
+engineStrict: true
+saveExact: true
+
+allowBuilds:
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  prisma: true
