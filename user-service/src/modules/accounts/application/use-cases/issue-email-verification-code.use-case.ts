@@ -19,6 +19,7 @@ export interface IssueEmailVerificationCodeDependencies {
 export interface IssueEmailVerificationCodeResult {
   code: string;
   expiresAt: Date;
+  verificationId: string;
 }
 
 export class IssueEmailVerificationCodeUseCase {
@@ -34,11 +35,12 @@ export class IssueEmailVerificationCodeUseCase {
     const expiresAt = new Date(
       now.getTime() + EMAIL_VERIFICATION_CODE_LIFETIME_MS,
     );
+    const verificationId = this.dependencies.idGenerator.generate();
     const issued = await this.dependencies.repository.issueCode({
       codeHash: this.dependencies.codeHasher.hash(code.value),
       createdAt: now,
       expiresAt,
-      id: this.dependencies.idGenerator.generate(),
+      id: verificationId,
       userId,
     });
 
@@ -49,6 +51,6 @@ export class IssueEmailVerificationCodeUseCase {
       );
     }
 
-    return { code: code.value, expiresAt };
+    return { code: code.value, expiresAt, verificationId };
   }
 }

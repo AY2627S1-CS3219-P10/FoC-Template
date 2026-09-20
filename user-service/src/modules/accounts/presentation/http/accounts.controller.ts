@@ -17,7 +17,7 @@ import {
 
 import { AccountAlreadyExistsError } from '../../application/errors/account-already-exists.error.js';
 import { EmailVerificationError } from '../../application/errors/email-verification.error.js';
-import { RegisterAccountUseCase } from '../../application/use-cases/register-account.use-case.js';
+import { RegisterWithEmailVerificationUseCase } from '../../application/use-cases/register-with-email-verification.use-case.js';
 import { VerifyEmailUseCase } from '../../application/use-cases/verify-email.use-case.js';
 import { AccountValidationError } from '../../domain/account-validation.error.js';
 import { RegisterAccountRequest } from './dto/register-account.request.js';
@@ -28,7 +28,7 @@ import { VerifyEmailRequest } from './dto/verify-email.request.js';
 @Controller('accounts')
 export class AccountsController {
   constructor(
-    private readonly registerAccountUseCase: RegisterAccountUseCase,
+    private readonly registerAccountUseCase: RegisterWithEmailVerificationUseCase,
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
   ) {}
 

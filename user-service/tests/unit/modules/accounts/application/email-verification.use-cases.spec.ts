@@ -81,6 +81,7 @@ describe('email verification use cases', () => {
     ).resolves.toEqual({
       code: '042731',
       expiresAt: new Date(NOW.getTime() + EMAIL_VERIFICATION_CODE_LIFETIME_MS),
+      verificationId: 'a23394c1-c131-4b77-bf0d-c39bc11bf81e',
     });
     expect(codeHasher.inputs).toEqual(['042731']);
     expect(repository.issuedRecords).toEqual([

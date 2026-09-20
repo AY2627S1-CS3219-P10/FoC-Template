@@ -11,7 +11,7 @@ import type {
   RegisterAccountInput,
   RegisterAccountResult,
 } from '../../../../../src/modules/accounts/application/use-cases/register-account.use-case.js';
-import { RegisterAccountUseCase } from '../../../../../src/modules/accounts/application/use-cases/register-account.use-case.js';
+import { RegisterWithEmailVerificationUseCase } from '../../../../../src/modules/accounts/application/use-cases/register-with-email-verification.use-case.js';
 import type { VerifyEmailInput } from '../../../../../src/modules/accounts/application/use-cases/verify-email.use-case.js';
 import { VerifyEmailUseCase } from '../../../../../src/modules/accounts/application/use-cases/verify-email.use-case.js';
 import { AccountStatus } from '../../../../../src/modules/accounts/domain/account-status.js';
@@ -77,7 +77,7 @@ describe('AccountsController', () => {
       controllers: [AccountsController],
       providers: [
         {
-          provide: RegisterAccountUseCase,
+          provide: RegisterWithEmailVerificationUseCase,
           useValue: registerUseCase,
         },
         {
