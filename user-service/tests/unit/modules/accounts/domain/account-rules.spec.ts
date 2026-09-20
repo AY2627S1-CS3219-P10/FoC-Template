@@ -1,4 +1,5 @@
 import { AccountValidationError } from '../../../../../src/modules/accounts/domain/account-validation.error.js';
+import { EmailVerificationCode } from '../../../../../src/modules/accounts/domain/email-verification-code.js';
 import {
   AccountStatus,
   NEW_ACCOUNT_DEFAULTS,
@@ -79,6 +80,21 @@ describe('account domain rules', () => {
     ])('rejects an invalid password with code %s', (password, code) => {
       expectValidationCode(() => assertPasswordMeetsPolicy(password), code);
     });
+  });
+
+  describe('EmailVerificationCode', () => {
+    it('preserves a six-digit code including leading zeroes', () => {
+      expect(EmailVerificationCode.create('042731').value).toBe('042731');
+    });
+
+    it.each(['', '12345', '1234567', '12345a'])(
+      'rejects invalid verification code %p',
+      (code) => {
+        expect(() => EmailVerificationCode.create(code)).toThrow(
+          AccountValidationError,
+        );
+      },
+    );
   });
 
   it('defines safe defaults for a newly registered account', () => {

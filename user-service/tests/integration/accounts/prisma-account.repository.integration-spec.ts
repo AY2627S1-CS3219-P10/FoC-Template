@@ -12,11 +12,18 @@ import { NusEmail } from '../../../src/modules/accounts/domain/nus-email.js';
 import { PhoneNumber } from '../../../src/modules/accounts/domain/phone-number.js';
 import { Username } from '../../../src/modules/accounts/domain/username.js';
 import { PrismaAccountRepository } from '../../../src/modules/accounts/infrastructure/persistence/prisma-account.repository.js';
+import { PrismaEmailVerificationRepository } from '../../../src/modules/accounts/infrastructure/persistence/prisma-email-verification.repository.js';
 import { PrismaClient } from '../../../src/generated/prisma/client.js';
 
-const MIGRATION_PATH = resolve(
-  'prisma/migrations/20260919000100_create_user_identity_tables/migration.sql',
-);
+const MIGRATION_PATHS = [
+  resolve(
+    'prisma/migrations/20260919000100_create_user_identity_tables/migration.sql',
+  ),
+  resolve(
+    'prisma/migrations/20260920000100_enforce_one_active_verification_code/migration.sql',
+  ),
+];
+const NOW = new Date('2026-09-20T02:00:00.000Z');
 
 const ACCOUNT: NewAccountRecord = {
   email: 'student@u.nus.edu',
@@ -32,15 +39,17 @@ describe('PrismaAccountRepository', () => {
   let container: Awaited<ReturnType<PostgreSqlContainer['start']>>;
   let prisma: PrismaClient;
   let repository: PrismaAccountRepository;
+  let verificationRepository: PrismaEmailVerificationRepository;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:18-alpine').start();
     const connectionString = container.getConnectionUri();
-    const migrationSql = await readFile(MIGRATION_PATH, 'utf8');
     const migrationPool = new Pool({ connectionString });
 
     try {
-      await migrationPool.query(migrationSql);
+      for (const migrationPath of MIGRATION_PATHS) {
+        await migrationPool.query(await readFile(migrationPath, 'utf8'));
+      }
     } finally {
       await migrationPool.end();
     }
@@ -50,6 +59,7 @@ describe('PrismaAccountRepository', () => {
     });
     await prisma.$connect();
     repository = new PrismaAccountRepository(prisma);
+    verificationRepository = new PrismaEmailVerificationRepository(prisma);
   });
 
   afterAll(async () => {
@@ -98,5 +108,111 @@ describe('PrismaAccountRepository', () => {
       code: 'EMAIL_ALREADY_REGISTERED',
       field: 'email',
     } satisfies Partial<AccountAlreadyExistsError>);
+  });
+
+  it('invalidates the previous unused verification code when issuing another', async () => {
+    await repository.create(ACCOUNT);
+    await verificationRepository.issueCode({
+      codeHash: 'first-code-hash',
+      createdAt: NOW,
+      expiresAt: new Date(NOW.getTime() + 600_000),
+      id: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e',
+      userId: ACCOUNT.id,
+    });
+    const replacementTime = new Date(NOW.getTime() + 1_000);
+
+    await expect(
+      verificationRepository.issueCode({
+        codeHash: 'second-code-hash',
+        createdAt: replacementTime,
+        expiresAt: new Date(replacementTime.getTime() + 600_000),
+        id: '77af9009-08e1-42f5-91d3-516920f0c571',
+        userId: ACCOUNT.id,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      prisma.emailVerificationCode.findMany({
+        orderBy: { createdAt: 'asc' },
+        where: { userId: ACCOUNT.id },
+      }),
+    ).resolves.toMatchObject([
+      { codeHash: 'first-code-hash', usedAt: replacementTime },
+      { codeHash: 'second-code-hash', usedAt: null },
+    ]);
+  });
+
+  it('atomically consumes a valid code and activates the account', async () => {
+    await repository.create(ACCOUNT);
+    await verificationRepository.issueCode({
+      codeHash: 'valid-code-hash',
+      createdAt: NOW,
+      expiresAt: new Date(NOW.getTime() + 600_000),
+      id: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e',
+      userId: ACCOUNT.id,
+    });
+    const verificationTime = new Date(NOW.getTime() + 1_000);
+
+    await expect(
+      verificationRepository.verifyAndActivate({
+        candidateCodeHash: 'valid-code-hash',
+        email: ACCOUNT.email,
+        maximumAttempts: 5,
+        now: verificationTime,
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      prisma.user.findUnique({ where: { id: ACCOUNT.id } }),
+    ).resolves.toMatchObject({
+      emailVerifiedAt: verificationTime,
+      status: 'ACTIVE',
+    });
+    await expect(
+      verificationRepository.verifyAndActivate({
+        candidateCodeHash: 'valid-code-hash',
+        email: ACCOUNT.email,
+        maximumAttempts: 5,
+        now: verificationTime,
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it('blocks verification after five incorrect attempts', async () => {
+    await repository.create(ACCOUNT);
+    await verificationRepository.issueCode({
+      codeHash: 'valid-code-hash',
+      createdAt: NOW,
+      expiresAt: new Date(NOW.getTime() + 600_000),
+      id: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e',
+      userId: ACCOUNT.id,
+    });
+    const input = {
+      email: ACCOUNT.email,
+      maximumAttempts: 5,
+      now: new Date(NOW.getTime() + 1_000),
+    };
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(
+        verificationRepository.verifyAndActivate({
+          ...input,
+          candidateCodeHash: 'incorrect-code-hash',
+        }),
+      ).resolves.toBe(false);
+    }
+
+    await expect(
+      verificationRepository.verifyAndActivate({
+        ...input,
+        candidateCodeHash: 'valid-code-hash',
+      }),
+    ).resolves.toBe(false);
+    await expect(
+      prisma.emailVerificationCode.findUnique({
+        where: { id: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e' },
+      }),
+    ).resolves.toMatchObject({ attemptCount: 5 });
+    await expect(
+      prisma.user.findUnique({ where: { id: ACCOUNT.id } }),
+    ).resolves.toMatchObject({ status: 'PENDING_VERIFICATION' });
   });
 });

@@ -1,5 +1,5 @@
 export type AccountValidationField =
-  'email' | 'password' | 'phoneNumber' | 'username';
+  'email' | 'password' | 'phoneNumber' | 'username' | 'verificationCode';
 
 export class AccountValidationError extends Error {
   constructor(

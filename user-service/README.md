@@ -17,8 +17,16 @@ The registration application use case coordinates validation, uniqueness
 checks, password hashing, ID generation, and account persistence through ports.
 Infrastructure adapters implement those ports with Prisma, PostgreSQL,
 Argon2id, and native UUIDs. `POST /api/accounts/register` exposes the registration
-workflow and returns only the account ID, username, and pending status. Email
-verification, login, and token handling remain deferred to later commits.
+workflow and returns only the account ID, username, and pending status.
+`POST /api/accounts/verify-email` consumes a six-digit code and atomically
+activates the account. Email delivery, login, and token handling remain deferred
+to later commits.
+
+Verification codes expire after 10 minutes, allow five failed attempts, and are
+stored only as HMAC-SHA-256 hashes. Issuing a replacement invalidates the prior
+unused code. The partial unique index enforcing one unused code per user can be
+rolled back by dropping
+`email_verification_codes_one_unused_per_user_key`.
 
 ## Architecture
 
@@ -88,15 +96,15 @@ corepack pnpm db:migrate:deploy
 corepack pnpm db:studio
 ```
 
-The application uses `DATABASE_URL`. Prisma migrations live under
-`prisma/migrations/`. The generated client is written to
+The application uses `DATABASE_URL` and `EMAIL_VERIFICATION_CODE_SECRET`; the
+secret must contain at least 32 characters and must not be committed. Prisma
+migrations live under `prisma/migrations/`. The generated client is written to
 `src/generated/prisma/`, regenerated during checks and builds, and is not
 committed.
 
 ## Deferred milestones
 
-1. Registration use case and endpoint
-2. NUS email verification
-3. Login, JWT access tokens, and rotating refresh tokens
-4. Profile and credential updates
-5. Administrator authorization and initial account seeding
+1. Verification email delivery and resend rate limiting
+2. Login, JWT access tokens, and rotating refresh tokens
+3. Profile and credential updates
+4. Administrator authorization and initial account seeding
