@@ -1,8 +1,4 @@
-import {
-  Controller,
-  Get,
-  type INestApplication,
-} from '@nestjs/common';
+import { Controller, Get, type INestApplication } from '@nestjs/common';
 import {
   FastifyAdapter,
   type NestFastifyApplication,
