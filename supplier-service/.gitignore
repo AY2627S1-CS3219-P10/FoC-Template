@@ -3,6 +3,7 @@ node_modules/
 dist/
 coverage/
 src/generated/
+*.tsbuildinfo
 
 # Environment / secrets
 .env
