@@ -33,8 +33,17 @@ export interface RevokeSessionInput {
   refreshTokenHash: string;
 }
 
+export interface ActiveSessionInput {
+  now: Date;
+  sessionId: string;
+  userId: string;
+}
+
 export interface AuthenticationRepositoryPort {
   createSession(session: SessionRecord): Promise<void>;
+  findActiveSessionAccount(
+    input: ActiveSessionInput,
+  ): Promise<AuthenticatedAccount | null>;
   findAccountByEmail(email: string): Promise<AuthenticationAccount | null>;
   revokeSession(input: RevokeSessionInput): Promise<void>;
   rotateSession(

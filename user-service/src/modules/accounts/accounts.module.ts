@@ -6,6 +6,9 @@ import type { EnvironmentVariables } from '../../platform/config/environment.sch
 import { DatabaseModule } from '../../platform/database/database.module.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { SessionTokenIssuer } from './application/services/session-token-issuer.js';
+import { AuthenticateAccessTokenUseCase } from './application/use-cases/authenticate-access-token.use-case.js';
+import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case.js';
+import { GetProfileUseCase } from './application/use-cases/get-profile.use-case.js';
 import { IssueEmailVerificationCodeUseCase } from './application/use-cases/issue-email-verification-code.use-case.js';
 import { LoginUseCase } from './application/use-cases/login.use-case.js';
 import { LogoutUseCase } from './application/use-cases/logout.use-case.js';
@@ -14,6 +17,7 @@ import { ResendVerificationEmailUseCase } from './application/use-cases/resend-v
 import { RegisterAccountUseCase } from './application/use-cases/register-account.use-case.js';
 import { RegisterWithEmailVerificationUseCase } from './application/use-cases/register-with-email-verification.use-case.js';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case.js';
+import { UpdatePhoneNumberUseCase } from './application/use-cases/update-phone-number.use-case.js';
 import { SmtpVerificationEmailSender } from './infrastructure/email/smtp-verification-email.sender.js';
 import { RedisVerificationEmailResendRateLimiter } from './infrastructure/messaging/redis-verification-email-resend-rate-limiter.js';
 import { BullMqVerificationEmailDelivery } from './infrastructure/messaging/verification-email.queue.js';
@@ -24,6 +28,7 @@ import {
 import { PrismaAccountRepository } from './infrastructure/persistence/prisma-account.repository.js';
 import { PrismaAuthenticationRepository } from './infrastructure/persistence/prisma-authentication.repository.js';
 import { PrismaEmailVerificationRepository } from './infrastructure/persistence/prisma-email-verification.repository.js';
+import { PrismaProfileRepository } from './infrastructure/persistence/prisma-profile.repository.js';
 import { Argon2PasswordHasher } from './infrastructure/security/argon2-password-hasher.js';
 import { HmacVerificationCodeHasher } from './infrastructure/security/hmac-verification-code-hasher.js';
 import { JoseAccessToken } from './infrastructure/security/jose-access-token.js';
@@ -33,9 +38,15 @@ import { UuidGenerator } from './infrastructure/security/uuid-generator.js';
 import { SystemClock } from './infrastructure/system-clock.js';
 import { AccountsController } from './presentation/http/accounts.controller.js';
 import { AuthenticationController } from './presentation/http/authentication.controller.js';
+import { ProfileController } from './presentation/http/profile.controller.js';
+import { BearerAuthenticationGuard } from './presentation/http/security/bearer-authentication.guard.js';
 
 @Module({
-  controllers: [AccountsController, AuthenticationController],
+  controllers: [
+    AccountsController,
+    AuthenticationController,
+    ProfileController,
+  ],
   imports: [DatabaseModule],
   providers: [
     {
@@ -63,6 +74,12 @@ import { AuthenticationController } from './presentation/http/authentication.con
       provide: PrismaAuthenticationRepository,
       useFactory: (prisma: PrismaService): PrismaAuthenticationRepository =>
         new PrismaAuthenticationRepository(prisma),
+    },
+    {
+      inject: [PrismaService],
+      provide: PrismaProfileRepository,
+      useFactory: (prisma: PrismaService): PrismaProfileRepository =>
+        new PrismaProfileRepository(prisma),
     },
     {
       inject: [ConfigService],
@@ -95,6 +112,49 @@ import { AuthenticationController } from './presentation/http/authentication.con
         new JoseAccessToken(
           config.get('JWT_ACCESS_TOKEN_SECRET', { infer: true }),
         ),
+    },
+    {
+      inject: [JoseAccessToken, SystemClock, PrismaAuthenticationRepository],
+      provide: AuthenticateAccessTokenUseCase,
+      useFactory: (
+        accessTokens: JoseAccessToken,
+        clock: SystemClock,
+        repository: PrismaAuthenticationRepository,
+      ): AuthenticateAccessTokenUseCase =>
+        new AuthenticateAccessTokenUseCase({
+          accessTokens,
+          clock,
+          repository,
+        }),
+    },
+    BearerAuthenticationGuard,
+    {
+      inject: [PrismaProfileRepository],
+      provide: GetProfileUseCase,
+      useFactory: (repository: PrismaProfileRepository): GetProfileUseCase =>
+        new GetProfileUseCase(repository),
+    },
+    {
+      inject: [PrismaProfileRepository],
+      provide: UpdatePhoneNumberUseCase,
+      useFactory: (
+        repository: PrismaProfileRepository,
+      ): UpdatePhoneNumberUseCase => new UpdatePhoneNumberUseCase(repository),
+    },
+    {
+      inject: [SystemClock, Argon2PasswordHasher, PrismaProfileRepository],
+      provide: ChangePasswordUseCase,
+      useFactory: (
+        clock: SystemClock,
+        passwordHasher: Argon2PasswordHasher,
+        repository: PrismaProfileRepository,
+      ): ChangePasswordUseCase =>
+        new ChangePasswordUseCase({
+          clock,
+          passwordHasher,
+          passwordVerifier: passwordHasher,
+          repository,
+        }),
     },
     {
       inject: [JoseAccessToken, SystemClock, UuidGenerator, SecureRefreshToken],

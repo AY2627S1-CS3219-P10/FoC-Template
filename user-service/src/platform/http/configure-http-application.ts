@@ -16,6 +16,7 @@ export function configureHttpApplication(app: NestFastifyApplication): void {
     .setTitle('Friend on Campus User Service')
     .setDescription('Student account API')
     .setVersion('0.1.0')
+    .addBearerAuth()
     .build();
   const openApiDocument = SwaggerModule.createDocument(app, openApiConfig);
 

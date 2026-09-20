@@ -97,6 +97,10 @@ class StubAuthenticationRepository implements AuthenticationRepositoryPort {
     return Promise.resolve();
   }
 
+  findActiveSessionAccount(): Promise<AuthenticatedAccount | null> {
+    return Promise.resolve(this.rotationAccount);
+  }
+
   findAccountByEmail(): Promise<AuthenticationAccount | null> {
     return Promise.resolve(this.account);
   }

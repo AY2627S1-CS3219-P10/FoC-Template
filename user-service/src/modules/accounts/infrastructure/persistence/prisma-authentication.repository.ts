@@ -1,4 +1,5 @@
 import type {
+  ActiveSessionInput,
   AuthenticatedAccount,
   AuthenticationAccount,
   AuthenticationRepositoryPort,
@@ -24,6 +25,37 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
 
   createSession(session: SessionRecord): Promise<void> {
     return this.prisma.session.create({ data: session }).then(() => undefined);
+  }
+
+  async findActiveSessionAccount(
+    input: ActiveSessionInput,
+  ): Promise<AuthenticatedAccount | null> {
+    const session = await this.prisma.session.findFirst({
+      select: {
+        user: {
+          select: {
+            id: true,
+            isAdmin: true,
+            status: true,
+            username: true,
+          },
+        },
+      },
+      where: {
+        expiresAt: { gt: input.now },
+        id: input.sessionId,
+        revokedAt: null,
+        user: { status: UserStatus.ACTIVE },
+        userId: input.userId,
+      },
+    });
+
+    return session
+      ? {
+          ...session.user,
+          status: DOMAIN_STATUS_BY_PRISMA[session.user.status],
+        }
+      : null;
   }
 
   async findAccountByEmail(

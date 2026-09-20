@@ -35,6 +35,14 @@ Reusing a revoked refresh token revokes the account's remaining active sessions
 as a defensive response. Pending, suspended, and banned accounts cannot create
 or refresh sessions.
 
+Authenticated profile operations validate the access token and its backing
+PostgreSQL session on every request. `GET /api/accounts/me` returns the current
+account profile, and `PATCH /api/accounts/me/phone-number` changes the private
+phone number after format and uniqueness checks. `PATCH /api/accounts/me/password`
+requires the current password, applies the registration password policy to the
+new password, stores a fresh Argon2id hash, and revokes every session for the
+account so the user must sign in again.
+
 Verification codes expire after 10 minutes, allow five failed attempts, and are
 stored only as HMAC-SHA-256 hashes. Issuing a replacement invalidates the prior
 unused code. The partial unique index enforcing one unused code per user can be
@@ -125,5 +133,4 @@ committed.
 
 ## Deferred milestones
 
-1. Profile and credential updates
-2. Administrator authorization and initial account seeding
+1. Administrator authorization and initial account seeding

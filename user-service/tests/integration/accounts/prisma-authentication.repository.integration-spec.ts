@@ -89,6 +89,20 @@ describe('PrismaAuthenticationRepository', () => {
       revokedAt: null,
       userId: USER_ID,
     });
+    await expect(
+      repository.findActiveSessionAccount({
+        now: NOW,
+        sessionId: SESSION_ID,
+        userId: USER_ID,
+      }),
+    ).resolves.toMatchObject({ id: USER_ID, status: 'ACTIVE' });
+    await expect(
+      repository.findActiveSessionAccount({
+        now: new Date(NOW.getTime() + 86_400_001),
+        sessionId: SESSION_ID,
+        userId: USER_ID,
+      }),
+    ).resolves.toBeNull();
   });
 
   it('allows only one concurrent rotation and detects reuse', async () => {
