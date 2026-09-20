@@ -15,6 +15,9 @@ const MIGRATION_PATHS = [
   resolve(
     'prisma/migrations/20260920000100_enforce_one_active_verification_code/migration.sql',
   ),
+  resolve(
+    'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
+  ),
 ];
 const USER_ID = '4a84f480-b1cb-4b81-b632-8bb49034b9e7';
 const OTHER_USER_ID = '77af9009-08e1-42f5-91d3-516920f0c571';

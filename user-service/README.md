@@ -50,6 +50,21 @@ administrator guard. Authentication reloads the active session and current
 claim in a JWT cannot grant access. Non-administrators receive HTTP 403 with
 `ADMINISTRATOR_PRIVILEGES_REQUIRED`.
 
+After initialization, an administrator can promote or demote another existing
+account with `PATCH /api/admin/accounts/{accountId}/administrator` and an
+`isAdmin` boolean body. An administrator cannot change their own status. A real
+status change and revocation of all the target account's active sessions occur
+in one PostgreSQL transaction, forcing the target to sign in again. Repeating
+the already-current status is idempotent and does not revoke sessions.
+
+The database also rejects demotion or deletion of the last administrator. This
+protects the invariant even outside the HTTP workflow; there is currently no
+account-deletion API. Privilege changes use the same PostgreSQL advisory lock,
+so concurrent opposing demotions cannot reduce the administrator count to
+zero. To roll back this database guard, drop the
+`users_protect_last_administrator` trigger and then the
+`protect_last_administrator()` function.
+
 Initial administrator creation is deliberately unavailable through the public
 registration API. Set `ADMIN_SEED_ACCOUNTS` to a JSON array containing exactly
 five distinct objects with `operator`, `username`, `email`, `phoneNumber`, and

@@ -17,6 +17,9 @@ const MIGRATION_PATHS = [
   resolve(
     'prisma/migrations/20260920000100_enforce_one_active_verification_code/migration.sql',
   ),
+  resolve(
+    'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
+  ),
 ];
 const NOW = new Date('2026-09-20T06:00:00.000Z');
 
@@ -64,7 +67,7 @@ describe('PrismaAdministratorSeedRepository', () => {
   });
 
   beforeEach(async () => {
-    await prisma.user.deleteMany();
+    await prisma.$executeRaw`TRUNCATE TABLE "users" CASCADE`;
   });
 
   it('creates exactly five active and verified administrator accounts', async () => {

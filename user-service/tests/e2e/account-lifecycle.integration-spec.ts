@@ -41,6 +41,9 @@ const MIGRATION_PATHS = [
   resolve(
     'prisma/migrations/20260920000100_enforce_one_active_verification_code/migration.sql',
   ),
+  resolve(
+    'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
+  ),
 ];
 const STUDENT_EMAIL = 'lifecycle@u.nus.edu';
 const OLD_PASSWORD = 'Initial!Pass1';
@@ -148,7 +151,7 @@ describe('account lifecycle API', () => {
   });
 
   beforeEach(async () => {
-    await prisma.user.deleteMany();
+    await prisma.$executeRaw`TRUNCATE TABLE "users" CASCADE`;
     await redis.executeCliCmd('FLUSHDB');
   });
 
@@ -333,6 +336,80 @@ describe('account lifecycle API', () => {
     });
     expect(allowed.statusCode).toBe(200);
     expect(allowed.json()).toEqual({ access: 'granted' });
+
+    const promotion = await app.inject({
+      headers: {
+        authorization: `Bearer ${administratorSession.accessToken}`,
+      },
+      method: 'PATCH',
+      payload: { isAdmin: true },
+      url: `/api/admin/accounts/${studentSession.user.id}/administrator`,
+    });
+    expect(promotion.statusCode).toBe(200);
+    expect(promotion.json()).toMatchObject({
+      id: studentSession.user.id,
+      isAdmin: true,
+    });
+
+    const revokedStudentSession = await app.inject({
+      headers: { authorization: `Bearer ${studentSession.accessToken}` },
+      method: 'GET',
+      url: '/api/test/admin-only',
+    });
+    expect(revokedStudentSession.statusCode).toBe(401);
+
+    const promotedLogin = await app.inject({
+      method: 'POST',
+      payload: {
+        email: 'normal-student@u.nus.edu',
+        password: 'Student!Pass1',
+      },
+      url: '/api/auth/login',
+    });
+    expect(promotedLogin.statusCode).toBe(200);
+    const promotedSession = promotedLogin.json<AuthenticationBody>();
+    expect(promotedSession.user.isAdmin).toBe(true);
+
+    const promotedAccess = await app.inject({
+      headers: { authorization: `Bearer ${promotedSession.accessToken}` },
+      method: 'GET',
+      url: '/api/test/admin-only',
+    });
+    expect(promotedAccess.statusCode).toBe(200);
+
+    const selfDemotion = await app.inject({
+      headers: {
+        authorization: `Bearer ${administratorSession.accessToken}`,
+      },
+      method: 'PATCH',
+      payload: { isAdmin: false },
+      url: `/api/admin/accounts/${administratorSession.user.id}/administrator`,
+    });
+    expect(selfDemotion.statusCode).toBe(403);
+    expect(selfDemotion.json()).toMatchObject({
+      code: 'ADMINISTRATOR_SELF_CHANGE_FORBIDDEN',
+    });
+
+    const demotion = await app.inject({
+      headers: {
+        authorization: `Bearer ${administratorSession.accessToken}`,
+      },
+      method: 'PATCH',
+      payload: { isAdmin: false },
+      url: `/api/admin/accounts/${promotedSession.user.id}/administrator`,
+    });
+    expect(demotion.statusCode).toBe(200);
+    expect(demotion.json()).toMatchObject({
+      id: promotedSession.user.id,
+      isAdmin: false,
+    });
+
+    const revokedPromotedSession = await app.inject({
+      headers: { authorization: `Bearer ${promotedSession.accessToken}` },
+      method: 'GET',
+      url: '/api/test/admin-only',
+    });
+    expect(revokedPromotedSession.statusCode).toBe(401);
   });
 });
 

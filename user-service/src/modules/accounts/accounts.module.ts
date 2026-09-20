@@ -7,6 +7,7 @@ import { DatabaseModule } from '../../platform/database/database.module.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { SessionTokenIssuer } from './application/services/session-token-issuer.js';
 import { AuthenticateAccessTokenUseCase } from './application/use-cases/authenticate-access-token.use-case.js';
+import { ChangeAdministratorPrivilegeUseCase } from './application/use-cases/change-administrator-privilege.use-case.js';
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case.js';
 import { GetProfileUseCase } from './application/use-cases/get-profile.use-case.js';
 import { IssueEmailVerificationCodeUseCase } from './application/use-cases/issue-email-verification-code.use-case.js';
@@ -26,6 +27,7 @@ import {
   VerificationEmailWorker,
 } from './infrastructure/messaging/verification-email.worker.js';
 import { PrismaAccountRepository } from './infrastructure/persistence/prisma-account.repository.js';
+import { PrismaAdministratorPrivilegeRepository } from './infrastructure/persistence/prisma-administrator-privilege.repository.js';
 import { PrismaAuthenticationRepository } from './infrastructure/persistence/prisma-authentication.repository.js';
 import { PrismaEmailVerificationRepository } from './infrastructure/persistence/prisma-email-verification.repository.js';
 import { PrismaProfileRepository } from './infrastructure/persistence/prisma-profile.repository.js';
@@ -37,6 +39,7 @@ import { SixDigitCodeGenerator } from './infrastructure/security/six-digit-code-
 import { UuidGenerator } from './infrastructure/security/uuid-generator.js';
 import { SystemClock } from './infrastructure/system-clock.js';
 import { AccountsController } from './presentation/http/accounts.controller.js';
+import { AdministratorAccountsController } from './presentation/http/administrator-accounts.controller.js';
 import { AuthenticationController } from './presentation/http/authentication.controller.js';
 import { ProfileController } from './presentation/http/profile.controller.js';
 import { AdministratorAuthorizationGuard } from './presentation/http/security/administrator-authorization.guard.js';
@@ -45,6 +48,7 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
 @Module({
   controllers: [
     AccountsController,
+    AdministratorAccountsController,
     AuthenticationController,
     ProfileController,
   ],
@@ -75,6 +79,14 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
       provide: PrismaAuthenticationRepository,
       useFactory: (prisma: PrismaService): PrismaAuthenticationRepository =>
         new PrismaAuthenticationRepository(prisma),
+    },
+    {
+      inject: [PrismaService],
+      provide: PrismaAdministratorPrivilegeRepository,
+      useFactory: (
+        prisma: PrismaService,
+      ): PrismaAdministratorPrivilegeRepository =>
+        new PrismaAdministratorPrivilegeRepository(prisma),
     },
     {
       inject: [PrismaService],
@@ -130,6 +142,15 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
     },
     BearerAuthenticationGuard,
     AdministratorAuthorizationGuard,
+    {
+      inject: [SystemClock, PrismaAdministratorPrivilegeRepository],
+      provide: ChangeAdministratorPrivilegeUseCase,
+      useFactory: (
+        clock: SystemClock,
+        repository: PrismaAdministratorPrivilegeRepository,
+      ): ChangeAdministratorPrivilegeUseCase =>
+        new ChangeAdministratorPrivilegeUseCase({ clock, repository }),
+    },
     {
       inject: [PrismaProfileRepository],
       provide: GetProfileUseCase,
