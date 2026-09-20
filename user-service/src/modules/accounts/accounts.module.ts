@@ -39,6 +39,7 @@ import { SystemClock } from './infrastructure/system-clock.js';
 import { AccountsController } from './presentation/http/accounts.controller.js';
 import { AuthenticationController } from './presentation/http/authentication.controller.js';
 import { ProfileController } from './presentation/http/profile.controller.js';
+import { AdministratorAuthorizationGuard } from './presentation/http/security/administrator-authorization.guard.js';
 import { BearerAuthenticationGuard } from './presentation/http/security/bearer-authentication.guard.js';
 
 @Module({
@@ -128,6 +129,7 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
         }),
     },
     BearerAuthenticationGuard,
+    AdministratorAuthorizationGuard,
     {
       inject: [PrismaProfileRepository],
       provide: GetProfileUseCase,
@@ -372,5 +374,6 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
         new VerifyEmailUseCase({ clock, codeHasher, repository }),
     },
   ],
+  exports: [AdministratorAuthorizationGuard, BearerAuthenticationGuard],
 })
 export class AccountsModule {}

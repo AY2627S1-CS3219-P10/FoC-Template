@@ -43,6 +43,30 @@ requires the current password, applies the registration password policy to the
 new password, stores a fresh Argon2id hash, and revokes every session for the
 account so the user must sign in again.
 
+Administrator-only HTTP controllers or handlers must use the
+`@AdministratorOnly()` decorator. It applies bearer authentication before the
+administrator guard. Authentication reloads the active session and current
+`isAdmin` value from PostgreSQL before authorization, so a stale privilege
+claim in a JWT cannot grant access. Non-administrators receive HTTP 403 with
+`ADMINISTRATOR_PRIVILEGES_REQUIRED`.
+
+Initial administrator creation is deliberately unavailable through the public
+registration API. Set `ADMIN_SEED_ACCOUNTS` to a JSON array containing exactly
+five distinct objects with `operator`, `username`, `email`, `phoneNumber`, and
+`password`, then build and run the one-off deployment initializer:
+
+```text
+corepack pnpm build
+corepack pnpm db:seed:admins
+```
+
+All five emails must be NUS addresses, and every identity and password follows
+the normal account rules. The command creates active, email-verified accounts
+with Argon2id password hashes in one serializable transaction. It is safe to
+rerun for the same administrators and never resets their passwords. Any clash
+with an existing student or partial identity match aborts the entire seed. Keep
+the JSON value in deployment secrets; do not commit administrator passwords.
+
 Verification codes expire after 10 minutes, allow five failed attempts, and are
 stored only as HMAC-SHA-256 hashes. Issuing a replacement invalidates the prior
 unused code. The partial unique index enforcing one unused code per user can be
@@ -130,7 +154,3 @@ successful or exhausted jobs are removed. Prisma migrations live under
 `prisma/migrations/`. The generated client is written to
 `src/generated/prisma/`, regenerated during checks and builds, and is not
 committed.
-
-## Deferred milestones
-
-1. Administrator authorization and initial account seeding
