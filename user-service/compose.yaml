@@ -1,0 +1,39 @@
+name: foc-user-service
+
+services:
+  database:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-foc_user}
+      POSTGRES_USER: ${POSTGRES_USER:-foc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foc_user_dev}
+    ports:
+      - '${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - user-service-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - user-service-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  user-service-postgres-data:
+  user-service-redis-data:

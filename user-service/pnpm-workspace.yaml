@@ -1,0 +1,14 @@
+engineStrict: true
+saveExact: true
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  argon2: true
+  cpu-features: false
+  msgpackr-extract: false
+  prisma: true
+  protobufjs: false
+  ssh2: false
+  unrs-resolver: true
