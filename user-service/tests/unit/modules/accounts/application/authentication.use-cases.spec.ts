@@ -15,6 +15,7 @@ import type { ClockPort } from '../../../../../src/modules/accounts/application/
 import type { IdGeneratorPort } from '../../../../../src/modules/accounts/application/ports/id-generator.port.js';
 import type { PasswordVerifierPort } from '../../../../../src/modules/accounts/application/ports/password-verifier.port.js';
 import type { RefreshTokenPort } from '../../../../../src/modules/accounts/application/ports/refresh-token.port.js';
+import { ACCESS_TOKEN_LIFETIME_SECONDS } from '../../../../../src/modules/accounts/application/contracts/access-token.contract.js';
 import {
   REFRESH_SESSION_LIFETIME_MS,
   SessionTokenIssuer,
@@ -196,6 +197,31 @@ describe('authentication use cases', () => {
     expect(context.repository.createdSessions[0]).not.toHaveProperty(
       'refreshToken',
     );
+    expect(context.accessTokens.issueInputs).toEqual([
+      {
+        expiresAt: new Date(
+          NOW.getTime() + ACCESS_TOKEN_LIFETIME_SECONDS * 1000,
+        ),
+        isAdmin: false,
+        issuedAt: NOW,
+        sessionId: SESSION_ID,
+        userId: ACCOUNT.id,
+      },
+    ]);
+  });
+
+  it('issues an administrator access token from the current account state', async () => {
+    const context = createContext();
+    context.repository.account = { ...ACCOUNT, isAdmin: true };
+
+    await context.login.execute({
+      email: ACCOUNT.email,
+      password: 'Strong!Pass',
+    });
+
+    expect(context.accessTokens.issueInputs).toEqual([
+      expect.objectContaining({ isAdmin: true }),
+    ]);
   });
 
   it('performs dummy password verification for an unknown account', async () => {

@@ -35,6 +35,79 @@ Reusing a revoked refresh token revokes the account's remaining active sessions
 as a defensive response. Pending, suspended, and banned accounts cannot create
 or refresh sessions.
 
+### Cross-service access-token contract
+
+The access token is the stable authentication contract for synchronous calls to
+other backend services. Its JOSE header and JWT claims are:
+
+| Field | Required value | Meaning |
+| --- | --- | --- |
+| `alg` | `HS256` | The only accepted signing algorithm. |
+| `typ` | `JWT` | Token type. |
+| `iss` | `foc-user-service` | Issuing service. |
+| `aud` | `foc-api` | Intended backend API audience. |
+| `sub` | non-empty string | Current user's stable `userId`. |
+| `sid` | non-empty string | Current authentication `sessionId`. |
+| `isAdmin` | boolean | Current administrator status when the token is issued. |
+| `iat` | NumericDate | Issued-at time. |
+| `exp` | NumericDate | Expiry, exactly 15 minutes after `iat`. |
+
+The names and types in this table are part of the cross-service contract.
+Changing them requires coordinated updates to every token consumer. In
+particular, `isAdmin` is a JSON boolean, not the strings `"true"` or `"false"`.
+Refresh tokens are opaque User Service credentials and must never be accepted
+as bearer access tokens by another service.
+
+Another service can validate an access token independently with `jose` and the
+same deployment-provided signing secret:
+
+```ts
+import { jwtVerify } from 'jose';
+
+const { payload, protectedHeader } = await jwtVerify(
+  bearerToken,
+  new TextEncoder().encode(jwtAccessTokenSecret),
+  {
+    algorithms: ['HS256'],
+    audience: 'foc-api',
+    issuer: 'foc-user-service',
+  },
+);
+
+if (
+  protectedHeader.typ !== 'JWT' ||
+  typeof payload.sub !== 'string' ||
+  payload.sub.length === 0 ||
+  typeof payload.sid !== 'string' ||
+  payload.sid.length === 0 ||
+  typeof payload.isAdmin !== 'boolean'
+) {
+  throw new Error('Access token contains invalid claims.');
+}
+
+const principal = {
+  userId: payload.sub,
+  sessionId: payload.sid,
+  isAdmin: payload.isAdmin,
+};
+
+// Return 403 from an administrator-only endpoint when this is false.
+if (!principal.isAdmin) {
+  throw new Error('Administrator privileges required.');
+}
+```
+
+Consumers must return 401 for a missing, expired, incorrectly signed, or
+invalidly claimed token, and 403 when a valid principal lacks administrator
+privileges. Provide `JWT_ACCESS_TOKEN_SECRET` to verifier services through the
+deployment secret manager; never commit or log it.
+
+Independent verification deliberately avoids a User Service database query.
+Consequently, other services learn about logout, session revocation, promotion,
+or demotion when the existing access token expires, at most 15 minutes later.
+The User Service's own protected routes retain their stronger behavior below
+and re-check the session and current privilege in PostgreSQL on every request.
+
 Authenticated profile operations validate the access token and its backing
 PostgreSQL session on every request. `GET /api/accounts/me` returns the current
 account profile, and `PATCH /api/accounts/me/phone-number` changes the private

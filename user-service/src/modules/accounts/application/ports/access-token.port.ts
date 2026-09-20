@@ -1,6 +1,9 @@
 export interface AccessTokenClaims {
+  /** Stable JWT `isAdmin` claim. */
   isAdmin: boolean;
+  /** Stable JWT `sid` claim. */
   sessionId: string;
+  /** Stable JWT `sub` claim. */
   userId: string;
 }
 

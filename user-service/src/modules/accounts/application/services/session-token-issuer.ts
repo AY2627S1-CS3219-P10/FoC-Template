@@ -7,8 +7,9 @@ import type { AccessTokenPort } from '../ports/access-token.port.js';
 import type { ClockPort } from '../ports/clock.port.js';
 import type { IdGeneratorPort } from '../ports/id-generator.port.js';
 import type { RefreshTokenPort } from '../ports/refresh-token.port.js';
+import { ACCESS_TOKEN_LIFETIME_SECONDS } from '../contracts/access-token.contract.js';
 
-export const ACCESS_TOKEN_LIFETIME_SECONDS = 15 * 60;
+export { ACCESS_TOKEN_LIFETIME_SECONDS } from '../contracts/access-token.contract.js';
 export const REFRESH_SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface SessionTokenPair {

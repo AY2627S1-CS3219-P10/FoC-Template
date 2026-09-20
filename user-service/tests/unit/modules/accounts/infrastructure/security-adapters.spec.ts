@@ -1,5 +1,13 @@
 import { verify } from 'argon2';
+import { decodeProtectedHeader, jwtVerify, SignJWT } from 'jose';
 
+import {
+  ACCESS_TOKEN_ALGORITHM,
+  ACCESS_TOKEN_AUDIENCE,
+  ACCESS_TOKEN_ISSUER,
+  ACCESS_TOKEN_LIFETIME_SECONDS,
+  ACCESS_TOKEN_TYPE,
+} from '../../../../../src/modules/accounts/application/contracts/access-token.contract.js';
 import { Argon2PasswordHasher } from '../../../../../src/modules/accounts/infrastructure/security/argon2-password-hasher.js';
 import { HmacVerificationCodeHasher } from '../../../../../src/modules/accounts/infrastructure/security/hmac-verification-code-hasher.js';
 import { JoseAccessToken } from '../../../../../src/modules/accounts/infrastructure/security/jose-access-token.js';
@@ -38,25 +46,80 @@ describe('account security adapters', () => {
   });
 
   it('issues and verifies scoped JWT access-token claims', async () => {
-    const accessTokens = new JoseAccessToken(
-      'test-jwt-access-token-secret-32-characters',
-    );
+    const secret = 'test-jwt-access-token-secret-32-characters';
+    const key = new TextEncoder().encode(secret);
+    const accessTokens = new JoseAccessToken(secret);
     const now = new Date();
     const token = await accessTokens.issue({
-      expiresAt: new Date(now.getTime() + 60_000),
-      isAdmin: false,
+      expiresAt: new Date(now.getTime() + ACCESS_TOKEN_LIFETIME_SECONDS * 1000),
+      isAdmin: true,
       issuedAt: now,
       sessionId: 'a23394c1-c131-4b77-bf0d-c39bc11bf81e',
       userId: '4a84f480-b1cb-4b81-b632-8bb49034b9e7',
     });
 
     await expect(accessTokens.verify(token)).resolves.toEqual({
-      isAdmin: false,
+      isAdmin: true,
       sessionId: 'a23394c1-c131-4b77-bf0d-c39bc11bf81e',
       userId: '4a84f480-b1cb-4b81-b632-8bb49034b9e7',
     });
+    expect(decodeProtectedHeader(token)).toEqual({
+      alg: ACCESS_TOKEN_ALGORITHM,
+      typ: ACCESS_TOKEN_TYPE,
+    });
+
+    const independentlyVerified = await jwtVerify(token, key, {
+      algorithms: [ACCESS_TOKEN_ALGORITHM],
+      audience: ACCESS_TOKEN_AUDIENCE,
+      issuer: ACCESS_TOKEN_ISSUER,
+    });
+    expect(independentlyVerified.payload).toMatchObject({
+      aud: ACCESS_TOKEN_AUDIENCE,
+      isAdmin: true,
+      iss: ACCESS_TOKEN_ISSUER,
+      sid: 'a23394c1-c131-4b77-bf0d-c39bc11bf81e',
+      sub: '4a84f480-b1cb-4b81-b632-8bb49034b9e7',
+    });
+    expect(
+      independentlyVerified.payload.exp! - independentlyVerified.payload.iat!,
+    ).toBe(ACCESS_TOKEN_LIFETIME_SECONDS);
     await expect(accessTokens.verify(`${token}tampered`)).rejects.toThrow();
   });
+
+  it.each([
+    {
+      claims: { sid: 'a23394c1-c131-4b77-bf0d-c39bc11bf81e' },
+      description: 'missing',
+    },
+    {
+      claims: {
+        isAdmin: 'true',
+        sid: 'a23394c1-c131-4b77-bf0d-c39bc11bf81e',
+      },
+      description: 'non-boolean',
+    },
+  ] as const)(
+    'rejects a token with $description isAdmin claims',
+    async ({ claims }) => {
+      const secret = 'test-jwt-access-token-secret-32-characters';
+      const now = Math.floor(Date.now() / 1000);
+      const token = await new SignJWT(claims)
+        .setProtectedHeader({
+          alg: ACCESS_TOKEN_ALGORITHM,
+          typ: ACCESS_TOKEN_TYPE,
+        })
+        .setSubject('4a84f480-b1cb-4b81-b632-8bb49034b9e7')
+        .setIssuer(ACCESS_TOKEN_ISSUER)
+        .setAudience(ACCESS_TOKEN_AUDIENCE)
+        .setIssuedAt(now)
+        .setExpirationTime(now + ACCESS_TOKEN_LIFETIME_SECONDS)
+        .sign(new TextEncoder().encode(secret));
+
+      await expect(new JoseAccessToken(secret).verify(token)).rejects.toThrow(
+        'Access token contains invalid claims.',
+      );
+    },
+  );
 
   it('generates different RFC 4122 version 4 UUIDs', () => {
     const generator = new UuidGenerator();
