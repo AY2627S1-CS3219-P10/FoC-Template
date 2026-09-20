@@ -21,8 +21,52 @@ services:
 
   credit-service:
     build:
-      context: ./credit-service
+      context: .
+      dockerfile: credit-service/Dockerfile
+    environment:
+      DATABASE_URL: ${CREDIT_DATABASE_URL:-postgresql://foc_credit:local_credit_password@credit-db:5432/foc_credit}
+      CREDIT_INITIAL_BALANCE: ${CREDIT_INITIAL_BALANCE:-100}
+      CREDIT_TRANSACTION_RETRIES: ${CREDIT_TRANSACTION_RETRIES:-5}
+      CREDIT_INTERNAL_API_TOKEN: ${CREDIT_INTERNAL_API_TOKEN:?CREDIT_INTERNAL_API_TOKEN must be set}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-20}
+      DATABASE_CONNECTION_TIMEOUT_MS: ${DATABASE_CONNECTION_TIMEOUT_MS:-5000}
+      DATABASE_IDLE_TIMEOUT_MS: ${DATABASE_IDLE_TIMEOUT_MS:-30000}
+      DATABASE_STARTUP_TIMEOUT_SECONDS: ${DATABASE_STARTUP_TIMEOUT_SECONDS:-55}
+      DATABASE_RETRY_INTERVAL_SECONDS: ${DATABASE_RETRY_INTERVAL_SECONDS:-2}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: 3003
+    ports:
+      - "${CREDIT_SERVICE_PORT:-3003}:3003"
+    depends_on:
+      credit-db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3003/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+
+  credit-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${CREDIT_DATABASE_NAME:-foc_credit}
+      POSTGRES_USER: ${CREDIT_DATABASE_USER:-foc_credit}
+      POSTGRES_PASSWORD: ${CREDIT_DATABASE_PASSWORD:-local_credit_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - credit-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 networks:
   default:
     name: foc-network
+
+volumes:
+  credit-db-data:

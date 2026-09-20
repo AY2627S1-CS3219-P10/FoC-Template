@@ -1,0 +1,12 @@
+packages:
+  - "credit-service"
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/engines': true
+  '@scarf/scarf': true
+  cpu-features: true
+  prisma: true
+  protobufjs: true
+  ssh2: true
+  unrs-resolver: true
