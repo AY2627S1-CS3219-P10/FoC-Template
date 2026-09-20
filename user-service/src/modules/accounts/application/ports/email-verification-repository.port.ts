@@ -13,7 +13,15 @@ export interface VerifyEmailInput {
   now: Date;
 }
 
+export interface PendingVerificationAccount {
+  email: string;
+  id: string;
+}
+
 export interface EmailVerificationRepositoryPort {
+  findPendingAccountByEmail(
+    email: string,
+  ): Promise<PendingVerificationAccount | null>;
   issueCode(record: IssueEmailVerificationCodeRecord): Promise<boolean>;
   verifyAndActivate(input: VerifyEmailInput): Promise<boolean>;
 }

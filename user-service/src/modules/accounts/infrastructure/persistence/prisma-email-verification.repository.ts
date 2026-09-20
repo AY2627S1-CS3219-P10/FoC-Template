@@ -11,6 +11,18 @@ import {
 export class PrismaEmailVerificationRepository implements EmailVerificationRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
 
+  findPendingAccountByEmail(
+    email: string,
+  ): Promise<{ email: string; id: string } | null> {
+    return this.prisma.user.findFirst({
+      select: { email: true, id: true },
+      where: {
+        email,
+        status: UserStatus.PENDING_VERIFICATION,
+      },
+    });
+  }
+
   issueCode(record: IssueEmailVerificationCodeRecord): Promise<boolean> {
     return this.prisma.$transaction(async (transaction) => {
       const account = await transaction.user.findUnique({

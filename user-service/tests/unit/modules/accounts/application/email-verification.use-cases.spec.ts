@@ -53,6 +53,10 @@ class StubEmailVerificationRepository implements EmailVerificationRepositoryPort
   verified = true;
   verificationInputs: RepositoryVerifyEmailInput[] = [];
 
+  findPendingAccountByEmail(): Promise<null> {
+    return Promise.resolve(null);
+  }
+
   issueCode(record: IssueEmailVerificationCodeRecord): Promise<boolean> {
     this.issuedRecords.push(record);
     return Promise.resolve(this.issued);

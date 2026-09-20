@@ -6,10 +6,12 @@ import type { EnvironmentVariables } from '../../platform/config/environment.sch
 import { DatabaseModule } from '../../platform/database/database.module.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { IssueEmailVerificationCodeUseCase } from './application/use-cases/issue-email-verification-code.use-case.js';
+import { ResendVerificationEmailUseCase } from './application/use-cases/resend-verification-email.use-case.js';
 import { RegisterAccountUseCase } from './application/use-cases/register-account.use-case.js';
 import { RegisterWithEmailVerificationUseCase } from './application/use-cases/register-with-email-verification.use-case.js';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case.js';
 import { SmtpVerificationEmailSender } from './infrastructure/email/smtp-verification-email.sender.js';
+import { RedisVerificationEmailResendRateLimiter } from './infrastructure/messaging/redis-verification-email-resend-rate-limiter.js';
 import { BullMqVerificationEmailDelivery } from './infrastructure/messaging/verification-email.queue.js';
 import {
   VerificationEmailProcessor,
@@ -117,6 +119,16 @@ import { AccountsController } from './presentation/http/accounts.controller.js';
     },
     {
       inject: [ConfigService],
+      provide: RedisVerificationEmailResendRateLimiter,
+      useFactory: (
+        config: ConfigService<EnvironmentVariables, true>,
+      ): RedisVerificationEmailResendRateLimiter =>
+        new RedisVerificationEmailResendRateLimiter(
+          config.get('REDIS_URL', { infer: true }),
+        ),
+    },
+    {
+      inject: [ConfigService],
       provide: SmtpVerificationEmailSender,
       useFactory: (
         config: ConfigService<EnvironmentVariables, true>,
@@ -169,6 +181,27 @@ import { AccountsController } from './presentation/http/accounts.controller.js';
           emailDelivery,
           issueEmailVerificationCode,
           registerAccount,
+        }),
+    },
+    {
+      inject: [
+        PrismaEmailVerificationRepository,
+        IssueEmailVerificationCodeUseCase,
+        BullMqVerificationEmailDelivery,
+        RedisVerificationEmailResendRateLimiter,
+      ],
+      provide: ResendVerificationEmailUseCase,
+      useFactory: (
+        repository: PrismaEmailVerificationRepository,
+        issueEmailVerificationCode: IssueEmailVerificationCodeUseCase,
+        emailDelivery: BullMqVerificationEmailDelivery,
+        rateLimiter: RedisVerificationEmailResendRateLimiter,
+      ): ResendVerificationEmailUseCase =>
+        new ResendVerificationEmailUseCase({
+          emailDelivery,
+          issueEmailVerificationCode,
+          rateLimiter,
+          repository,
         }),
     },
     {

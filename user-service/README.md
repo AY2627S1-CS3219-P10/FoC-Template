@@ -22,14 +22,21 @@ and pending status. BullMQ stores delivery jobs in Redis, and a service-local
 worker delivers the email through a provider-neutral SMTP adapter. Failed SMTP
 deliveries are retried up to five times with exponential backoff.
 `POST /api/accounts/verify-email` consumes a six-digit code and atomically
-activates the account. Resending verification email, login, and token handling
-remain deferred to later commits.
+activates the account. `POST /api/accounts/verify-email/resend` issues and queues
+a replacement code for a pending account. Its response does not reveal whether
+an account exists or is already verified. Login and token handling remain
+deferred to later commits.
 
 Verification codes expire after 10 minutes, allow five failed attempts, and are
 stored only as HMAC-SHA-256 hashes. Issuing a replacement invalidates the prior
 unused code. The partial unique index enforcing one unused code per user can be
 rolled back by dropping
 `email_verification_codes_one_unused_per_user_key`.
+
+Verification-email resend is limited atomically in Redis to one request per
+email address per 60 seconds and five requests per hour. Email addresses are
+SHA-256 hashed before they are used in Redis keys. Redis remains temporary
+coordination state; PostgreSQL remains authoritative for account eligibility.
 
 ## Architecture
 
@@ -109,7 +116,6 @@ committed.
 
 ## Deferred milestones
 
-1. Verification-email resend with rate limiting
-2. Login, JWT access tokens, and rotating refresh tokens
-3. Profile and credential updates
-4. Administrator authorization and initial account seeding
+1. Login, JWT access tokens, and rotating refresh tokens
+2. Profile and credential updates
+3. Administrator authorization and initial account seeding

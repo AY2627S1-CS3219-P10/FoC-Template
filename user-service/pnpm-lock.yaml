@@ -281,6 +281,9 @@ importers:
       '@testcontainers/postgresql':
         specifier: 12.1.0
         version: 12.1.0(supports-color@8.1.1)
+      '@testcontainers/redis':
+        specifier: 12.1.0
+        version: 12.1.0(supports-color@8.1.1)
       '@types/jest':
         specifier: 30.0.0
         version: 30.0.0
@@ -1418,6 +1421,9 @@ packages:
 
   '@testcontainers/postgresql@12.1.0':
     resolution: {integrity: sha512-Pjf2VSVNirEPfz36nidyrVAnZvc2YhajOznY4VgyEsvfTd5qiMNOuPq96drREvxAUtXl5SFLX7vXj7sSq4aTcA==}
+
+  '@testcontainers/redis@12.1.0':
+    resolution: {integrity: sha512-WRiS1Lhc+e/DHXDnCmMZtm8Wv64zYlRGNV04rvtn8kxIS2aVz5lgsP+Su/cfBzHJ0/vwdVKW+YJ3nUrXYbQxqw==}
 
   '@tokenizer/inflate@0.4.1':
     resolution: {integrity: sha512-2mAv+8pkG6GIZiF1kNg1jAjh27IDxEPKwdGul3snfztFerfPGI1LjDezZp3i7BElXompqEtPmoPx6c2wgtWsOA==}
@@ -5119,6 +5125,15 @@ snapshots:
   '@standard-schema/spec@1.1.0': {}
 
   '@testcontainers/postgresql@12.1.0(supports-color@8.1.1)':
+    dependencies:
+      testcontainers: 12.1.0(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
+      - supports-color
+
+  '@testcontainers/redis@12.1.0(supports-color@8.1.1)':
     dependencies:
       testcontainers: 12.1.0(supports-color@8.1.1)
     transitivePeerDependencies:

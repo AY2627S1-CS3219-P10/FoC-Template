@@ -92,6 +92,9 @@ describe('PrismaAccountRepository', () => {
       status: 'PENDING_VERIFICATION',
       username: 'Arthur3219',
     });
+    await expect(
+      verificationRepository.findPendingAccountByEmail(ACCOUNT.email),
+    ).resolves.toEqual({ email: ACCOUNT.email, id: ACCOUNT.id });
   });
 
   it('maps a database uniqueness race to an application conflict', async () => {
@@ -166,6 +169,9 @@ describe('PrismaAccountRepository', () => {
       emailVerifiedAt: verificationTime,
       status: 'ACTIVE',
     });
+    await expect(
+      verificationRepository.findPendingAccountByEmail(ACCOUNT.email),
+    ).resolves.toBeNull();
     await expect(
       verificationRepository.verifyAndActivate({
         candidateCodeHash: 'valid-code-hash',

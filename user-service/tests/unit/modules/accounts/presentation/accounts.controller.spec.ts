@@ -7,6 +7,9 @@ import {
 
 import { AccountAlreadyExistsError } from '../../../../../src/modules/accounts/application/errors/account-already-exists.error.js';
 import { EmailVerificationError } from '../../../../../src/modules/accounts/application/errors/email-verification.error.js';
+import { VerificationEmailRateLimitError } from '../../../../../src/modules/accounts/application/errors/verification-email-rate-limit.error.js';
+import type { ResendVerificationEmailInput } from '../../../../../src/modules/accounts/application/use-cases/resend-verification-email.use-case.js';
+import { ResendVerificationEmailUseCase } from '../../../../../src/modules/accounts/application/use-cases/resend-verification-email.use-case.js';
 import type {
   RegisterAccountInput,
   RegisterAccountResult,
@@ -65,13 +68,30 @@ class StubVerifyEmailUseCase {
   }
 }
 
+class StubResendVerificationEmailUseCase {
+  readonly inputs: ResendVerificationEmailInput[] = [];
+  error?: Error;
+
+  execute(input: ResendVerificationEmailInput): Promise<void> {
+    this.inputs.push(input);
+
+    if (this.error) {
+      return Promise.reject(this.error);
+    }
+
+    return Promise.resolve();
+  }
+}
+
 describe('AccountsController', () => {
   let app: NestFastifyApplication;
   let registerUseCase: StubRegisterAccountUseCase;
+  let resendVerificationEmailUseCase: StubResendVerificationEmailUseCase;
   let verifyEmailUseCase: StubVerifyEmailUseCase;
 
   beforeEach(async () => {
     registerUseCase = new StubRegisterAccountUseCase();
+    resendVerificationEmailUseCase = new StubResendVerificationEmailUseCase();
     verifyEmailUseCase = new StubVerifyEmailUseCase();
     const moduleRef = await Test.createTestingModule({
       controllers: [AccountsController],
@@ -79,6 +99,10 @@ describe('AccountsController', () => {
         {
           provide: RegisterWithEmailVerificationUseCase,
           useValue: registerUseCase,
+        },
+        {
+          provide: ResendVerificationEmailUseCase,
+          useValue: resendVerificationEmailUseCase,
         },
         {
           provide: VerifyEmailUseCase,
@@ -178,6 +202,54 @@ describe('AccountsController', () => {
     expect(response.json()).toHaveProperty(
       'paths./api/accounts/verify-email.post.responses.204',
     );
+    expect(response.json()).toHaveProperty(
+      'paths./api/accounts/verify-email/resend.post.responses.204',
+    );
+  });
+
+  it('accepts a verification email resend without exposing account state', async () => {
+    const request = { email: 'student@u.nus.edu' };
+
+    const response = await app.inject({
+      method: 'POST',
+      payload: request,
+      url: '/api/accounts/verify-email/resend',
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.body).toBe('');
+    expect(resendVerificationEmailUseCase.inputs).toEqual([request]);
+  });
+
+  it('maps a resend rate limit to HTTP 429', async () => {
+    resendVerificationEmailUseCase.error = new VerificationEmailRateLimitError(
+      42,
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      payload: { email: 'student@u.nus.edu' },
+      url: '/api/accounts/verify-email/resend',
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('42');
+    expect(response.json()).toMatchObject({
+      code: 'VERIFICATION_EMAIL_RESEND_RATE_LIMITED',
+      field: 'email',
+      retryAfterSeconds: 42,
+    });
+  });
+
+  it('rejects a malformed resend request before invoking the use case', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      payload: {},
+      url: '/api/accounts/verify-email/resend',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(resendVerificationEmailUseCase.inputs).toHaveLength(0);
   });
 
   it('verifies an email address without returning private data', async () => {
