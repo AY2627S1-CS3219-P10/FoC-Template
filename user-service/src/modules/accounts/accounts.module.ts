@@ -5,7 +5,11 @@ import nodemailer from 'nodemailer';
 import type { EnvironmentVariables } from '../../platform/config/environment.schema.js';
 import { DatabaseModule } from '../../platform/database/database.module.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
+import { SessionTokenIssuer } from './application/services/session-token-issuer.js';
 import { IssueEmailVerificationCodeUseCase } from './application/use-cases/issue-email-verification-code.use-case.js';
+import { LoginUseCase } from './application/use-cases/login.use-case.js';
+import { LogoutUseCase } from './application/use-cases/logout.use-case.js';
+import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case.js';
 import { ResendVerificationEmailUseCase } from './application/use-cases/resend-verification-email.use-case.js';
 import { RegisterAccountUseCase } from './application/use-cases/register-account.use-case.js';
 import { RegisterWithEmailVerificationUseCase } from './application/use-cases/register-with-email-verification.use-case.js';
@@ -18,16 +22,20 @@ import {
   VerificationEmailWorker,
 } from './infrastructure/messaging/verification-email.worker.js';
 import { PrismaAccountRepository } from './infrastructure/persistence/prisma-account.repository.js';
+import { PrismaAuthenticationRepository } from './infrastructure/persistence/prisma-authentication.repository.js';
 import { PrismaEmailVerificationRepository } from './infrastructure/persistence/prisma-email-verification.repository.js';
 import { Argon2PasswordHasher } from './infrastructure/security/argon2-password-hasher.js';
 import { HmacVerificationCodeHasher } from './infrastructure/security/hmac-verification-code-hasher.js';
+import { JoseAccessToken } from './infrastructure/security/jose-access-token.js';
+import { SecureRefreshToken } from './infrastructure/security/secure-refresh-token.js';
 import { SixDigitCodeGenerator } from './infrastructure/security/six-digit-code-generator.js';
 import { UuidGenerator } from './infrastructure/security/uuid-generator.js';
 import { SystemClock } from './infrastructure/system-clock.js';
 import { AccountsController } from './presentation/http/accounts.controller.js';
+import { AuthenticationController } from './presentation/http/authentication.controller.js';
 
 @Module({
-  controllers: [AccountsController],
+  controllers: [AccountsController, AuthenticationController],
   imports: [DatabaseModule],
   providers: [
     {
@@ -51,6 +59,12 @@ import { AccountsController } from './presentation/http/accounts.controller.js';
         new PrismaEmailVerificationRepository(prisma),
     },
     {
+      inject: [PrismaService],
+      provide: PrismaAuthenticationRepository,
+      useFactory: (prisma: PrismaService): PrismaAuthenticationRepository =>
+        new PrismaAuthenticationRepository(prisma),
+    },
+    {
       inject: [ConfigService],
       provide: HmacVerificationCodeHasher,
       useFactory: (
@@ -67,6 +81,85 @@ import { AccountsController } from './presentation/http/accounts.controller.js';
     {
       provide: SystemClock,
       useFactory: (): SystemClock => new SystemClock(),
+    },
+    {
+      provide: SecureRefreshToken,
+      useFactory: (): SecureRefreshToken => new SecureRefreshToken(),
+    },
+    {
+      inject: [ConfigService],
+      provide: JoseAccessToken,
+      useFactory: (
+        config: ConfigService<EnvironmentVariables, true>,
+      ): JoseAccessToken =>
+        new JoseAccessToken(
+          config.get('JWT_ACCESS_TOKEN_SECRET', { infer: true }),
+        ),
+    },
+    {
+      inject: [JoseAccessToken, SystemClock, UuidGenerator, SecureRefreshToken],
+      provide: SessionTokenIssuer,
+      useFactory: (
+        accessTokens: JoseAccessToken,
+        clock: SystemClock,
+        idGenerator: UuidGenerator,
+        refreshTokens: SecureRefreshToken,
+      ): SessionTokenIssuer =>
+        new SessionTokenIssuer({
+          accessTokens,
+          clock,
+          idGenerator,
+          refreshTokens,
+        }),
+    },
+    {
+      inject: [
+        PrismaAuthenticationRepository,
+        Argon2PasswordHasher,
+        SessionTokenIssuer,
+      ],
+      provide: LoginUseCase,
+      useFactory: (
+        repository: PrismaAuthenticationRepository,
+        passwordVerifier: Argon2PasswordHasher,
+        sessionTokenIssuer: SessionTokenIssuer,
+      ): LoginUseCase =>
+        new LoginUseCase({
+          passwordVerifier,
+          repository,
+          sessionTokenIssuer,
+        }),
+    },
+    {
+      inject: [SystemClock, SecureRefreshToken, PrismaAuthenticationRepository],
+      provide: LogoutUseCase,
+      useFactory: (
+        clock: SystemClock,
+        refreshTokens: SecureRefreshToken,
+        repository: PrismaAuthenticationRepository,
+      ): LogoutUseCase =>
+        new LogoutUseCase({ clock, refreshTokens, repository }),
+    },
+    {
+      inject: [
+        SystemClock,
+        SecureRefreshToken,
+        PrismaAuthenticationRepository,
+        SessionTokenIssuer,
+      ],
+      provide: RefreshSessionUseCase,
+      useFactory: (
+        clock: SystemClock,
+        refreshTokens: SecureRefreshToken,
+        repository: PrismaAuthenticationRepository,
+        sessionTokenIssuer: SessionTokenIssuer,
+      ): RefreshSessionUseCase =>
+        new RefreshSessionUseCase({
+          clock,
+          refreshTokens,
+          repository,
+          sessionTokenIssuer,
+        }),
     },
     {
       inject: [PrismaAccountRepository, Argon2PasswordHasher, UuidGenerator],

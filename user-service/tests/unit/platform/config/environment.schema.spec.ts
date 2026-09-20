@@ -5,6 +5,7 @@ const VALID_ENVIRONMENT = {
     'postgresql://foc_user:foc_user_test@localhost:5433/foc_user_test?schema=public',
   EMAIL_VERIFICATION_CODE_SECRET:
     'test-email-verification-secret-32-characters',
+  JWT_ACCESS_TOKEN_SECRET: 'test-jwt-access-token-secret-32-characters',
   REDIS_URL: 'redis://localhost:6379',
   SMTP_FROM: 'no-reply@example.com',
   SMTP_HOST: 'smtp.example.test',
@@ -48,5 +49,14 @@ describe('environmentSchema', () => {
     });
 
     expect(error?.message).toContain('EMAIL_VERIFICATION_CODE_SECRET');
+  });
+
+  it('rejects a short JWT access-token secret', () => {
+    const { error } = environmentSchema.validate({
+      ...VALID_ENVIRONMENT,
+      JWT_ACCESS_TOKEN_SECRET: 'too-short',
+    });
+
+    expect(error?.message).toContain('JWT_ACCESS_TOKEN_SECRET');
   });
 });

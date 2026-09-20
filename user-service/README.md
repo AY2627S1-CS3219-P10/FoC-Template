@@ -24,8 +24,16 @@ deliveries are retried up to five times with exponential backoff.
 `POST /api/accounts/verify-email` consumes a six-digit code and atomically
 activates the account. `POST /api/accounts/verify-email/resend` issues and queues
 a replacement code for a pending account. Its response does not reveal whether
-an account exists or is already verified. Login and token handling remain
-deferred to later commits.
+an account exists or is already verified.
+
+`POST /api/auth/login` authenticates an active account and creates a session.
+`POST /api/auth/refresh` atomically rotates its single-use refresh token, and
+`POST /api/auth/logout` revokes it without revealing whether the token existed.
+Access tokens are HS256 JWTs valid for 15 minutes. Refresh sessions are valid
+for 30 days, while only SHA-256 refresh-token hashes are stored in PostgreSQL.
+Reusing a revoked refresh token revokes the account's remaining active sessions
+as a defensive response. Pending, suspended, and banned accounts cannot create
+or refresh sessions.
 
 Verification codes expire after 10 minutes, allow five failed attempts, and are
 stored only as HMAC-SHA-256 hashes. Issuing a replacement invalidates the prior
@@ -81,8 +89,8 @@ corepack pnpm build
 corepack pnpm test:integration
 ```
 
-The integration suite starts an isolated PostgreSQL 18 container and therefore
-requires a running Docker-compatible container runtime.
+The integration suite starts isolated PostgreSQL 18 and Redis 8 containers and
+therefore requires a running Docker-compatible container runtime.
 
 When the service is running, its OpenAPI UI is available at `/api/docs`.
 
@@ -107,15 +115,15 @@ corepack pnpm db:studio
 ```
 
 The application uses `DATABASE_URL`, `EMAIL_VERIFICATION_CODE_SECRET`,
-`REDIS_URL`, and the `SMTP_*` settings shown in `.env.example`. Secrets must not
-be committed. The verification code is placed in Redis only as short-lived job
-payload and successful or exhausted jobs are removed. Prisma migrations live
-under `prisma/migrations/`. The generated client is written to
+`JWT_ACCESS_TOKEN_SECRET`, `REDIS_URL`, and the `SMTP_*` settings shown in
+`.env.example`. Secrets must not be committed or reused between purposes. The
+verification code is placed in Redis only as short-lived job payload and
+successful or exhausted jobs are removed. Prisma migrations live under
+`prisma/migrations/`. The generated client is written to
 `src/generated/prisma/`, regenerated during checks and builds, and is not
 committed.
 
 ## Deferred milestones
 
-1. Login, JWT access tokens, and rotating refresh tokens
-2. Profile and credential updates
-3. Administrator authorization and initial account seeding
+1. Profile and credential updates
+2. Administrator authorization and initial account seeding

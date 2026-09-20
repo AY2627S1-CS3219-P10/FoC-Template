@@ -3,6 +3,7 @@ import Joi from 'joi';
 export interface EnvironmentVariables {
   DATABASE_URL: string;
   EMAIL_VERIFICATION_CODE_SECRET: string;
+  JWT_ACCESS_TOKEN_SECRET: string;
   NODE_ENV: 'development' | 'test' | 'production';
   PORT: number;
   REDIS_URL: string;
@@ -19,6 +20,7 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
   EMAIL_VERIFICATION_CODE_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_TOKEN_SECRET: Joi.string().min(32).required(),
   NODE_ENV: Joi.string()
     .valid('development', 'test', 'production')
     .default('development'),
