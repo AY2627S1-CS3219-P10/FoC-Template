@@ -1,4 +1,6 @@
-export type SupplierCategory = 'FOOD' | 'FOOD_COFFEE' | 'PRINTING' | 'SHOPPING';
+import type { SupplierCategory } from './supplier-input.js';
+
+export type { SupplierCategory } from './supplier-input.js';
 
 export interface SupplierLocationCatalogEntry {
   building: string;

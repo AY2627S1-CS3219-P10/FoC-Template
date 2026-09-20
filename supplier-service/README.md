@@ -16,13 +16,34 @@ case-insensitive `supplier@location` string for future user input. For example,
 `NUS Co-op@Central Library`. The label is intentionally a catalog attribute,
 not an order-service foreign key or a user-entered free-text source of truth.
 
-The first API slice is implemented as `GET /api/suppliers`. It returns active
-suppliers that have at least one active pickup location, with inactive records
-filtered by the repository. Both students and administrators may use this
-read-only operation.
+The read API is implemented as `GET /api/suppliers`. It returns active suppliers
+that have at least one active pickup location, with inactive records filtered by
+the repository. Both students and administrators may use this operation.
 
-Create, update, deactivate/reactivate, and administrator catalog operations are
-not implemented yet.
+Administrators may create a new supplier and its first pickup location with
+`POST /api/admin/suppliers`. The supplier and location are created atomically;
+the service derives the `supplier@location` label and overnight-hours flag.
+Duplicate supplier names return HTTP 409. Update, deactivate/reactivate, delete,
+and add-location operations are not implemented yet.
+
+Example request:
+
+```json
+{
+  "name": "Starbucks",
+  "category": "FOOD_COFFEE",
+  "location": {
+    "building": "UTown",
+    "floor": 1,
+    "locationDescription": "Near the main entrance",
+    "latitude": 1.3048,
+    "longitude": 103.7739,
+    "opensAt": "08:00",
+    "closesAt": "20:00",
+    "imageUrl": "https://example.com/starbucks-utown.jpg"
+  }
+}
+```
 
 ## Authentication and RBAC contract
 
@@ -40,8 +61,8 @@ and expiry. The token payload must include:
 ```
 
 Supplier Service converts `isAdmin` into its own `STUDENT` or `ADMIN` role and
-enforces route permissions locally. The current read endpoint permits both
-roles. Future catalog mutation endpoints will require `ADMIN`.
+enforces route permissions locally. The read endpoint permits both roles, while
+supplier creation requires `ADMIN`.
 
 The User Service and Supplier Service must use the same signing secret and
 issuer, while the access token audience must include `foc-supplier-service`.

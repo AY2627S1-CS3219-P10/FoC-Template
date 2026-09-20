@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 
+import { AdminSuppliersController } from '../api/http/admin-suppliers.controller.js';
 import { SuppliersController } from '../api/http/suppliers.controller.js';
+import { CreateSupplierUseCase } from '../application/use-cases/create-supplier.use-case.js';
 import { ListSuppliersUseCase } from '../application/use-cases/list-suppliers.use-case.js';
 import { PrismaSupplierCatalogRepository } from '../infrastructure/persistence/prisma-supplier-catalog.repository.js';
 import { AuthModule } from '../platform/auth/auth.module.js';
@@ -8,7 +10,7 @@ import { DatabaseModule } from '../platform/database/database.module.js';
 import { PrismaService } from '../platform/database/prisma.service.js';
 
 @Module({
-  controllers: [SuppliersController],
+  controllers: [AdminSuppliersController, SuppliersController],
   imports: [AuthModule, DatabaseModule],
   providers: [
     {
@@ -16,6 +18,13 @@ import { PrismaService } from '../platform/database/prisma.service.js';
       provide: PrismaSupplierCatalogRepository,
       useFactory: (prisma: PrismaService): PrismaSupplierCatalogRepository =>
         new PrismaSupplierCatalogRepository(prisma),
+    },
+    {
+      inject: [PrismaSupplierCatalogRepository],
+      provide: CreateSupplierUseCase,
+      useFactory: (
+        repository: PrismaSupplierCatalogRepository,
+      ): CreateSupplierUseCase => new CreateSupplierUseCase(repository),
     },
     {
       inject: [PrismaSupplierCatalogRepository],

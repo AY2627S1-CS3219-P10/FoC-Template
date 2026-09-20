@@ -1,6 +1,15 @@
 import type { SupplierCatalogRepositoryPort } from '../../application/ports/supplier-catalog.repository.port.js';
+import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
+import type {
+  CreateSupplierRecord,
+  SupplierManagementRepositoryPort,
+} from '../../application/ports/supplier-management.repository.port.js';
 import type { SupplierCatalogEntry } from '../../domain/supplier-catalog.js';
-import type { PrismaClient } from '../../generated/prisma/client.js';
+import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
+
+type SupplierWithLocations = Prisma.SupplierGetPayload<{
+  include: { locations: true };
+}>;
 
 const ACTIVE_CATALOG_QUERY = {
   include: {
@@ -16,13 +25,53 @@ const ACTIVE_CATALOG_QUERY = {
   },
 };
 
-export class PrismaSupplierCatalogRepository implements SupplierCatalogRepositoryPort {
+export class PrismaSupplierCatalogRepository
+  implements SupplierCatalogRepositoryPort, SupplierManagementRepositoryPort
+{
   constructor(private readonly prisma: Pick<PrismaClient, 'supplier'>) {}
 
   async findActiveSuppliers(): Promise<SupplierCatalogEntry[]> {
     const suppliers = await this.prisma.supplier.findMany(ACTIVE_CATALOG_QUERY);
 
-    return suppliers.map((supplier) => ({
+    return suppliers.map((supplier) => this.mapSupplier(supplier));
+  }
+
+  async createSupplier(
+    record: CreateSupplierRecord,
+  ): Promise<SupplierCatalogEntry> {
+    try {
+      const supplier = await this.prisma.supplier.create({
+        data: {
+          category: record.category,
+          locations: {
+            create: record.location,
+          },
+          name: record.name,
+        },
+        include: { locations: true },
+      });
+
+      return this.mapSupplier(supplier);
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const target = JSON.stringify(error.meta?.target ?? '').toLowerCase();
+
+        throw new SupplierAlreadyExistsError(
+          target.includes('supplier_at_location')
+            ? 'supplierAtLocation'
+            : 'name',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private mapSupplier(supplier: SupplierWithLocations): SupplierCatalogEntry {
+    return {
       category: supplier.category,
       id: supplier.id,
       locations: supplier.locations.map((location) => ({
@@ -39,7 +88,7 @@ export class PrismaSupplierCatalogRepository implements SupplierCatalogRepositor
         supplierAtLocation: location.supplierAtLocation,
       })),
       name: supplier.name,
-    }));
+    };
   }
 
   private formatTime(value: Date): string {
