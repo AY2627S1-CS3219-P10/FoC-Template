@@ -5,6 +5,7 @@ const VALID_ENVIRONMENT = {
     'postgresql://foc_user:foc_user_test@localhost:5433/foc_user_test?schema=public',
   EMAIL_VERIFICATION_CODE_SECRET:
     'test-email-verification-secret-32-characters',
+  FRONTEND_ORIGIN: 'http://localhost:3000',
   JWT_ACCESS_TOKEN_SECRET: 'test-jwt-access-token-secret-32-characters',
   REDIS_URL: 'redis://localhost:6379',
   SMTP_FROM: 'no-reply@example.com',
@@ -59,4 +60,16 @@ describe('environmentSchema', () => {
 
     expect(error?.message).toContain('JWT_ACCESS_TOKEN_SECRET');
   });
+
+  it.each(['*', 'https://example.com/path', 'javascript:alert(1)'])(
+    'rejects invalid or non-origin frontend value %s',
+    (frontendOrigin) => {
+      const { error } = environmentSchema.validate({
+        ...VALID_ENVIRONMENT,
+        FRONTEND_ORIGIN: frontendOrigin,
+      });
+
+      expect(error?.message).toContain('FRONTEND_ORIGIN');
+    },
+  );
 });

@@ -9,6 +9,7 @@ import { SessionTokenIssuer } from './application/services/session-token-issuer.
 import { AuthenticateAccessTokenUseCase } from './application/use-cases/authenticate-access-token.use-case.js';
 import { ChangeAdministratorPrivilegeUseCase } from './application/use-cases/change-administrator-privilege.use-case.js';
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case.js';
+import { FindAdministratorAccountsUseCase } from './application/use-cases/find-administrator-accounts.use-case.js';
 import { GetProfileUseCase } from './application/use-cases/get-profile.use-case.js';
 import { IssueEmailVerificationCodeUseCase } from './application/use-cases/issue-email-verification-code.use-case.js';
 import { LoginUseCase } from './application/use-cases/login.use-case.js';
@@ -27,6 +28,7 @@ import {
   VerificationEmailWorker,
 } from './infrastructure/messaging/verification-email.worker.js';
 import { PrismaAccountRepository } from './infrastructure/persistence/prisma-account.repository.js';
+import { PrismaAdministratorAccountDiscoveryRepository } from './infrastructure/persistence/prisma-administrator-account-discovery.repository.js';
 import { PrismaAdministratorPrivilegeRepository } from './infrastructure/persistence/prisma-administrator-privilege.repository.js';
 import { PrismaAuthenticationRepository } from './infrastructure/persistence/prisma-authentication.repository.js';
 import { PrismaEmailVerificationRepository } from './infrastructure/persistence/prisma-email-verification.repository.js';
@@ -79,6 +81,14 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
       provide: PrismaAuthenticationRepository,
       useFactory: (prisma: PrismaService): PrismaAuthenticationRepository =>
         new PrismaAuthenticationRepository(prisma),
+    },
+    {
+      inject: [PrismaService],
+      provide: PrismaAdministratorAccountDiscoveryRepository,
+      useFactory: (
+        prisma: PrismaService,
+      ): PrismaAdministratorAccountDiscoveryRepository =>
+        new PrismaAdministratorAccountDiscoveryRepository(prisma),
     },
     {
       inject: [PrismaService],
@@ -150,6 +160,14 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
         repository: PrismaAdministratorPrivilegeRepository,
       ): ChangeAdministratorPrivilegeUseCase =>
         new ChangeAdministratorPrivilegeUseCase({ clock, repository }),
+    },
+    {
+      inject: [PrismaAdministratorAccountDiscoveryRepository],
+      provide: FindAdministratorAccountsUseCase,
+      useFactory: (
+        repository: PrismaAdministratorAccountDiscoveryRepository,
+      ): FindAdministratorAccountsUseCase =>
+        new FindAdministratorAccountsUseCase(repository),
     },
     {
       inject: [PrismaProfileRepository],

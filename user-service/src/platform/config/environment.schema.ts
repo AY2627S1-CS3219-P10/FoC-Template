@@ -3,6 +3,7 @@ import Joi from 'joi';
 export interface EnvironmentVariables {
   DATABASE_URL: string;
   EMAIL_VERIFICATION_CODE_SECRET: string;
+  FRONTEND_ORIGIN: string;
   JWT_ACCESS_TOKEN_SECRET: string;
   NODE_ENV: 'development' | 'test' | 'production';
   PORT: number;
@@ -20,6 +21,26 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
   EMAIL_VERIFICATION_CODE_SECRET: Joi.string().min(32).required(),
+  FRONTEND_ORIGIN: Joi.string()
+    .custom((value: string, helpers) => {
+      try {
+        const url = new URL(value);
+
+        if (
+          (url.protocol === 'http:' || url.protocol === 'https:') &&
+          url.origin === value &&
+          url.username === '' &&
+          url.password === ''
+        ) {
+          return value;
+        }
+      } catch {
+        // Joi reports the normalized validation error below.
+      }
+
+      return helpers.error('string.uri');
+    })
+    .required(),
   JWT_ACCESS_TOKEN_SECRET: Joi.string().min(32).required(),
   NODE_ENV: Joi.string()
     .valid('development', 'test', 'production')

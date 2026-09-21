@@ -4,6 +4,7 @@ process.env.DATABASE_URL =
   'postgresql://foc_user:foc_user_test@localhost:5433/foc_user_test?schema=public';
 process.env.EMAIL_VERIFICATION_CODE_SECRET =
   'test-email-verification-secret-32-characters';
+process.env.FRONTEND_ORIGIN = 'http://localhost:3000';
 process.env.JWT_ACCESS_TOKEN_SECRET =
   'test-jwt-access-token-secret-32-characters';
 process.env.REDIS_URL = 'redis://localhost:6379';

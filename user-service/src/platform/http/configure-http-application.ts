@@ -2,7 +2,26 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 
-export function configureHttpApplication(app: NestFastifyApplication): void {
+export interface HttpApplicationOptions {
+  frontendOrigin?: string;
+}
+
+export function configureHttpApplication(
+  app: NestFastifyApplication,
+  options: HttpApplicationOptions = {},
+): void {
+  if (options.frontendOrigin) {
+    app.enableCors({
+      origin: (requestOrigin, callback) => {
+        callback(
+          null,
+          requestOrigin === undefined ||
+            requestOrigin === options.frontendOrigin,
+        );
+      },
+    });
+  }
+
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
