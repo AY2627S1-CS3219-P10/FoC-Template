@@ -3,6 +3,10 @@ import {
   Body,
   ConflictException,
   Controller,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -12,13 +16,17 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
+import { SupplierNotFoundError } from '../../application/errors/supplier-not-found.error.js';
 import { CreateSupplierUseCase } from '../../application/use-cases/create-supplier.use-case.js';
+import { UpdateSupplierUseCase } from '../../application/use-cases/update-supplier.use-case.js';
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
 import { JwtAuthenticationGuard } from '../../platform/auth/jwt-authentication.guard.js';
 import { RequireRoles } from '../../platform/auth/require-roles.decorator.js';
@@ -26,6 +34,7 @@ import { RolesGuard } from '../../platform/auth/roles.guard.js';
 import { UserRole } from '../../platform/auth/user-role.js';
 import { CreateSupplierRequest } from './dto/create-supplier.request.js';
 import { SupplierResponse } from './dto/supplier.response.js';
+import { UpdateSupplierRequest } from './dto/update-supplier.request.js';
 
 @ApiTags('admin suppliers')
 @ApiBearerAuth('access-token')
@@ -33,7 +42,10 @@ import { SupplierResponse } from './dto/supplier.response.js';
 @UseGuards(JwtAuthenticationGuard, RolesGuard)
 @RequireRoles(UserRole.Admin)
 export class AdminSuppliersController {
-  constructor(private readonly createSupplier: CreateSupplierUseCase) {}
+  constructor(
+    private readonly createSupplier: CreateSupplierUseCase,
+    private readonly updateSupplier: UpdateSupplierUseCase,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a supplier and its first pickup location' })
@@ -52,25 +64,62 @@ export class AdminSuppliersController {
     try {
       return await this.createSupplier.execute(request);
     } catch (error: unknown) {
-      if (error instanceof SupplierValidationError) {
-        throw new BadRequestException({
-          code: error.code,
-          field: error.field,
-          message: error.message,
-          statusCode: 400,
-        });
-      }
-
-      if (error instanceof SupplierAlreadyExistsError) {
-        throw new ConflictException({
-          code: error.code,
-          field: error.field,
-          message: error.message,
-          statusCode: 409,
-        });
-      }
-
-      throw error;
+      this.rethrowAsHttpException(error);
     }
+  }
+
+  @Patch(':supplierId')
+  @ApiOperation({ summary: 'Update a supplier name or category' })
+  @ApiOkResponse({ type: SupplierResponse })
+  @ApiBadRequestResponse({ description: 'Supplier update is invalid.' })
+  @ApiUnauthorizedResponse({
+    description: 'A valid, unexpired user-service access token is required.',
+  })
+  @ApiForbiddenResponse({ description: 'Administrator role is required.' })
+  @ApiNotFoundResponse({ description: 'Supplier does not exist.' })
+  @ApiConflictResponse({
+    description: 'The updated supplier name is already in use.',
+  })
+  async update(
+    @Param('supplierId', new ParseUUIDPipe({ version: '4' }))
+    supplierId: string,
+    @Body() request: UpdateSupplierRequest,
+  ): Promise<SupplierResponse> {
+    try {
+      return await this.updateSupplier.execute(supplierId, request);
+    } catch (error: unknown) {
+      this.rethrowAsHttpException(error);
+    }
+  }
+
+  private rethrowAsHttpException(error: unknown): never {
+    if (error instanceof SupplierValidationError) {
+      throw new BadRequestException({
+        code: error.code,
+        field: error.field,
+        message: error.message,
+        statusCode: 400,
+      });
+    }
+
+    if (error instanceof SupplierAlreadyExistsError) {
+      throw new ConflictException({
+        code: error.code,
+        field: error.field,
+        message: error.message,
+        statusCode: 409,
+      });
+    }
+
+    if (error instanceof SupplierNotFoundError) {
+      throw new NotFoundException({
+        code: error.code,
+        field: error.field,
+        message: error.message,
+        statusCode: 404,
+      });
+    }
+
+    throw error;
   }
 }

@@ -23,8 +23,14 @@ the repository. Both students and administrators may use this operation.
 Administrators may create a new supplier and its first pickup location with
 `POST /api/admin/suppliers`. The supplier and location are created atomically;
 the service derives the `supplier@location` label and overnight-hours flag.
-Duplicate supplier names return HTTP 409. Update, deactivate/reactivate, delete,
-and add-location operations are not implemented yet.
+Duplicate supplier names return HTTP 409.
+
+Administrators may update a supplier's name and/or category with
+`PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
+associated `supplier@location` label in the same atomic database operation. An
+empty update returns HTTP 400, an unknown supplier returns HTTP 404, and a name
+conflict returns HTTP 409. Updating location details, deactivate/reactivate,
+delete, and add-location operations are not implemented yet.
 
 Example request:
 
@@ -45,6 +51,15 @@ Example request:
 }
 ```
 
+Example update request:
+
+```json
+{
+  "name": "Starbucks Coffee",
+  "category": "FOOD_COFFEE"
+}
+```
+
 ## Authentication and RBAC contract
 
 Supplier Service verifies short-lived JWT access tokens issued by User Service.
@@ -62,7 +77,7 @@ and expiry. The token payload must include:
 
 Supplier Service converts `isAdmin` into its own `STUDENT` or `ADMIN` role and
 enforces route permissions locally. The read endpoint permits both roles, while
-supplier creation requires `ADMIN`.
+supplier creation and update require `ADMIN`.
 
 The User Service and Supplier Service must use the same signing secret and
 issuer, while the access token audience must include `foc-supplier-service`.

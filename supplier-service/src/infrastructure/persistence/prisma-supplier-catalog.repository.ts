@@ -1,8 +1,10 @@
 import type { SupplierCatalogRepositoryPort } from '../../application/ports/supplier-catalog.repository.port.js';
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
+import { SupplierNotFoundError } from '../../application/errors/supplier-not-found.error.js';
 import type {
   CreateSupplierRecord,
   SupplierManagementRepositoryPort,
+  UpdateSupplierRecord,
 } from '../../application/ports/supplier-management.repository.port.js';
 import type { SupplierCatalogEntry } from '../../domain/supplier-catalog.js';
 import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
@@ -64,6 +66,69 @@ export class PrismaSupplierCatalogRepository
             ? 'supplierAtLocation'
             : 'name',
         );
+      }
+
+      throw error;
+    }
+  }
+
+  async updateSupplier(
+    record: UpdateSupplierRecord,
+  ): Promise<SupplierCatalogEntry> {
+    const existingSupplier = await this.prisma.supplier.findUnique({
+      select: {
+        locations: {
+          select: { building: true, id: true },
+        },
+      },
+      where: { id: record.id },
+    });
+
+    if (!existingSupplier) {
+      throw new SupplierNotFoundError(record.id);
+    }
+
+    try {
+      const supplier = await this.prisma.supplier.update({
+        data: {
+          category: record.category,
+          locations:
+            record.name === undefined
+              ? undefined
+              : {
+                  update: existingSupplier.locations.map((location) => ({
+                    data: {
+                      supplierAtLocation: `${record.name}@${location.building}`,
+                    },
+                    where: { id: location.id },
+                  })),
+                },
+          name: record.name,
+        },
+        include: { locations: true },
+        where: { id: record.id },
+      });
+
+      return this.mapSupplier(supplier);
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const target = JSON.stringify(error.meta?.target ?? '').toLowerCase();
+
+        throw new SupplierAlreadyExistsError(
+          target.includes('supplier_at_location')
+            ? 'supplierAtLocation'
+            : 'name',
+        );
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new SupplierNotFoundError(record.id);
       }
 
       throw error;

@@ -18,6 +18,13 @@ export interface CreateSupplierRecord {
   name: string;
 }
 
+export interface UpdateSupplierRecord {
+  category?: SupplierCategory;
+  id: string;
+  name?: string;
+}
+
 export interface SupplierManagementRepositoryPort {
   createSupplier(record: CreateSupplierRecord): Promise<SupplierCatalogEntry>;
+  updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry>;
 }

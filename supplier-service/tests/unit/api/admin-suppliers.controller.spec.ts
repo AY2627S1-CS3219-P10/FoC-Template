@@ -9,9 +9,13 @@ import { Test } from '@nestjs/testing';
 
 import { AdminSuppliersController } from '../../../src/api/http/admin-suppliers.controller.js';
 import { SupplierAlreadyExistsError } from '../../../src/application/errors/supplier-already-exists.error.js';
+import { SupplierNotFoundError } from '../../../src/application/errors/supplier-not-found.error.js';
 import type { CreateSupplierInput } from '../../../src/application/use-cases/create-supplier.use-case.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
+import type { UpdateSupplierInput } from '../../../src/application/use-cases/update-supplier.use-case.js';
+import { UpdateSupplierUseCase } from '../../../src/application/use-cases/update-supplier.use-case.js';
 import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
+import { SupplierValidationError } from '../../../src/domain/supplier-validation.error.js';
 import { AuthModule } from '../../../src/platform/auth/auth.module.js';
 import { validateEnvironment } from '../../../src/platform/config/environment.schema.js';
 import { configureHttpApplication } from '../../../src/platform/http/configure-http-application.js';
@@ -69,13 +73,39 @@ class StubCreateSupplierUseCase {
   }
 }
 
+class StubUpdateSupplierUseCase {
+  readonly inputs: Array<{
+    input: UpdateSupplierInput;
+    supplierId: string;
+  }> = [];
+  error?: Error;
+
+  execute(
+    supplierId: string,
+    input: UpdateSupplierInput,
+  ): Promise<SupplierCatalogEntry> {
+    this.inputs.push({ input, supplierId });
+
+    if (this.error) {
+      return Promise.reject(this.error);
+    }
+
+    return Promise.resolve({
+      ...CREATED,
+      name: input.name ?? CREATED.name,
+    });
+  }
+}
+
 describe('AdminSuppliersController', () => {
   let app: NestFastifyApplication;
   let createSupplier: StubCreateSupplierUseCase;
+  let updateSupplier: StubUpdateSupplierUseCase;
   let jwtService: JwtService;
 
   beforeEach(async () => {
     createSupplier = new StubCreateSupplierUseCase();
+    updateSupplier = new StubUpdateSupplierUseCase();
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminSuppliersController],
       imports: [
@@ -90,6 +120,10 @@ describe('AdminSuppliersController', () => {
         {
           provide: CreateSupplierUseCase,
           useValue: createSupplier,
+        },
+        {
+          provide: UpdateSupplierUseCase,
+          useValue: updateSupplier,
         },
       ],
     }).compile();
@@ -165,6 +199,98 @@ describe('AdminSuppliersController', () => {
       method: 'POST',
       payload: REQUEST,
       url: '/api/admin/suppliers',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'name',
+    });
+  });
+
+  it('allows an administrator to update a supplier', async () => {
+    const supplierId = CREATED.id;
+    const update = { name: 'Starbucks Coffee' };
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: update,
+      url: `/api/admin/suppliers/${supplierId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ name: 'Starbucks Coffee' });
+    expect(updateSupplier.inputs).toEqual([{ input: update, supplierId }]);
+  });
+
+  it('returns 403 when a student tries to update a supplier', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(false)}` },
+      method: 'PATCH',
+      payload: { category: 'SHOPPING' },
+      url: `/api/admin/suppliers/${CREATED.id}`,
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(updateSupplier.inputs).toHaveLength(0);
+  });
+
+  it('rejects an invalid supplier id before invoking the update use case', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: { name: 'Starbucks Coffee' },
+      url: '/api/admin/suppliers/not-a-uuid',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(updateSupplier.inputs).toHaveLength(0);
+  });
+
+  it('maps an empty supplier update to HTTP 400', async () => {
+    updateSupplier.error = new SupplierValidationError(
+      'supplier',
+      'SUPPLIER_UPDATE_EMPTY',
+      'At least one supplier field must be provided.',
+    );
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: {},
+      url: `/api/admin/suppliers/${CREATED.id}`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: 'SUPPLIER_UPDATE_EMPTY' });
+  });
+
+  it('maps an unknown supplier to HTTP 404', async () => {
+    updateSupplier.error = new SupplierNotFoundError(CREATED.id);
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: { name: 'Starbucks Coffee' },
+      url: `/api/admin/suppliers/${CREATED.id}`,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      code: 'SUPPLIER_NOT_FOUND',
+      field: 'supplierId',
+    });
+  });
+
+  it('maps an update name conflict to HTTP 409', async () => {
+    updateSupplier.error = new SupplierAlreadyExistsError('name');
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: { name: 'Deck Cafe' },
+      url: `/api/admin/suppliers/${CREATED.id}`,
     });
 
     expect(response.statusCode).toBe(409);

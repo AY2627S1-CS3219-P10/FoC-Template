@@ -8,7 +8,8 @@ export type SupplierValidationField =
   | 'locationDescription'
   | 'longitude'
   | 'name'
-  | 'opensAt';
+  | 'opensAt'
+  | 'supplier';
 
 export class SupplierValidationError extends Error {
   constructor(
