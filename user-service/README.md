@@ -130,6 +130,13 @@ status change and revocation of all the target account's active sessions occur
 in one PostgreSQL transaction, forcing the target to sign in again. Repeating
 the already-current status is idempotent and does not revoke sessions.
 
+`GET /api/admin/accounts` provides the administrator UI with account discovery.
+It returns at most 50 accounts ordered by username and exposes only `id`,
+`username`, `email`, `isAdmin`, and `status`. An optional `search` query performs
+a case-insensitive substring match against username or email. The endpoint uses
+the same `@AdministratorOnly()` authorization flow and never returns passwords,
+contact numbers, verification codes, or session data.
+
 The database also rejects demotion or deletion of the last administrator. This
 protects the invariant even outside the HTTP workflow; there is currently no
 account-deletion API. Privilege changes use the same PostgreSQL advisory lock,
@@ -218,6 +225,10 @@ Copy `.env.example` to `.env` for local development. The service listens on port
 `3001` by default, while the local PostgreSQL container is exposed on `5433` to
 avoid colliding with a system PostgreSQL installation.
 
+Set `FRONTEND_ORIGIN` to the web application's exact origin, such as
+`http://localhost:3000`. The value must be one HTTP or HTTPS origin without a
+path; wildcard CORS is not accepted.
+
 Start the User Service infrastructure:
 
 ```text
@@ -235,10 +246,10 @@ corepack pnpm db:studio
 ```
 
 The application uses `DATABASE_URL`, `EMAIL_VERIFICATION_CODE_SECRET`,
-`JWT_ACCESS_TOKEN_SECRET`, `REDIS_URL`, and the `SMTP_*` settings shown in
-`.env.example`. Secrets must not be committed or reused between purposes. The
-verification code is placed in Redis only as short-lived job payload and
-successful or exhausted jobs are removed. Prisma migrations live under
-`prisma/migrations/`. The generated client is written to
+`FRONTEND_ORIGIN`, `JWT_ACCESS_TOKEN_SECRET`, `REDIS_URL`, and the `SMTP_*`
+settings shown in `.env.example`. Secrets must not be committed or reused
+between purposes. The verification code is placed in Redis only as short-lived
+job payload and successful or exhausted jobs are removed. Prisma migrations
+live under `prisma/migrations/`. The generated client is written to
 `src/generated/prisma/`, regenerated during checks and builds, and is not
 committed.

@@ -3,11 +3,13 @@ import {
   ConflictException,
   Controller,
   ForbiddenException,
+  Get,
   Header,
   NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -22,8 +24,11 @@ import {
 import { AdministratorPrivilegeError } from '../../application/errors/administrator-privilege.error.js';
 import type { AuthenticatedAccount } from '../../application/ports/authentication-repository.port.js';
 import { ChangeAdministratorPrivilegeUseCase } from '../../application/use-cases/change-administrator-privilege.use-case.js';
+import { FindAdministratorAccountsUseCase } from '../../application/use-cases/find-administrator-accounts.use-case.js';
+import { AdministratorAccountSummaryResponse } from './dto/administrator-account-summary.response.js';
 import { AdministratorPrivilegeResponse } from './dto/administrator-privilege.response.js';
 import { ChangeAdministratorPrivilegeRequest } from './dto/change-administrator-privilege.request.js';
+import { FindAdministratorAccountsQuery } from './dto/find-administrator-accounts.query.js';
 import { AdministratorOnly } from './security/administrator-only.decorator.js';
 import { CurrentAccount } from './security/authenticated-account.js';
 
@@ -33,7 +38,19 @@ import { CurrentAccount } from './security/authenticated-account.js';
 export class AdministratorAccountsController {
   constructor(
     private readonly changeAdministratorPrivilege: ChangeAdministratorPrivilegeUseCase,
+    private readonly findAdministratorAccounts: FindAdministratorAccountsUseCase,
   ) {}
+
+  @Get()
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Find accounts for administrator management' })
+  @ApiOkResponse({ type: [AdministratorAccountSummaryResponse] })
+  @ApiBadRequestResponse({ description: 'Search query is invalid.' })
+  findAccounts(
+    @Query() query: FindAdministratorAccountsQuery,
+  ): Promise<AdministratorAccountSummaryResponse[]> {
+    return this.findAdministratorAccounts.execute({ search: query.search });
+  }
 
   @Patch(':accountId/administrator')
   @Header('Cache-Control', 'no-store')
