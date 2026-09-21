@@ -16,6 +16,11 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
     throw new Error('Not used by these tests.');
   }
 
+  deactivateSupplier(supplierId: string): Promise<void> {
+    void supplierId;
+    throw new Error('Not used by these tests.');
+  }
+
   updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry> {
     this.records.push(record);
 

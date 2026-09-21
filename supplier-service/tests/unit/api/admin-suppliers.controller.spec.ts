@@ -12,6 +12,7 @@ import { SupplierAlreadyExistsError } from '../../../src/application/errors/supp
 import { SupplierNotFoundError } from '../../../src/application/errors/supplier-not-found.error.js';
 import type { CreateSupplierInput } from '../../../src/application/use-cases/create-supplier.use-case.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
+import { DeactivateSupplierUseCase } from '../../../src/application/use-cases/deactivate-supplier.use-case.js';
 import type { UpdateSupplierInput } from '../../../src/application/use-cases/update-supplier.use-case.js';
 import { UpdateSupplierUseCase } from '../../../src/application/use-cases/update-supplier.use-case.js';
 import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
@@ -97,14 +98,31 @@ class StubUpdateSupplierUseCase {
   }
 }
 
+class StubDeactivateSupplierUseCase {
+  readonly supplierIds: string[] = [];
+  error?: Error;
+
+  execute(supplierId: string): Promise<void> {
+    this.supplierIds.push(supplierId);
+
+    if (this.error) {
+      return Promise.reject(this.error);
+    }
+
+    return Promise.resolve();
+  }
+}
+
 describe('AdminSuppliersController', () => {
   let app: NestFastifyApplication;
   let createSupplier: StubCreateSupplierUseCase;
+  let deactivateSupplier: StubDeactivateSupplierUseCase;
   let updateSupplier: StubUpdateSupplierUseCase;
   let jwtService: JwtService;
 
   beforeEach(async () => {
     createSupplier = new StubCreateSupplierUseCase();
+    deactivateSupplier = new StubDeactivateSupplierUseCase();
     updateSupplier = new StubUpdateSupplierUseCase();
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminSuppliersController],
@@ -120,6 +138,10 @@ describe('AdminSuppliersController', () => {
         {
           provide: CreateSupplierUseCase,
           useValue: createSupplier,
+        },
+        {
+          provide: DeactivateSupplierUseCase,
+          useValue: deactivateSupplier,
         },
         {
           provide: UpdateSupplierUseCase,
@@ -205,6 +227,56 @@ describe('AdminSuppliersController', () => {
     expect(response.json()).toMatchObject({
       code: 'SUPPLIER_ALREADY_EXISTS',
       field: 'name',
+    });
+  });
+
+  it('allows an administrator to deactivate a supplier', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'DELETE',
+      url: `/api/admin/suppliers/${CREATED.id}`,
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.body).toBe('');
+    expect(deactivateSupplier.supplierIds).toEqual([CREATED.id]);
+  });
+
+  it('returns 403 when a student tries to deactivate a supplier', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(false)}` },
+      method: 'DELETE',
+      url: `/api/admin/suppliers/${CREATED.id}`,
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(deactivateSupplier.supplierIds).toHaveLength(0);
+  });
+
+  it('rejects an invalid supplier id before invoking the deactivate use case', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'DELETE',
+      url: '/api/admin/suppliers/not-a-uuid',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(deactivateSupplier.supplierIds).toHaveLength(0);
+  });
+
+  it('maps an unknown supplier deletion to HTTP 404', async () => {
+    deactivateSupplier.error = new SupplierNotFoundError(CREATED.id);
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'DELETE',
+      url: `/api/admin/suppliers/${CREATED.id}`,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      code: 'SUPPLIER_NOT_FOUND',
+      field: 'supplierId',
     });
   });
 

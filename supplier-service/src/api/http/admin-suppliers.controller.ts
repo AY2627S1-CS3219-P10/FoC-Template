@@ -3,6 +3,9 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -16,6 +19,7 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -26,6 +30,7 @@ import {
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
 import { SupplierNotFoundError } from '../../application/errors/supplier-not-found.error.js';
 import { CreateSupplierUseCase } from '../../application/use-cases/create-supplier.use-case.js';
+import { DeactivateSupplierUseCase } from '../../application/use-cases/deactivate-supplier.use-case.js';
 import { UpdateSupplierUseCase } from '../../application/use-cases/update-supplier.use-case.js';
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
 import { JwtAuthenticationGuard } from '../../platform/auth/jwt-authentication.guard.js';
@@ -44,6 +49,7 @@ import { UpdateSupplierRequest } from './dto/update-supplier.request.js';
 export class AdminSuppliersController {
   constructor(
     private readonly createSupplier: CreateSupplierUseCase,
+    private readonly deactivateSupplier: DeactivateSupplierUseCase,
     private readonly updateSupplier: UpdateSupplierUseCase,
   ) {}
 
@@ -63,6 +69,29 @@ export class AdminSuppliersController {
   ): Promise<SupplierResponse> {
     try {
       return await this.createSupplier.execute(request);
+    } catch (error: unknown) {
+      this.rethrowAsHttpException(error);
+    }
+  }
+
+  @Delete(':supplierId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Deactivate a supplier and its pickup locations' })
+  @ApiNoContentResponse({
+    description: 'Supplier and pickup locations were deactivated.',
+  })
+  @ApiBadRequestResponse({ description: 'Supplier identifier is invalid.' })
+  @ApiUnauthorizedResponse({
+    description: 'A valid, unexpired user-service access token is required.',
+  })
+  @ApiForbiddenResponse({ description: 'Administrator role is required.' })
+  @ApiNotFoundResponse({ description: 'Supplier does not exist.' })
+  async deactivate(
+    @Param('supplierId', new ParseUUIDPipe({ version: '4' }))
+    supplierId: string,
+  ): Promise<void> {
+    try {
+      await this.deactivateSupplier.execute(supplierId);
     } catch (error: unknown) {
       this.rethrowAsHttpException(error);
     }

@@ -26,5 +26,6 @@ export interface UpdateSupplierRecord {
 
 export interface SupplierManagementRepositoryPort {
   createSupplier(record: CreateSupplierRecord): Promise<SupplierCatalogEntry>;
+  deactivateSupplier(supplierId: string): Promise<void>;
   updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry>;
 }

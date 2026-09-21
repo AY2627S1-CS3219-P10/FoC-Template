@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { AdminSuppliersController } from '../api/http/admin-suppliers.controller.js';
 import { SuppliersController } from '../api/http/suppliers.controller.js';
 import { CreateSupplierUseCase } from '../application/use-cases/create-supplier.use-case.js';
+import { DeactivateSupplierUseCase } from '../application/use-cases/deactivate-supplier.use-case.js';
 import { ListSuppliersUseCase } from '../application/use-cases/list-suppliers.use-case.js';
 import { UpdateSupplierUseCase } from '../application/use-cases/update-supplier.use-case.js';
 import { PrismaSupplierCatalogRepository } from '../infrastructure/persistence/prisma-supplier-catalog.repository.js';
@@ -33,6 +34,13 @@ import { PrismaService } from '../platform/database/prisma.service.js';
       useFactory: (
         repository: PrismaSupplierCatalogRepository,
       ): ListSuppliersUseCase => new ListSuppliersUseCase(repository),
+    },
+    {
+      inject: [PrismaSupplierCatalogRepository],
+      provide: DeactivateSupplierUseCase,
+      useFactory: (
+        repository: PrismaSupplierCatalogRepository,
+      ): DeactivateSupplierUseCase => new DeactivateSupplierUseCase(repository),
     },
     {
       inject: [PrismaSupplierCatalogRepository],

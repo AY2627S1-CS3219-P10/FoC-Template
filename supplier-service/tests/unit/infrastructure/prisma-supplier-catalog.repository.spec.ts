@@ -6,6 +6,34 @@ const UTOWN_LOCATION_ID = '40000000-0000-4000-8000-000000000001';
 const SCIENCE_LOCATION_ID = '40000000-0000-4000-8000-000000000002';
 
 describe('PrismaSupplierCatalogRepository', () => {
+  it('deactivates a supplier and all active locations in one nested update', async () => {
+    let updateArguments: unknown;
+    const update = (args: unknown): Promise<unknown> => {
+      updateArguments = args;
+      return Promise.resolve({ id: SUPPLIER_ID });
+    };
+
+    const repository = new PrismaSupplierCatalogRepository({
+      supplier: { update },
+    } as unknown as Pick<PrismaClient, 'supplier'>);
+
+    await expect(
+      repository.deactivateSupplier(SUPPLIER_ID),
+    ).resolves.toBeUndefined();
+    expect(updateArguments).toEqual({
+      data: {
+        isActive: false,
+        locations: {
+          updateMany: {
+            data: { isActive: false },
+            where: { isActive: true },
+          },
+        },
+      },
+      where: { id: SUPPLIER_ID },
+    });
+  });
+
   it('renames the supplier and all supplier-location labels in one nested update', async () => {
     const findUnique = (args: unknown): Promise<unknown> => {
       void args;

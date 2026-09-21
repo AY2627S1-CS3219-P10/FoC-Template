@@ -72,6 +72,32 @@ export class PrismaSupplierCatalogRepository
     }
   }
 
+  async deactivateSupplier(supplierId: string): Promise<void> {
+    try {
+      await this.prisma.supplier.update({
+        data: {
+          isActive: false,
+          locations: {
+            updateMany: {
+              data: { isActive: false },
+              where: { isActive: true },
+            },
+          },
+        },
+        where: { id: supplierId },
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new SupplierNotFoundError(supplierId);
+      }
+
+      throw error;
+    }
+  }
+
   async updateSupplier(
     record: UpdateSupplierRecord,
   ): Promise<SupplierCatalogEntry> {

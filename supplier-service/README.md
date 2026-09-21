@@ -29,8 +29,15 @@ Administrators may update a supplier's name and/or category with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
 associated `supplier@location` label in the same atomic database operation. An
 empty update returns HTTP 400, an unknown supplier returns HTTP 404, and a name
-conflict returns HTTP 409. Updating location details, deactivate/reactivate,
-delete, and add-location operations are not implemented yet.
+conflict returns HTTP 409.
+
+Administrators may soft-delete a supplier with
+`DELETE /api/admin/suppliers/:supplierId`. The supplier and all its pickup
+locations are deactivated atomically and disappear from the active catalog,
+while their records remain available for historical errand references. The
+operation returns HTTP 204 and is safe to repeat for an existing inactive
+supplier. Updating location details, reactivation, and add-location operations
+are not implemented yet.
 
 Example request:
 
@@ -77,7 +84,7 @@ and expiry. The token payload must include:
 
 Supplier Service converts `isAdmin` into its own `STUDENT` or `ADMIN` role and
 enforces route permissions locally. The read endpoint permits both roles, while
-supplier creation and update require `ADMIN`.
+supplier creation, update, and deletion require `ADMIN`.
 
 The User Service and Supplier Service must use the same signing secret and
 issuer, while the access token audience must include `foc-supplier-service`.
