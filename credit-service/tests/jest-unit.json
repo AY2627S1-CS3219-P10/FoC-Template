@@ -1,0 +1,24 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "tests/unit/.*\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.spec.json" }]
+  },
+  "collectCoverageFrom": [
+    "src/api/internal-service-auth.guard.ts",
+    "src/domain/**/*.ts",
+    "src/application/**/*.ts",
+    "src/infrastructure/configuration.ts"
+  ],
+  "coverageDirectory": "coverage/unit",
+  "coverageThreshold": {
+    "global": {
+      "branches": 85,
+      "functions": 85,
+      "lines": 85,
+      "statements": 85
+    }
+  }
+}

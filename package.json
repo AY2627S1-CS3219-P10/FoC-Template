@@ -1,0 +1,10 @@
+{
+  "name": "friend-on-campus",
+  "private": true,
+  "packageManager": "pnpm@12.5.1",
+  "scripts": {
+    "credit:build": "pnpm --filter @foc/credit-service build",
+    "credit:test": "pnpm --filter @foc/credit-service test",
+    "credit:test:integration": "pnpm --filter @foc/credit-service test:integration"
+  }
+}

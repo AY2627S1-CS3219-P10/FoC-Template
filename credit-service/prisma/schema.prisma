@@ -1,0 +1,77 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ReservationStatus {
+  RESERVED
+  SETTLED
+  RELEASED
+}
+
+enum LedgerEntryType {
+  INITIAL_CREDIT
+  RESERVATION
+  RELEASE
+  TRANSFER_DEBIT
+  TRANSFER_CREDIT
+}
+
+model CreditAccount {
+  userId           String              @id @map("user_id") @db.Uuid
+  availableCredits Int                 @default(0) @map("available_credits")
+  reservedCredits  Int                 @default(0) @map("reserved_credits")
+  version          Int                 @default(0)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  requested        CreditReservation[] @relation("RequesterReservations")
+  courierPayments  CreditReservation[] @relation("CourierSettlements")
+  ledgerEntries    CreditLedgerEntry[]
+
+  @@map("credit_accounts")
+}
+
+model CreditReservation {
+  id          String            @id @default(uuid()) @db.Uuid
+  errandId    String            @unique @map("errand_id") @db.Uuid
+  requesterId String            @map("requester_id") @db.Uuid
+  courierId   String?           @map("courier_id") @db.Uuid
+  amount      Int
+  status      ReservationStatus @default(RESERVED)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  settledAt   DateTime?         @map("settled_at") @db.Timestamptz(3)
+  releasedAt  DateTime?         @map("released_at") @db.Timestamptz(3)
+  requester   CreditAccount     @relation("RequesterReservations", fields: [requesterId], references: [userId], onDelete: Restrict)
+  courier     CreditAccount?    @relation("CourierSettlements", fields: [courierId], references: [userId], onDelete: Restrict)
+  ledger      CreditLedgerEntry[]
+
+  @@index([requesterId])
+  @@index([courierId])
+  @@index([status, updatedAt])
+  @@map("credit_reservations")
+}
+
+model CreditLedgerEntry {
+  id                       String             @id @default(uuid()) @db.Uuid
+  accountUserId            String             @map("account_user_id") @db.Uuid
+  reservationId            String?            @map("reservation_id") @db.Uuid
+  type                     LedgerEntryType
+  amount                   Int
+  availableBalanceAfter    Int                @map("available_balance_after")
+  reservedBalanceAfter     Int                @map("reserved_balance_after")
+  referenceKey             String             @unique @map("reference_key")
+  createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  account                  CreditAccount      @relation(fields: [accountUserId], references: [userId], onDelete: Restrict)
+  reservation              CreditReservation? @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@index([accountUserId, createdAt])
+  @@index([reservationId])
+  @@index([createdAt])
+  @@map("credit_ledger_entries")
+}

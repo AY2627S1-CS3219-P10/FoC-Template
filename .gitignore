@@ -2,6 +2,10 @@
 dist/
 build/
 out/
+coverage/
+node_modules/
+credit-service/src/generated/
+*.tsbuildinfo
 
 # Environment / secrets
 .env
