@@ -4,10 +4,126 @@ Owns suppliers, campus pickup locations, categories, and availability state.
 The existing seed CSV and location images under `data/` are future inputs to
 this service; they are not loaded by the current scaffold.
 
-## Milestone boundary
+## Current scope
 
-This folder is structure only. Supplier APIs, administrator operations,
-validation, persistence, and seed loading are not implemented.
+The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and a
+service-owned migration. The migration creates suppliers and supplier pickup
+locations, then loads the 21 fixed NUS-campus entries from
+`../data/csv/supplier-seed-data.csv`.
+
+Each location stores a stable UUID for service-to-service references and a
+case-insensitive `supplier@location` string for future user input. For example,
+`NUS Co-op@Central Library`. The label is intentionally a catalog attribute,
+not an order-service foreign key or a user-entered free-text source of truth.
+
+The read API is implemented as `GET /api/suppliers`. It returns active suppliers
+that have at least one active pickup location, with inactive records filtered by
+the repository. Both students and administrators may use this operation.
+
+Administrators may create a new supplier and its first pickup location with
+`POST /api/admin/suppliers`. The supplier and location are created atomically;
+the service derives the `supplier@location` label and overnight-hours flag.
+Duplicate supplier names return HTTP 409.
+
+Administrators may update a supplier's name and/or category with
+`PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
+associated `supplier@location` label in the same atomic database operation. An
+empty update returns HTTP 400, an unknown supplier returns HTTP 404, and a name
+conflict returns HTTP 409.
+
+Administrators may soft-delete a supplier with
+`DELETE /api/admin/suppliers/:supplierId`. The supplier and all its pickup
+locations are deactivated atomically and disappear from the active catalog,
+while their records remain available for historical errand references. The
+operation returns HTTP 204 and is safe to repeat for an existing inactive
+supplier.
+
+Administrators may replace any subset of a pickup location's details with
+`PATCH /api/admin/suppliers/:supplierId/locations/:locationId`. The existing
+location row and UUID are retained for historical errand references, while the
+old field values are overwritten. Moving to another building also replaces the
+derived `supplier@location` label, and changing either business-hours field
+recalculates the overnight-hours flag. Reactivation and add-location operations
+are not implemented yet.
+
+Example request:
+
+```json
+{
+  "name": "Starbucks",
+  "category": "FOOD_COFFEE",
+  "location": {
+    "building": "UTown",
+    "floor": 1,
+    "locationDescription": "Near the main entrance",
+    "latitude": 1.3048,
+    "longitude": 103.7739,
+    "opensAt": "08:00",
+    "closesAt": "20:00",
+    "imageUrl": "https://example.com/starbucks-utown.jpg"
+  }
+}
+```
+
+Example update request:
+
+```json
+{
+  "name": "Starbucks Coffee",
+  "category": "FOOD_COFFEE"
+}
+```
+
+Example location move request:
+
+```json
+{
+  "building": "Science",
+  "floor": 2,
+  "locationDescription": "Beside the main entrance",
+  "latitude": 1.2966,
+  "longitude": 103.7801
+}
+```
+
+## Authentication and RBAC contract
+
+Supplier Service verifies short-lived JWT access tokens issued by User Service.
+The client must send the token as `Authorization: Bearer <token>`. Verification
+is restricted to HS256 and checks the configured issuer, audience, signature,
+and expiry. The token payload must include:
+
+```json
+{
+  "sub": "4a84f480-b1cb-4b81-b632-8bb49034b9e7",
+  "sid": "e414b596-4ba2-4c43-841b-0fa699164faa",
+  "isAdmin": false
+}
+```
+
+Supplier Service converts `isAdmin` into its own `STUDENT` or `ADMIN` role and
+enforces route permissions locally. The read endpoint permits both roles, while
+supplier creation, supplier or location updates, and deletion require `ADMIN`.
+
+The User Service and Supplier Service must receive the same
+`JWT_ACCESS_TOKEN_SECRET` value and use the `foc-user-service` issuer. Supplier
+Service verifies the User Service contract's `foc-api` audience. The secret is
+deployment configuration and must never be committed.
+
+## Local database commands
+
+Run these commands from `supplier-service/`:
+
+```text
+corepack pnpm install
+docker compose up -d database
+corepack pnpm db:migrate:deploy
+corepack pnpm start:dev
+```
+
+Copy `.env.example` to `.env` before running Prisma commands. PostgreSQL is
+exposed on port `5434` by default, avoiding the user service's `5433` port.
+The OpenAPI UI is available at `/api/docs` when the service is running.
 
 ## Intended internal layout
 
