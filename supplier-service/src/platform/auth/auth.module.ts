@@ -12,7 +12,7 @@ import { RolesGuard } from './roles.guard.js';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<EnvironmentVariables, true>) => ({
-        secret: config.get('JWT_SECRET', { infer: true }),
+        secret: config.get('JWT_ACCESS_TOKEN_SECRET', { infer: true }),
         verifyOptions: {
           algorithms: ['HS256'],
           audience: config.get('JWT_AUDIENCE', { infer: true }),

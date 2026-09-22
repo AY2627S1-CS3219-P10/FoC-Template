@@ -95,8 +95,8 @@ and expiry. The token payload must include:
 
 ```json
 {
-  "userId": "4a84f480-b1cb-4b81-b632-8bb49034b9e7",
-  "sessionId": "e414b596-4ba2-4c43-841b-0fa699164faa",
+  "sub": "4a84f480-b1cb-4b81-b632-8bb49034b9e7",
+  "sid": "e414b596-4ba2-4c43-841b-0fa699164faa",
   "isAdmin": false
 }
 ```
@@ -105,9 +105,10 @@ Supplier Service converts `isAdmin` into its own `STUDENT` or `ADMIN` role and
 enforces route permissions locally. The read endpoint permits both roles, while
 supplier creation, supplier or location updates, and deletion require `ADMIN`.
 
-The User Service and Supplier Service must use the same signing secret and
-issuer, while the access token audience must include `foc-supplier-service`.
-The secret is deployment configuration and must never be committed.
+The User Service and Supplier Service must receive the same
+`JWT_ACCESS_TOKEN_SECRET` value and use the `foc-user-service` issuer. Supplier
+Service verifies the User Service contract's `foc-api` audience. The secret is
+deployment configuration and must never be committed.
 
 ## Local database commands
 

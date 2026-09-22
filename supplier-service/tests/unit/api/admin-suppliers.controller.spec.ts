@@ -27,9 +27,10 @@ import { AuthModule } from '../../../src/platform/auth/auth.module.js';
 import { validateEnvironment } from '../../../src/platform/config/environment.schema.js';
 import { configureHttpApplication } from '../../../src/platform/http/configure-http-application.js';
 
-const JWT_SECRET = 'test-access-token-secret-at-least-32-characters';
+const JWT_ACCESS_TOKEN_SECRET =
+  'test-access-token-secret-at-least-32-characters';
 const JWT_ISSUER = 'foc-user-service';
-const JWT_AUDIENCE = 'foc-supplier-service';
+const JWT_AUDIENCE = 'foc-api';
 const REQUEST: CreateSupplierInput = {
   category: 'FOOD_COFFEE',
   location: {
@@ -199,7 +200,7 @@ describe('AdminSuppliersController', () => {
     configureHttpApplication(app);
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
-    jwtService = new JwtService({ secret: JWT_SECRET });
+    jwtService = new JwtService({ secret: JWT_ACCESS_TOKEN_SECRET });
   });
 
   afterEach(async () => {
@@ -527,14 +528,14 @@ describe('AdminSuppliersController', () => {
     return jwtService.sign(
       {
         isAdmin,
-        sessionId: 'e414b596-4ba2-4c43-841b-0fa699164faa',
-        userId: '4a84f480-b1cb-4b81-b632-8bb49034b9e7',
+        sid: 'e414b596-4ba2-4c43-841b-0fa699164faa',
       },
       {
         algorithm: 'HS256',
         audience: JWT_AUDIENCE,
         expiresIn: 900,
         issuer: JWT_ISSUER,
+        subject: '4a84f480-b1cb-4b81-b632-8bb49034b9e7',
       },
     );
   }

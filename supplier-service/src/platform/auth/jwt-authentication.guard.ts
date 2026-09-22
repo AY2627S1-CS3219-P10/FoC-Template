@@ -11,8 +11,8 @@ import { type AuthenticatedUser, UserRole } from './user-role.js';
 
 interface AccessTokenClaims {
   isAdmin?: unknown;
-  sessionId?: unknown;
-  userId?: unknown;
+  sid?: unknown;
+  sub?: unknown;
 }
 
 @Injectable()
@@ -53,10 +53,10 @@ export class JwtAuthenticationGuard implements CanActivate {
 
   private toAuthenticatedUser(claims: AccessTokenClaims): AuthenticatedUser {
     if (
-      typeof claims.userId !== 'string' ||
-      claims.userId.length === 0 ||
-      typeof claims.sessionId !== 'string' ||
-      claims.sessionId.length === 0 ||
+      typeof claims.sub !== 'string' ||
+      claims.sub.length === 0 ||
+      typeof claims.sid !== 'string' ||
+      claims.sid.length === 0 ||
       typeof claims.isAdmin !== 'boolean'
     ) {
       throw new Error('Access token is missing required identity claims.');
@@ -64,8 +64,8 @@ export class JwtAuthenticationGuard implements CanActivate {
 
     return {
       role: claims.isAdmin ? UserRole.Admin : UserRole.Student,
-      sessionId: claims.sessionId,
-      userId: claims.userId,
+      sessionId: claims.sid,
+      userId: claims.sub,
     };
   }
 }
