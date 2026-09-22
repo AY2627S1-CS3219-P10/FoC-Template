@@ -28,9 +28,11 @@ import {
 } from '@nestjs/swagger';
 
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
+import { SupplierLocationNotFoundError } from '../../application/errors/supplier-location-not-found.error.js';
 import { SupplierNotFoundError } from '../../application/errors/supplier-not-found.error.js';
 import { CreateSupplierUseCase } from '../../application/use-cases/create-supplier.use-case.js';
 import { DeactivateSupplierUseCase } from '../../application/use-cases/deactivate-supplier.use-case.js';
+import { UpdateSupplierLocationUseCase } from '../../application/use-cases/update-supplier-location.use-case.js';
 import { UpdateSupplierUseCase } from '../../application/use-cases/update-supplier.use-case.js';
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
 import { JwtAuthenticationGuard } from '../../platform/auth/jwt-authentication.guard.js';
@@ -38,7 +40,9 @@ import { RequireRoles } from '../../platform/auth/require-roles.decorator.js';
 import { RolesGuard } from '../../platform/auth/roles.guard.js';
 import { UserRole } from '../../platform/auth/user-role.js';
 import { CreateSupplierRequest } from './dto/create-supplier.request.js';
+import { SupplierLocationResponse } from './dto/supplier-location.response.js';
 import { SupplierResponse } from './dto/supplier.response.js';
+import { UpdateSupplierLocationRequest } from './dto/update-supplier-location.request.js';
 import { UpdateSupplierRequest } from './dto/update-supplier.request.js';
 
 @ApiTags('admin suppliers')
@@ -50,6 +54,7 @@ export class AdminSuppliersController {
   constructor(
     private readonly createSupplier: CreateSupplierUseCase,
     private readonly deactivateSupplier: DeactivateSupplierUseCase,
+    private readonly updateSupplierLocation: UpdateSupplierLocationUseCase,
     private readonly updateSupplier: UpdateSupplierUseCase,
   ) {}
 
@@ -121,6 +126,40 @@ export class AdminSuppliersController {
     }
   }
 
+  @Patch(':supplierId/locations/:locationId')
+  @ApiOperation({ summary: 'Update a supplier pickup location' })
+  @ApiOkResponse({ type: SupplierLocationResponse })
+  @ApiBadRequestResponse({
+    description: 'Supplier location update is invalid.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'A valid, unexpired user-service access token is required.',
+  })
+  @ApiForbiddenResponse({ description: 'Administrator role is required.' })
+  @ApiNotFoundResponse({
+    description: 'Pickup location does not exist for this supplier.',
+  })
+  @ApiConflictResponse({
+    description: 'The updated supplier location already exists.',
+  })
+  async updateLocation(
+    @Param('supplierId', new ParseUUIDPipe({ version: '4' }))
+    supplierId: string,
+    @Param('locationId', new ParseUUIDPipe({ version: '4' }))
+    locationId: string,
+    @Body() request: UpdateSupplierLocationRequest,
+  ): Promise<SupplierLocationResponse> {
+    try {
+      return await this.updateSupplierLocation.execute(
+        supplierId,
+        locationId,
+        request,
+      );
+    } catch (error: unknown) {
+      this.rethrowAsHttpException(error);
+    }
+  }
+
   private rethrowAsHttpException(error: unknown): never {
     if (error instanceof SupplierValidationError) {
       throw new BadRequestException({
@@ -141,6 +180,15 @@ export class AdminSuppliersController {
     }
 
     if (error instanceof SupplierNotFoundError) {
+      throw new NotFoundException({
+        code: error.code,
+        field: error.field,
+        message: error.message,
+        statusCode: 404,
+      });
+    }
+
+    if (error instanceof SupplierLocationNotFoundError) {
       throw new NotFoundException({
         code: error.code,
         field: error.field,

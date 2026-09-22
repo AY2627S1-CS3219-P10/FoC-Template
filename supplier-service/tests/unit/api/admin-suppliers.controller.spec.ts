@@ -9,13 +9,19 @@ import { Test } from '@nestjs/testing';
 
 import { AdminSuppliersController } from '../../../src/api/http/admin-suppliers.controller.js';
 import { SupplierAlreadyExistsError } from '../../../src/application/errors/supplier-already-exists.error.js';
+import { SupplierLocationNotFoundError } from '../../../src/application/errors/supplier-location-not-found.error.js';
 import { SupplierNotFoundError } from '../../../src/application/errors/supplier-not-found.error.js';
 import type { CreateSupplierInput } from '../../../src/application/use-cases/create-supplier.use-case.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
 import { DeactivateSupplierUseCase } from '../../../src/application/use-cases/deactivate-supplier.use-case.js';
+import type { UpdateSupplierLocationInput } from '../../../src/application/use-cases/update-supplier-location.use-case.js';
+import { UpdateSupplierLocationUseCase } from '../../../src/application/use-cases/update-supplier-location.use-case.js';
 import type { UpdateSupplierInput } from '../../../src/application/use-cases/update-supplier.use-case.js';
 import { UpdateSupplierUseCase } from '../../../src/application/use-cases/update-supplier.use-case.js';
-import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
+import type {
+  SupplierCatalogEntry,
+  SupplierLocationCatalogEntry,
+} from '../../../src/domain/supplier-catalog.js';
 import { SupplierValidationError } from '../../../src/domain/supplier-validation.error.js';
 import { AuthModule } from '../../../src/platform/auth/auth.module.js';
 import { validateEnvironment } from '../../../src/platform/config/environment.schema.js';
@@ -38,25 +44,33 @@ const REQUEST: CreateSupplierInput = {
   },
   name: 'Starbucks',
 };
+const ORIGINAL_LOCATION: SupplierLocationCatalogEntry = {
+  building: 'UTown',
+  closesAt: '20:00',
+  floor: 1,
+  id: '40000000-0000-4000-8000-000000000001',
+  imageUrl: 'https://example.com/starbucks-utown.jpg',
+  isOpenOvernight: false,
+  latitude: 1.3048,
+  locationDescription: 'Near the main entrance',
+  longitude: 103.7739,
+  opensAt: '08:00',
+  supplierAtLocation: 'Starbucks@UTown',
+};
 const CREATED: SupplierCatalogEntry = {
   category: 'FOOD_COFFEE',
   id: '30000000-0000-4000-8000-000000000001',
-  locations: [
-    {
-      building: 'UTown',
-      closesAt: '20:00',
-      floor: 1,
-      id: '40000000-0000-4000-8000-000000000001',
-      imageUrl: 'https://example.com/starbucks-utown.jpg',
-      isOpenOvernight: false,
-      latitude: 1.3048,
-      locationDescription: 'Near the main entrance',
-      longitude: 103.7739,
-      opensAt: '08:00',
-      supplierAtLocation: 'Starbucks@UTown',
-    },
-  ],
+  locations: [ORIGINAL_LOCATION],
   name: 'Starbucks',
+};
+const UPDATED_LOCATION: SupplierLocationCatalogEntry = {
+  ...ORIGINAL_LOCATION,
+  building: 'Science',
+  floor: 2,
+  latitude: 1.2966,
+  locationDescription: 'Beside the main entrance',
+  longitude: 103.7801,
+  supplierAtLocation: 'Starbucks@Science',
 };
 
 class StubCreateSupplierUseCase {
@@ -113,16 +127,41 @@ class StubDeactivateSupplierUseCase {
   }
 }
 
+class StubUpdateSupplierLocationUseCase {
+  readonly inputs: Array<{
+    input: UpdateSupplierLocationInput;
+    locationId: string;
+    supplierId: string;
+  }> = [];
+  error?: Error;
+
+  execute(
+    supplierId: string,
+    locationId: string,
+    input: UpdateSupplierLocationInput,
+  ): Promise<SupplierLocationCatalogEntry> {
+    this.inputs.push({ input, locationId, supplierId });
+
+    if (this.error) {
+      return Promise.reject(this.error);
+    }
+
+    return Promise.resolve(UPDATED_LOCATION);
+  }
+}
+
 describe('AdminSuppliersController', () => {
   let app: NestFastifyApplication;
   let createSupplier: StubCreateSupplierUseCase;
   let deactivateSupplier: StubDeactivateSupplierUseCase;
+  let updateSupplierLocation: StubUpdateSupplierLocationUseCase;
   let updateSupplier: StubUpdateSupplierUseCase;
   let jwtService: JwtService;
 
   beforeEach(async () => {
     createSupplier = new StubCreateSupplierUseCase();
     deactivateSupplier = new StubDeactivateSupplierUseCase();
+    updateSupplierLocation = new StubUpdateSupplierLocationUseCase();
     updateSupplier = new StubUpdateSupplierUseCase();
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminSuppliersController],
@@ -146,6 +185,10 @@ describe('AdminSuppliersController', () => {
         {
           provide: UpdateSupplierUseCase,
           useValue: updateSupplier,
+        },
+        {
+          provide: UpdateSupplierLocationUseCase,
+          useValue: updateSupplierLocation,
         },
       ],
     }).compile();
@@ -369,6 +412,114 @@ describe('AdminSuppliersController', () => {
     expect(response.json()).toMatchObject({
       code: 'SUPPLIER_ALREADY_EXISTS',
       field: 'name',
+    });
+  });
+
+  it('allows an administrator to replace location details', async () => {
+    const locationId = ORIGINAL_LOCATION.id;
+    const update = {
+      building: 'Science',
+      floor: 2,
+      latitude: 1.2966,
+      locationDescription: 'Beside the main entrance',
+      longitude: 103.7801,
+    };
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: update,
+      url: `/api/admin/suppliers/${CREATED.id}/locations/${locationId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(UPDATED_LOCATION);
+    expect(updateSupplierLocation.inputs).toEqual([
+      { input: update, locationId, supplierId: CREATED.id },
+    ]);
+  });
+
+  it('returns 403 when a student tries to update location details', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(false)}` },
+      method: 'PATCH',
+      payload: { building: 'Science' },
+      url: `/api/admin/suppliers/${CREATED.id}/locations/${ORIGINAL_LOCATION.id}`,
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(updateSupplierLocation.inputs).toHaveLength(0);
+  });
+
+  it('rejects an invalid location id before invoking the location use case', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: { building: 'Science' },
+      url: `/api/admin/suppliers/${CREATED.id}/locations/not-a-uuid`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(updateSupplierLocation.inputs).toHaveLength(0);
+  });
+
+  it('maps an empty location update to HTTP 400', async () => {
+    updateSupplierLocation.error = new SupplierValidationError(
+      'location',
+      'SUPPLIER_LOCATION_UPDATE_EMPTY',
+      'At least one supplier location field must be provided.',
+    );
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: {},
+      url: `/api/admin/suppliers/${CREATED.id}/locations/${ORIGINAL_LOCATION.id}`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: 'SUPPLIER_LOCATION_UPDATE_EMPTY',
+    });
+  });
+
+  it('maps an unknown supplier location to HTTP 404', async () => {
+    const locationId = ORIGINAL_LOCATION.id;
+    updateSupplierLocation.error = new SupplierLocationNotFoundError(
+      CREATED.id,
+      locationId,
+    );
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: { building: 'Science' },
+      url: `/api/admin/suppliers/${CREATED.id}/locations/${locationId}`,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      code: 'SUPPLIER_LOCATION_NOT_FOUND',
+      field: 'locationId',
+    });
+  });
+
+  it('maps a duplicate updated location to HTTP 409', async () => {
+    updateSupplierLocation.error = new SupplierAlreadyExistsError(
+      'supplierAtLocation',
+    );
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      payload: { building: 'Science' },
+      url: `/api/admin/suppliers/${CREATED.id}/locations/${ORIGINAL_LOCATION.id}`,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'supplierAtLocation',
     });
   });
 

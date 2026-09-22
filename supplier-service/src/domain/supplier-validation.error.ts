@@ -7,6 +7,7 @@ export type SupplierValidationField =
   | 'latitude'
   | 'locationDescription'
   | 'longitude'
+  | 'location'
   | 'name'
   | 'opensAt'
   | 'supplier';

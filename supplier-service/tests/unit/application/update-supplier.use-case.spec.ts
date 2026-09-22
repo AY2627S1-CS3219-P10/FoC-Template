@@ -1,6 +1,7 @@
 import type {
   CreateSupplierRecord,
   SupplierManagementRepositoryPort,
+  UpdateSupplierLocationRecord,
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { UpdateSupplierUseCase } from '../../../src/application/use-cases/update-supplier.use-case.js';
@@ -30,6 +31,11 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
       locations: [],
       name: record.name ?? 'Starbucks',
     });
+  }
+
+  updateSupplierLocation(record: UpdateSupplierLocationRecord): Promise<never> {
+    void record;
+    throw new Error('Not used by these tests.');
   }
 }
 

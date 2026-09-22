@@ -36,7 +36,14 @@ Administrators may soft-delete a supplier with
 locations are deactivated atomically and disappear from the active catalog,
 while their records remain available for historical errand references. The
 operation returns HTTP 204 and is safe to repeat for an existing inactive
-supplier. Updating location details, reactivation, and add-location operations
+supplier.
+
+Administrators may replace any subset of a pickup location's details with
+`PATCH /api/admin/suppliers/:supplierId/locations/:locationId`. The existing
+location row and UUID are retained for historical errand references, while the
+old field values are overwritten. Moving to another building also replaces the
+derived `supplier@location` label, and changing either business-hours field
+recalculates the overnight-hours flag. Reactivation and add-location operations
 are not implemented yet.
 
 Example request:
@@ -67,6 +74,18 @@ Example update request:
 }
 ```
 
+Example location move request:
+
+```json
+{
+  "building": "Science",
+  "floor": 2,
+  "locationDescription": "Beside the main entrance",
+  "latitude": 1.2966,
+  "longitude": 103.7801
+}
+```
+
 ## Authentication and RBAC contract
 
 Supplier Service verifies short-lived JWT access tokens issued by User Service.
@@ -84,7 +103,7 @@ and expiry. The token payload must include:
 
 Supplier Service converts `isAdmin` into its own `STUDENT` or `ADMIN` role and
 enforces route permissions locally. The read endpoint permits both roles, while
-supplier creation, update, and deletion require `ADMIN`.
+supplier creation, supplier or location updates, and deletion require `ADMIN`.
 
 The User Service and Supplier Service must use the same signing secret and
 issuer, while the access token audience must include `foc-supplier-service`.

@@ -5,6 +5,7 @@ import { SuppliersController } from '../api/http/suppliers.controller.js';
 import { CreateSupplierUseCase } from '../application/use-cases/create-supplier.use-case.js';
 import { DeactivateSupplierUseCase } from '../application/use-cases/deactivate-supplier.use-case.js';
 import { ListSuppliersUseCase } from '../application/use-cases/list-suppliers.use-case.js';
+import { UpdateSupplierLocationUseCase } from '../application/use-cases/update-supplier-location.use-case.js';
 import { UpdateSupplierUseCase } from '../application/use-cases/update-supplier.use-case.js';
 import { PrismaSupplierCatalogRepository } from '../infrastructure/persistence/prisma-supplier-catalog.repository.js';
 import { AuthModule } from '../platform/auth/auth.module.js';
@@ -48,6 +49,14 @@ import { PrismaService } from '../platform/database/prisma.service.js';
       useFactory: (
         repository: PrismaSupplierCatalogRepository,
       ): UpdateSupplierUseCase => new UpdateSupplierUseCase(repository),
+    },
+    {
+      inject: [PrismaSupplierCatalogRepository],
+      provide: UpdateSupplierLocationUseCase,
+      useFactory: (
+        repository: PrismaSupplierCatalogRepository,
+      ): UpdateSupplierLocationUseCase =>
+        new UpdateSupplierLocationUseCase(repository),
     },
   ],
 })

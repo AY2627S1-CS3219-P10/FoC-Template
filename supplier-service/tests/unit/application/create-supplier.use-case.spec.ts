@@ -1,6 +1,7 @@
 import type {
   CreateSupplierRecord,
   SupplierManagementRepositoryPort,
+  UpdateSupplierLocationRecord,
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
@@ -41,6 +42,11 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
   }
 
   updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry> {
+    void record;
+    throw new Error('Not used by these tests.');
+  }
+
+  updateSupplierLocation(record: UpdateSupplierLocationRecord): Promise<never> {
     void record;
     throw new Error('Not used by these tests.');
   }

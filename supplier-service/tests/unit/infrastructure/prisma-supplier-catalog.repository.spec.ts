@@ -15,7 +15,7 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplier: { update },
-    } as unknown as Pick<PrismaClient, 'supplier'>);
+    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
 
     await expect(
       repository.deactivateSupplier(SUPPLIER_ID),
@@ -68,7 +68,7 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplier: { findUnique, update },
-    } as unknown as Pick<PrismaClient, 'supplier'>);
+    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
 
     await expect(
       repository.updateSupplier({
@@ -101,6 +101,66 @@ describe('PrismaSupplierCatalogRepository', () => {
       },
       include: { locations: true },
       where: { id: SUPPLIER_ID },
+    });
+  });
+
+  it('replaces old location details while retaining the location id', async () => {
+    let findFirstArguments: unknown;
+    let updateArguments: unknown;
+    const findFirst = (args: unknown): Promise<unknown> => {
+      findFirstArguments = args;
+      return Promise.resolve({
+        ...locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks@UTown'),
+        supplier: { name: 'Starbucks' },
+      });
+    };
+    const update = (args: unknown): Promise<unknown> => {
+      updateArguments = args;
+      return Promise.resolve(
+        locationRecord(UTOWN_LOCATION_ID, 'Science', 'Starbucks@Science'),
+      );
+    };
+
+    const repository = new PrismaSupplierCatalogRepository({
+      supplierLocation: { findFirst, update },
+    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+
+    await expect(
+      repository.updateSupplierLocation({
+        building: 'Science',
+        floor: 2,
+        latitude: 1.2966,
+        locationDescription: 'Beside the main entrance',
+        locationId: UTOWN_LOCATION_ID,
+        longitude: 103.7801,
+        supplierId: SUPPLIER_ID,
+      }),
+    ).resolves.toMatchObject({
+      building: 'Science',
+      id: UTOWN_LOCATION_ID,
+      supplierAtLocation: 'Starbucks@Science',
+    });
+    expect(findFirstArguments).toEqual({
+      include: { supplier: { select: { name: true } } },
+      where: {
+        id: UTOWN_LOCATION_ID,
+        supplierId: SUPPLIER_ID,
+      },
+    });
+    expect(updateArguments).toEqual({
+      data: {
+        building: 'Science',
+        closesAt: undefined,
+        floor: 2,
+        imageUrl: undefined,
+        isOpenOvernight: false,
+        latitude: 1.2966,
+        locationDescription: 'Beside the main entrance',
+        longitude: 103.7801,
+        opensAt: undefined,
+        supplierAtLocation: 'Starbucks@Science',
+      },
+      where: { id: UTOWN_LOCATION_ID },
     });
   });
 });
