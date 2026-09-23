@@ -4,6 +4,9 @@ build/
 out/
 coverage/
 node_modules/
+.next/
+playwright-report/
+test-results/
 credit-service/src/generated/
 *.tsbuildinfo
 
