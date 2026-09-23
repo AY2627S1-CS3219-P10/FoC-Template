@@ -3,6 +3,11 @@
   "private": true,
   "packageManager": "pnpm@12.5.1",
   "scripts": {
+    "web:dev": "pnpm --filter @foc/web-app dev",
+    "web:build": "pnpm --filter @foc/web-app build",
+    "web:lint": "pnpm --filter @foc/web-app lint",
+    "web:typecheck": "pnpm --filter @foc/web-app typecheck",
+    "web:test": "pnpm --filter @foc/web-app test:e2e",
     "credit:build": "pnpm --filter @foc/credit-service build",
     "credit:test": "pnpm --filter @foc/credit-service test",
     "credit:test:integration": "pnpm --filter @foc/credit-service test:integration"

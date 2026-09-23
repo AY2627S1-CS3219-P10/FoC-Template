@@ -6,6 +6,13 @@ and credits circulate within the platform as a closed, non-monetary economy.
 
 ## Current milestone
 
+The React frontend is available in `web-app/`, with account registration,
+verification, login, and supplier browsing connected to the existing services.
+There is no mock-data fallback. Both backends must be running. See
+[web-app/README.md](web-app/README.md) for startup and verification commands.
+The original scaffold notes below describe the initial milestone and may not
+reflect services implemented since then.
+
 This repository currently contains structure only. The implementation stack
 has been selected, but no application runtime, dependency, API, persistence
 model, or business logic has been installed or implemented yet. See
