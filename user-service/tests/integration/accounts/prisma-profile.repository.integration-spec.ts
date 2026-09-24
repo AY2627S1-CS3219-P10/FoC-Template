@@ -101,6 +101,51 @@ describe('PrismaProfileRepository', () => {
     });
   });
 
+  it('changes only the username without revoking active sessions', async () => {
+    await prisma.session.create({
+      data: {
+        expiresAt: new Date(NOW.getTime() + 86_400_000),
+        id: SESSION_ID,
+        refreshTokenHash: 'username-update-refresh-token-hash',
+        userId: USER_ID,
+      },
+    });
+
+    await expect(
+      repository.updateUsername(USER_ID, 'Arthur2026'),
+    ).resolves.toMatchObject({
+      email: 'student@u.nus.edu',
+      id: USER_ID,
+      isAdmin: false,
+      phoneNumber: '91234567',
+      status: 'ACTIVE',
+      username: 'Arthur2026',
+    });
+    await expect(
+      prisma.session.findUnique({ where: { id: SESSION_ID } }),
+    ).resolves.toMatchObject({ revokedAt: null });
+    await expect(
+      prisma.user.findUnique({ where: { id: USER_ID } }),
+    ).resolves.toMatchObject({
+      email: 'student@u.nus.edu',
+      id: USER_ID,
+      isAdmin: false,
+      passwordHash: 'current-password-hash',
+      phoneNumber: '91234567',
+      status: 'ACTIVE',
+      username: 'Arthur2026',
+    });
+  });
+
+  it('maps a case-insensitive username conflict to the account error', async () => {
+    await expect(
+      repository.updateUsername(USER_ID, 'otherstudent'),
+    ).rejects.toMatchObject({
+      code: 'USERNAME_ALREADY_REGISTERED',
+      field: 'username',
+    });
+  });
+
   it('changes the password and revokes every active session atomically', async () => {
     await prisma.session.create({
       data: {

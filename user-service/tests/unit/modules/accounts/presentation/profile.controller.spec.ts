@@ -14,6 +14,8 @@ import { ChangePasswordUseCase } from '../../../../../src/modules/accounts/appli
 import { GetProfileUseCase } from '../../../../../src/modules/accounts/application/use-cases/get-profile.use-case.js';
 import type { UpdatePhoneNumberInput } from '../../../../../src/modules/accounts/application/use-cases/update-phone-number.use-case.js';
 import { UpdatePhoneNumberUseCase } from '../../../../../src/modules/accounts/application/use-cases/update-phone-number.use-case.js';
+import type { UpdateUsernameInput } from '../../../../../src/modules/accounts/application/use-cases/update-username.use-case.js';
+import { UpdateUsernameUseCase } from '../../../../../src/modules/accounts/application/use-cases/update-username.use-case.js';
 import { AccountStatus } from '../../../../../src/modules/accounts/domain/account-status.js';
 import { ProfileController } from '../../../../../src/modules/accounts/presentation/http/profile.controller.js';
 import { BearerAuthenticationGuard } from '../../../../../src/modules/accounts/presentation/http/security/bearer-authentication.guard.js';
@@ -77,18 +79,32 @@ class StubChangePasswordUseCase {
   }
 }
 
+class StubUpdateUsernameUseCase {
+  error?: Error;
+  inputs: UpdateUsernameInput[] = [];
+
+  execute(input: UpdateUsernameInput): Promise<AccountProfile> {
+    this.inputs.push(input);
+    return this.error
+      ? Promise.reject(this.error)
+      : Promise.resolve({ ...PROFILE, username: input.username });
+  }
+}
+
 describe('ProfileController', () => {
   let app: NestFastifyApplication;
   let authenticate: StubAuthenticateAccessTokenUseCase;
   let changePassword: StubChangePasswordUseCase;
   let getProfile: StubGetProfileUseCase;
   let updatePhone: StubUpdatePhoneNumberUseCase;
+  let updateUsername: StubUpdateUsernameUseCase;
 
   beforeEach(async () => {
     authenticate = new StubAuthenticateAccessTokenUseCase();
     changePassword = new StubChangePasswordUseCase();
     getProfile = new StubGetProfileUseCase();
     updatePhone = new StubUpdatePhoneNumberUseCase();
+    updateUsername = new StubUpdateUsernameUseCase();
     const moduleRef = await Test.createTestingModule({
       controllers: [ProfileController],
       providers: [
@@ -97,6 +113,7 @@ describe('ProfileController', () => {
         { provide: ChangePasswordUseCase, useValue: changePassword },
         { provide: GetProfileUseCase, useValue: getProfile },
         { provide: UpdatePhoneNumberUseCase, useValue: updatePhone },
+        { provide: UpdateUsernameUseCase, useValue: updateUsername },
       ],
     }).compile();
 
@@ -175,6 +192,62 @@ describe('ProfileController', () => {
     });
   });
 
+  it('changes only the authenticated account username and returns its profile', async () => {
+    const response = await app.inject({
+      headers: { authorization: 'Bearer signed-access-token' },
+      method: 'PATCH',
+      payload: { username: 'Arthur2026' },
+      url: '/api/accounts/me/username',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.json()).toEqual({
+      ...PROFILE,
+      createdAt: PROFILE.createdAt.toISOString(),
+      emailVerifiedAt: PROFILE.emailVerifiedAt?.toISOString(),
+      updatedAt: PROFILE.updatedAt.toISOString(),
+      username: 'Arthur2026',
+    });
+    expect(updateUsername.inputs).toEqual([
+      { userId: USER_ID, username: 'Arthur2026' },
+    ]);
+  });
+
+  it('rejects attempts to change other account fields with the username', async () => {
+    const response = await app.inject({
+      headers: { authorization: 'Bearer signed-access-token' },
+      method: 'PATCH',
+      payload: {
+        email: 'changed@u.nus.edu',
+        id: '77af9009-08e1-42f5-91d3-516920f0c571',
+        isAdmin: true,
+        status: AccountStatus.Banned,
+        username: 'Arthur2026',
+      },
+      url: '/api/accounts/me/username',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(updateUsername.inputs).toHaveLength(0);
+  });
+
+  it('maps a duplicate username to HTTP 409', async () => {
+    updateUsername.error = new AccountAlreadyExistsError('username');
+
+    const response = await app.inject({
+      headers: { authorization: 'Bearer signed-access-token' },
+      method: 'PATCH',
+      payload: { username: 'OtherStudent' },
+      url: '/api/accounts/me/username',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      code: 'USERNAME_ALREADY_REGISTERED',
+    });
+  });
+
   it('changes the password without returning credential data', async () => {
     const request = {
       currentPassword: 'Current!Pass',
@@ -204,6 +277,9 @@ describe('ProfileController', () => {
     );
     expect(response.json()).toHaveProperty(
       'paths./api/accounts/me/password.patch.responses.204',
+    );
+    expect(response.json()).toHaveProperty(
+      'paths./api/accounts/me/username.patch.responses.200',
     );
     expect(response.json()).toHaveProperty(
       'paths./api/accounts/me.get.security',

@@ -6,8 +6,14 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AccountAlreadyExistsError } from '../../../../../src/modules/accounts/application/errors/account-already-exists.error.js';
+import { EmailAvailabilityRateLimitError } from '../../../../../src/modules/accounts/application/errors/email-availability-rate-limit.error.js';
 import { EmailVerificationError } from '../../../../../src/modules/accounts/application/errors/email-verification.error.js';
 import { VerificationEmailRateLimitError } from '../../../../../src/modules/accounts/application/errors/verification-email-rate-limit.error.js';
+import type {
+  CheckEmailAvailabilityInput,
+  CheckEmailAvailabilityResult,
+} from '../../../../../src/modules/accounts/application/use-cases/check-email-availability.use-case.js';
+import { CheckEmailAvailabilityUseCase } from '../../../../../src/modules/accounts/application/use-cases/check-email-availability.use-case.js';
 import type { ResendVerificationEmailInput } from '../../../../../src/modules/accounts/application/use-cases/resend-verification-email.use-case.js';
 import { ResendVerificationEmailUseCase } from '../../../../../src/modules/accounts/application/use-cases/resend-verification-email.use-case.js';
 import type {
@@ -53,6 +59,21 @@ class StubRegisterAccountUseCase {
   }
 }
 
+class StubCheckEmailAvailabilityUseCase {
+  error?: Error;
+  inputs: CheckEmailAvailabilityInput[] = [];
+  result: CheckEmailAvailabilityResult = { available: true };
+
+  execute(
+    input: CheckEmailAvailabilityInput,
+  ): Promise<CheckEmailAvailabilityResult> {
+    this.inputs.push(input);
+    return this.error
+      ? Promise.reject(this.error)
+      : Promise.resolve(this.result);
+  }
+}
+
 class StubVerifyEmailUseCase {
   readonly inputs: VerifyEmailInput[] = [];
   error?: Error;
@@ -85,17 +106,23 @@ class StubResendVerificationEmailUseCase {
 
 describe('AccountsController', () => {
   let app: NestFastifyApplication;
+  let checkEmailAvailability: StubCheckEmailAvailabilityUseCase;
   let registerUseCase: StubRegisterAccountUseCase;
   let resendVerificationEmailUseCase: StubResendVerificationEmailUseCase;
   let verifyEmailUseCase: StubVerifyEmailUseCase;
 
   beforeEach(async () => {
+    checkEmailAvailability = new StubCheckEmailAvailabilityUseCase();
     registerUseCase = new StubRegisterAccountUseCase();
     resendVerificationEmailUseCase = new StubResendVerificationEmailUseCase();
     verifyEmailUseCase = new StubVerifyEmailUseCase();
     const moduleRef = await Test.createTestingModule({
       controllers: [AccountsController],
       providers: [
+        {
+          provide: CheckEmailAvailabilityUseCase,
+          useValue: checkEmailAvailability,
+        },
         {
           provide: RegisterWithEmailVerificationUseCase,
           useValue: registerUseCase,
@@ -117,6 +144,55 @@ describe('AccountsController', () => {
     configureHttpApplication(app);
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
+  });
+
+  it.each([true, false])(
+    'returns only email availability when available is %s',
+    async (available) => {
+      checkEmailAvailability.result = { available };
+
+      const response = await app.inject({
+        method: 'POST',
+        payload: { email: 'student@u.nus.edu' },
+        url: '/api/accounts/check-email',
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(response.json()).toEqual({ available });
+      expect(Object.keys(response.json())).toEqual(['available']);
+      expect(checkEmailAvailability.inputs).toHaveLength(1);
+      expect(checkEmailAvailability.inputs[0]?.email).toBe('student@u.nus.edu');
+      expect(checkEmailAvailability.inputs[0]?.clientIdentifier).toBeTruthy();
+    },
+  );
+
+  it('maps an availability rate limit to HTTP 429', async () => {
+    checkEmailAvailability.error = new EmailAvailabilityRateLimitError(42);
+
+    const response = await app.inject({
+      method: 'POST',
+      payload: { email: 'student@u.nus.edu' },
+      url: '/api/accounts/check-email',
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('42');
+    expect(response.json()).toMatchObject({
+      code: 'EMAIL_AVAILABILITY_RATE_LIMITED',
+      retryAfterSeconds: 42,
+    });
+  });
+
+  it('rejects a malformed availability request before the use case', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      payload: {},
+      url: '/api/accounts/check-email',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(checkEmailAvailability.inputs).toHaveLength(0);
   });
 
   afterEach(async () => {
@@ -198,6 +274,9 @@ describe('AccountsController', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toHaveProperty(
       'paths./api/accounts/register.post.responses.201',
+    );
+    expect(response.json()).toHaveProperty(
+      'paths./api/accounts/check-email.post.responses.200',
     );
     expect(response.json()).toHaveProperty(
       'paths./api/accounts/verify-email.post.responses.204',

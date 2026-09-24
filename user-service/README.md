@@ -21,6 +21,20 @@ workflow, queues a verification email, and returns only the account ID, username
 and pending status. BullMQ stores delivery jobs in Redis, and a service-local
 worker delivers the email through a provider-neutral SMTP adapter. Failed SMTP
 deliveries are retried up to five times with exponential backoff.
+
+`POST /api/accounts/check-email` accepts an NUS email address and returns only
+`{"available": true}` or `{"available": false}` for registration-form feedback.
+It uses the same normalization and NUS-domain validation as registration. The
+result is advisory: registration still performs its own uniqueness checks, and
+the PostgreSQL unique constraint remains authoritative if requests race.
+
+To reduce account-enumeration abuse, availability checks are limited atomically
+in Redis to 30 valid checks per client address per minute and five checks per
+normalized email per minute. Client addresses and emails are SHA-256 hashed
+before being used in Redis keys. A limited request returns HTTP 429 with a
+`Retry-After` header. Successful responses use `Cache-Control: no-store` and
+never include account IDs, profiles, status, or other account data.
+
 `POST /api/accounts/verify-email` consumes a six-digit code and atomically
 activates the account. `POST /api/accounts/verify-email/resend` issues and queues
 a replacement code for a pending account. Its response does not reveal whether
@@ -111,10 +125,14 @@ and re-check the session and current privilege in PostgreSQL on every request.
 Authenticated profile operations validate the access token and its backing
 PostgreSQL session on every request. `GET /api/accounts/me` returns the current
 account profile, and `PATCH /api/accounts/me/phone-number` changes the private
-phone number after format and uniqueness checks. `PATCH /api/accounts/me/password`
-requires the current password, applies the registration password policy to the
-new password, stores a fresh Argon2id hash, and revokes every session for the
-account so the user must sign in again.
+phone number after format and uniqueness checks.
+`PATCH /api/accounts/me/username` changes only the authenticated account's
+username, applying the same alphanumeric validation and case-insensitive
+uniqueness rule as registration. It returns the updated profile and does not
+revoke existing sessions. `PATCH /api/accounts/me/password` requires the current
+password, applies the registration password policy to the new password, stores
+a fresh Argon2id hash, and revokes every session for the account so the user
+must sign in again.
 
 Administrator-only HTTP controllers or handlers must use the
 `@AdministratorOnly()` decorator. It applies bearer authentication before the
@@ -172,6 +190,57 @@ Verification-email resend is limited atomically in Redis to one request per
 email address per 60 seconds and five requests per hour. Email addresses are
 SHA-256 hashed before they are used in Redis keys. Redis remains temporary
 coordination state; PostgreSQL remains authoritative for account eligibility.
+
+### Gmail SMTP verification
+
+Gmail delivery uses `smtp.gmail.com` with explicit STARTTLS on port 587. For
+this host, configuration validation rejects other ports and rejects
+`SMTP_SECURE=true`. Nodemailer uses `secure=false` to begin the SMTP connection
+normally and `requireTLS=true` to require a successful STARTTLS upgrade before
+authentication or message delivery.
+
+Never put a Gmail password or app password in `.env.example`, source control,
+commands, screenshots, or logs. Keep it only in the ignored local `.env` file
+or the deployment secret manager. For Gmail SMTP, configure:
+
+```text
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-gmail-address
+SMTP_PASSWORD=your-gmail-app-password
+SMTP_FROM=your-gmail-address
+```
+
+The Gmail account must have 2-Step Verification enabled before an app password
+can be created. Use the complete Gmail or Google Workspace address for
+`SMTP_USER`. Keep `SMTP_FROM` equal to that account unless Gmail has already
+been configured to send from the chosen alias.
+
+To test the complete registration and verification flow:
+
+1. Copy `.env.example` to the ignored `.env` file and replace every placeholder
+   locally. Do not paste secret values into a terminal command or commit them.
+2. Confirm outbound connectivity without credentials by running
+   `Test-NetConnection smtp.gmail.com -Port 587` in PowerShell.
+3. Start PostgreSQL and Redis with `docker compose up -d database redis`.
+4. Start the service with `corepack pnpm start:dev`. The same process starts the
+   BullMQ verification-email worker.
+5. Send `POST /api/accounts/register` with a unique username, NUS email, phone
+   number, and valid password. A successful request returns HTTP 201 and queues
+   the email.
+6. Read the six-digit code from the recipient inbox. Also check spam if needed.
+   The code expires after 10 minutes.
+7. Send `POST /api/accounts/verify-email` with the same email and code. Success
+   returns HTTP 204.
+8. Send `POST /api/auth/login` with the email and password to confirm the now
+   active account can authenticate.
+
+Example request bodies are available in the OpenAPI UI at `/api/docs`. An SMTP
+failure rejects the BullMQ job, which is retried up to five times with
+exponential backoff. Worker logs report only a safe error category such as
+`EAUTH`; they do not include SMTP response text, credentials, verification
+codes, or recipient addresses.
 
 ## Architecture
 

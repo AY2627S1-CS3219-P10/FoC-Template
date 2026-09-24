@@ -7,6 +7,7 @@ import { DatabaseModule } from '../../platform/database/database.module.js';
 import { PrismaService } from '../../platform/database/prisma.service.js';
 import { SessionTokenIssuer } from './application/services/session-token-issuer.js';
 import { AuthenticateAccessTokenUseCase } from './application/use-cases/authenticate-access-token.use-case.js';
+import { CheckEmailAvailabilityUseCase } from './application/use-cases/check-email-availability.use-case.js';
 import { ChangeAdministratorPrivilegeUseCase } from './application/use-cases/change-administrator-privilege.use-case.js';
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case.js';
 import { FindAdministratorAccountsUseCase } from './application/use-cases/find-administrator-accounts.use-case.js';
@@ -20,8 +21,10 @@ import { RegisterAccountUseCase } from './application/use-cases/register-account
 import { RegisterWithEmailVerificationUseCase } from './application/use-cases/register-with-email-verification.use-case.js';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case.js';
 import { UpdatePhoneNumberUseCase } from './application/use-cases/update-phone-number.use-case.js';
+import { UpdateUsernameUseCase } from './application/use-cases/update-username.use-case.js';
 import { SmtpVerificationEmailSender } from './infrastructure/email/smtp-verification-email.sender.js';
 import { RedisVerificationEmailResendRateLimiter } from './infrastructure/messaging/redis-verification-email-resend-rate-limiter.js';
+import { RedisEmailAvailabilityRateLimiter } from './infrastructure/messaging/redis-email-availability-rate-limiter.js';
 import { BullMqVerificationEmailDelivery } from './infrastructure/messaging/verification-email.queue.js';
 import {
   VerificationEmailProcessor,
@@ -183,6 +186,13 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
       ): UpdatePhoneNumberUseCase => new UpdatePhoneNumberUseCase(repository),
     },
     {
+      inject: [PrismaProfileRepository],
+      provide: UpdateUsernameUseCase,
+      useFactory: (
+        repository: PrismaProfileRepository,
+      ): UpdateUsernameUseCase => new UpdateUsernameUseCase(repository),
+    },
+    {
       inject: [SystemClock, Argon2PasswordHasher, PrismaProfileRepository],
       provide: ChangePasswordUseCase,
       useFactory: (
@@ -313,6 +323,16 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
     },
     {
       inject: [ConfigService],
+      provide: RedisEmailAvailabilityRateLimiter,
+      useFactory: (
+        config: ConfigService<EnvironmentVariables, true>,
+      ): RedisEmailAvailabilityRateLimiter =>
+        new RedisEmailAvailabilityRateLimiter(
+          config.get('REDIS_URL', { infer: true }),
+        ),
+    },
+    {
+      inject: [ConfigService],
       provide: RedisVerificationEmailResendRateLimiter,
       useFactory: (
         config: ConfigService<EnvironmentVariables, true>,
@@ -322,12 +342,26 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
         ),
     },
     {
+      inject: [PrismaAccountRepository, RedisEmailAvailabilityRateLimiter],
+      provide: CheckEmailAvailabilityUseCase,
+      useFactory: (
+        accountUniqueness: PrismaAccountRepository,
+        rateLimiter: RedisEmailAvailabilityRateLimiter,
+      ): CheckEmailAvailabilityUseCase =>
+        new CheckEmailAvailabilityUseCase({
+          accountUniqueness,
+          rateLimiter,
+        }),
+    },
+    {
       inject: [ConfigService],
       provide: SmtpVerificationEmailSender,
       useFactory: (
         config: ConfigService<EnvironmentVariables, true>,
-      ): SmtpVerificationEmailSender =>
-        new SmtpVerificationEmailSender(
+      ): SmtpVerificationEmailSender => {
+        const secure = config.get('SMTP_SECURE', { infer: true });
+
+        return new SmtpVerificationEmailSender(
           nodemailer.createTransport({
             auth: {
               pass: config.get('SMTP_PASSWORD', { infer: true }),
@@ -335,10 +369,12 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
             },
             host: config.get('SMTP_HOST', { infer: true }),
             port: config.get('SMTP_PORT', { infer: true }),
-            secure: config.get('SMTP_SECURE', { infer: true }),
+            requireTLS: !secure,
+            secure,
           }),
           config.get('SMTP_FROM', { infer: true }),
-        ),
+        );
+      },
     },
     {
       inject: [SmtpVerificationEmailSender],

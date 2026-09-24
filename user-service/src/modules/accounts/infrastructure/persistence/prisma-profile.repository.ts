@@ -103,4 +103,38 @@ export class PrismaProfileRepository implements ProfileRepositoryPort {
       throw error;
     }
   }
+
+  async updateUsername(
+    userId: string,
+    username: string,
+  ): Promise<AccountProfile | null> {
+    try {
+      const profile = await this.prisma.user.update({
+        data: { username },
+        select: PROFILE_SELECT,
+        where: { id: userId },
+      });
+
+      return {
+        ...profile,
+        status: DOMAIN_STATUS_BY_PRISMA[profile.status],
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new AccountAlreadyExistsError('username');
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
 }

@@ -3,9 +3,11 @@ import {
   Body,
   ConflictException,
   Controller,
+  Header,
   HttpCode,
   HttpException,
   HttpStatus,
+  Ip,
   Post,
   Res,
 } from '@nestjs/common';
@@ -14,18 +16,23 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNoContentResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 
 import { AccountAlreadyExistsError } from '../../application/errors/account-already-exists.error.js';
+import { EmailAvailabilityRateLimitError } from '../../application/errors/email-availability-rate-limit.error.js';
 import { EmailVerificationError } from '../../application/errors/email-verification.error.js';
 import { VerificationEmailRateLimitError } from '../../application/errors/verification-email-rate-limit.error.js';
+import { CheckEmailAvailabilityUseCase } from '../../application/use-cases/check-email-availability.use-case.js';
 import { ResendVerificationEmailUseCase } from '../../application/use-cases/resend-verification-email.use-case.js';
 import { RegisterWithEmailVerificationUseCase } from '../../application/use-cases/register-with-email-verification.use-case.js';
 import { VerifyEmailUseCase } from '../../application/use-cases/verify-email.use-case.js';
 import { AccountValidationError } from '../../domain/account-validation.error.js';
+import { CheckEmailAvailabilityRequest } from './dto/check-email-availability.request.js';
+import { CheckEmailAvailabilityResponse } from './dto/check-email-availability.response.js';
 import { RegisterAccountRequest } from './dto/register-account.request.js';
 import { RegisterAccountResponse } from './dto/register-account.response.js';
 import { ResendVerificationEmailRequest } from './dto/resend-verification-email.request.js';
@@ -39,10 +46,45 @@ interface HeaderResponse {
 @Controller('accounts')
 export class AccountsController {
   constructor(
+    private readonly checkEmailAvailabilityUseCase: CheckEmailAvailabilityUseCase,
     private readonly registerAccountUseCase: RegisterWithEmailVerificationUseCase,
     private readonly resendVerificationEmailUseCase: ResendVerificationEmailUseCase,
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
   ) {}
+
+  @Post('check-email')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Check whether an NUS email can be registered' })
+  @ApiOkResponse({ type: CheckEmailAvailabilityResponse })
+  @ApiBadRequestResponse({ description: 'NUS email address is invalid.' })
+  @ApiTooManyRequestsResponse({
+    description: 'Email availability check rate limit exceeded.',
+    headers: {
+      'Retry-After': {
+        description: 'Seconds until another request may be attempted.',
+        schema: { type: 'integer' },
+      },
+    },
+  })
+  async checkEmail(
+    @Ip() clientIdentifier: string,
+    @Body() request: CheckEmailAvailabilityRequest,
+    @Res({ passthrough: true }) reply: HeaderResponse,
+  ): Promise<CheckEmailAvailabilityResponse> {
+    try {
+      return await this.checkEmailAvailabilityUseCase.execute({
+        clientIdentifier,
+        email: request.email,
+      });
+    } catch (error: unknown) {
+      if (error instanceof EmailAvailabilityRateLimitError) {
+        reply.header('Retry-After', error.retryAfterSeconds.toString());
+      }
+
+      this.rethrowAsHttpException(error);
+    }
+  }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a student account' })
@@ -114,6 +156,19 @@ export class AccountsController {
   }
 
   private rethrowAsHttpException(error: unknown): never {
+    if (error instanceof EmailAvailabilityRateLimitError) {
+      throw new HttpException(
+        {
+          code: error.code,
+          field: error.field,
+          message: error.message,
+          retryAfterSeconds: error.retryAfterSeconds,
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     if (error instanceof VerificationEmailRateLimitError) {
       throw new HttpException(
         {

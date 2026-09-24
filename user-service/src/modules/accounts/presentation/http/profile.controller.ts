@@ -28,10 +28,12 @@ import type { AccountProfile } from '../../application/ports/profile-repository.
 import { ChangePasswordUseCase } from '../../application/use-cases/change-password.use-case.js';
 import { GetProfileUseCase } from '../../application/use-cases/get-profile.use-case.js';
 import { UpdatePhoneNumberUseCase } from '../../application/use-cases/update-phone-number.use-case.js';
+import { UpdateUsernameUseCase } from '../../application/use-cases/update-username.use-case.js';
 import { AccountValidationError } from '../../domain/account-validation.error.js';
 import { AccountProfileResponse } from './dto/account-profile.response.js';
 import { ChangePasswordRequest } from './dto/change-password.request.js';
 import { UpdatePhoneNumberRequest } from './dto/update-phone-number.request.js';
+import { UpdateUsernameRequest } from './dto/update-username.request.js';
 import { BearerAuthenticationGuard } from './security/bearer-authentication.guard.js';
 import { CurrentAccount } from './security/authenticated-account.js';
 
@@ -43,6 +45,7 @@ export class ProfileController {
   constructor(
     private readonly getProfileUseCase: GetProfileUseCase,
     private readonly updatePhoneNumberUseCase: UpdatePhoneNumberUseCase,
+    private readonly updateUsernameUseCase: UpdateUsernameUseCase,
     private readonly changePasswordUseCase: ChangePasswordUseCase,
   ) {}
 
@@ -73,6 +76,29 @@ export class ProfileController {
         await this.updatePhoneNumberUseCase.execute({
           phoneNumber: request.phoneNumber,
           userId: account.id,
+        }),
+      );
+    } catch (error: unknown) {
+      this.rethrowAsHttpException(error);
+    }
+  }
+
+  @Patch('username')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Change the authenticated account username' })
+  @ApiOkResponse({ type: AccountProfileResponse })
+  @ApiBadRequestResponse({ description: 'Username is invalid.' })
+  @ApiConflictResponse({ description: 'Username is already registered.' })
+  @ApiUnauthorizedResponse({ description: 'Access token is invalid.' })
+  async updateUsername(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Body() request: UpdateUsernameRequest,
+  ): Promise<AccountProfileResponse> {
+    try {
+      return this.toResponse(
+        await this.updateUsernameUseCase.execute({
+          userId: account.id,
+          username: request.username,
         }),
       );
     } catch (error: unknown) {

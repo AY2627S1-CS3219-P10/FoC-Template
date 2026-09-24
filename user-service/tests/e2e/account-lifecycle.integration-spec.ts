@@ -156,6 +156,14 @@ describe('account lifecycle API', () => {
   });
 
   it('completes registration, verification, authentication, profile, credential, and logout flows', async () => {
+    const availableBeforeRegistration = await app.inject({
+      method: 'POST',
+      payload: { email: STUDENT_EMAIL },
+      url: '/api/accounts/check-email',
+    });
+    expect(availableBeforeRegistration.statusCode).toBe(200);
+    expect(availableBeforeRegistration.json()).toEqual({ available: true });
+
     const registration = await app.inject({
       method: 'POST',
       payload: {
@@ -167,6 +175,14 @@ describe('account lifecycle API', () => {
       url: '/api/accounts/register',
     });
     expect(registration.statusCode).toBe(201);
+
+    const unavailableAfterRegistration = await app.inject({
+      method: 'POST',
+      payload: { email: STUDENT_EMAIL },
+      url: '/api/accounts/check-email',
+    });
+    expect(unavailableAfterRegistration.statusCode).toBe(200);
+    expect(unavailableAfterRegistration.json()).toEqual({ available: false });
 
     const verificationJobs = await verificationQueue.getJobs(['waiting']);
     expect(verificationJobs).toHaveLength(1);

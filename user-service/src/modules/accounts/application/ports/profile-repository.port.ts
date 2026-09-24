@@ -31,4 +31,8 @@ export interface ProfileRepositoryPort {
     userId: string,
     phoneNumber: string,
   ): Promise<AccountProfile | null>;
+  updateUsername(
+    userId: string,
+    username: string,
+  ): Promise<AccountProfile | null>;
 }
