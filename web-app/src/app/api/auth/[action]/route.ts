@@ -15,6 +15,32 @@ import type { Authentication, Profile } from "@/services/contracts";
 
 type Context = { params: Promise<{ action: string }> };
 
+export async function PATCH(request: NextRequest, context: Context) {
+  const { action } = await context.params;
+  if (!["phone-number", "password"].includes(action))
+    return json({ message: "Not found." }, 404);
+  try {
+    requireSameOrigin(request);
+    const token = accessToken(request);
+    const body = await readFields(
+      request,
+      action === "password"
+        ? ["currentPassword", "newPassword"]
+        : ["phoneNumber"],
+    );
+    const result = await backend<Profile | void>(
+      "user",
+      `accounts/me/${action}`,
+      { method: "PATCH", token, body },
+    );
+    return action === "password"
+      ? clearSession(json({ success: true }))
+      : json(result);
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 export async function GET(request: NextRequest, context: Context) {
   const { action } = await context.params;
   if (action !== "session") return json({ message: "Not found." }, 404);

@@ -107,4 +107,42 @@ Leave `APP_ORIGIN` unset for local tests, or set it to `http://127.0.0.1:3100`.
 Backend services remain authoritative for account eligibility and supplier
 availability. Authentication tokens are kept in HttpOnly cookies; no tokens or
 profile data are persisted in localStorage. The frontend never reads a service's
-database directly. Supplier administration and profile editing are separate work.
+database directly.
+
+## Account settings
+
+The account page supports phone-number updates and password changes through
+the user service's authenticated profile endpoints. Phone numbers must contain
+8–15 digits. Password changes require the current password and a new password
+of at least eight characters with uppercase, lowercase, and a special character.
+Successful password changes revoke all sessions, clear the browser's session
+cookies, and prompt the user to sign in again. Other open tabs are notified.
+Username and email remain read-only, matching the available backend operations.
+Forgotten-password recovery is not currently provided by the user service.
+
+Profile browser tests cover desktop/mobile forms, validation, service errors,
+sign-out after password changes, and adapter access checks. Workflow tests use
+intercepted responses and do not change real users' passwords or phone numbers.
+
+## Administrator dashboard
+
+Administrators land on `/admin` after login and can also open it from navigation
+or their account page. The dashboard supports all current administrative HTTP
+operations: create suppliers with a first pickup location, edit supplier names
+and categories, edit pickup details and hours, deactivate suppliers, search
+accounts, and grant or remove administrator privileges. Privilege changes and
+deactivation require confirmation. Self privilege changes are disabled; the
+user service enforces the remaining administrator protections and revokes the
+affected account's sessions.
+
+The server adapter checks the current user-service session and administrator
+status before forwarding any dashboard request. Mutations use same-origin
+checks and HttpOnly cookies. Backend services remain authoritative. The catalog
+only includes active suppliers; there is currently no backend operation for
+reactivation or adding extra locations to an existing supplier. Initial admin
+seeding remains a service deployment operation.
+
+`tests/e2e/admin.spec.ts` exercises desktop and mobile administrator workflows
+using intercepted API responses, plus real adapter origin and unauthenticated
+access checks. These UI contract tests do not replace live service integration
+tests or database tests.

@@ -9,11 +9,15 @@ export class ApiError extends Error {
   }
 }
 
-export async function request<T>(path: string, body?: unknown): Promise<T> {
+export async function request<T>(
+  path: string,
+  body?: unknown,
+  method = body === undefined ? "GET" : "POST",
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api/${path}`, {
-      method: body === undefined ? "GET" : "POST",
+      method,
       credentials: "same-origin",
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
@@ -46,16 +50,30 @@ export function sessionLock<T>(operation: () => Promise<T>): Promise<T> {
   return next;
 }
 
-export async function authenticatedRequest<T>(path: string): Promise<T> {
+export async function authenticatedRequest<T>(
+  path: string,
+  body?: unknown,
+  method = body === undefined ? "GET" : "POST",
+): Promise<T> {
   try {
-    return await request<T>(path);
+    return await request<T>(path, body, method);
   } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.code === "CURRENT_PASSWORD_INCORRECT"
+    )
+      throw error;
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
     return sessionLock(async () => {
       // Another tab may already have rotated the token while this tab was waiting.
       try {
-        return await request<T>(path);
+        return await request<T>(path, body, method);
       } catch (retryError) {
+        if (
+          retryError instanceof ApiError &&
+          retryError.code === "CURRENT_PASSWORD_INCORRECT"
+        )
+          throw retryError;
         if (!(retryError instanceof ApiError) || retryError.status !== 401)
           throw retryError;
         // Do not refresh a valid user token just because supplier configuration rejects it.
@@ -69,7 +87,7 @@ export async function authenticatedRequest<T>(path: string): Promise<T> {
             )
               throw sessionError;
             await request("auth/refresh", {});
-            return request<T>(path);
+            return request<T>(path, body, method);
           }
           throw new ApiError(
             403,
@@ -77,7 +95,7 @@ export async function authenticatedRequest<T>(path: string): Promise<T> {
           );
         }
         await request("auth/refresh", {});
-        return request<T>(path);
+        return request<T>(path, body, method);
       }
     });
   }
