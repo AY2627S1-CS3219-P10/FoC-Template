@@ -21,6 +21,20 @@ workflow, queues a verification email, and returns only the account ID, username
 and pending status. BullMQ stores delivery jobs in Redis, and a service-local
 worker delivers the email through a provider-neutral SMTP adapter. Failed SMTP
 deliveries are retried up to five times with exponential backoff.
+
+`POST /api/accounts/check-email` accepts an NUS email address and returns only
+`{"available": true}` or `{"available": false}` for registration-form feedback.
+It uses the same normalization and NUS-domain validation as registration. The
+result is advisory: registration still performs its own uniqueness checks, and
+the PostgreSQL unique constraint remains authoritative if requests race.
+
+To reduce account-enumeration abuse, availability checks are limited atomically
+in Redis to 30 valid checks per client address per minute and five checks per
+normalized email per minute. Client addresses and emails are SHA-256 hashed
+before being used in Redis keys. A limited request returns HTTP 429 with a
+`Retry-After` header. Successful responses use `Cache-Control: no-store` and
+never include account IDs, profiles, status, or other account data.
+
 `POST /api/accounts/verify-email` consumes a six-digit code and atomically
 activates the account. `POST /api/accounts/verify-email/resend` issues and queues
 a replacement code for a pending account. Its response does not reveal whether
