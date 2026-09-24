@@ -16,6 +16,7 @@ import { AuthenticateAccessTokenUseCase } from '../../../../../src/modules/accou
 import { ChangePasswordUseCase } from '../../../../../src/modules/accounts/application/use-cases/change-password.use-case.js';
 import { GetProfileUseCase } from '../../../../../src/modules/accounts/application/use-cases/get-profile.use-case.js';
 import { UpdatePhoneNumberUseCase } from '../../../../../src/modules/accounts/application/use-cases/update-phone-number.use-case.js';
+import { UpdateUsernameUseCase } from '../../../../../src/modules/accounts/application/use-cases/update-username.use-case.js';
 import { AccountStatus } from '../../../../../src/modules/accounts/domain/account-status.js';
 
 const NOW = new Date('2026-09-20T04:00:00.000Z');
@@ -72,6 +73,7 @@ class StubProfileRepository implements ProfileRepositoryPort {
   };
   profile: AccountProfile | null = PROFILE;
   updatedPhoneNumbers: Array<{ phoneNumber: string; userId: string }> = [];
+  updatedUsernames: Array<{ userId: string; username: string }> = [];
 
   changePasswordAndRevokeSessions(input: ChangePasswordRecord): Promise<void> {
     this.changedPasswords.push(input);
@@ -94,6 +96,14 @@ class StubProfileRepository implements ProfileRepositoryPort {
     return Promise.resolve(
       this.profile ? { ...this.profile, phoneNumber } : null,
     );
+  }
+
+  updateUsername(
+    userId: string,
+    username: string,
+  ): Promise<AccountProfile | null> {
+    this.updatedUsernames.push({ userId, username });
+    return Promise.resolve(this.profile ? { ...this.profile, username } : null);
   }
 }
 
@@ -170,6 +180,33 @@ describe('authenticated profile use cases', () => {
     await expect(
       updatePhone.execute({ phoneNumber: 'not-a-phone', userId: USER_ID }),
     ).rejects.toMatchObject({ code: 'PHONE_NUMBER_INVALID_FORMAT' });
+  });
+
+  it('reuses registration validation when changing the username', async () => {
+    const repository = new StubProfileRepository();
+    const updateUsername = new UpdateUsernameUseCase(repository);
+
+    await expect(
+      updateUsername.execute({ userId: USER_ID, username: 'Arthur2026' }),
+    ).resolves.toMatchObject({ username: 'Arthur2026' });
+    expect(repository.updatedUsernames).toEqual([
+      { userId: USER_ID, username: 'Arthur2026' },
+    ]);
+
+    await expect(
+      updateUsername.execute({ userId: USER_ID, username: 'invalid name' }),
+    ).rejects.toMatchObject({ code: 'USERNAME_INVALID_FORMAT' });
+    expect(repository.updatedUsernames).toHaveLength(1);
+  });
+
+  it('rejects a username update when the authenticated account is gone', async () => {
+    const repository = new StubProfileRepository();
+    repository.profile = null;
+    const updateUsername = new UpdateUsernameUseCase(repository);
+
+    await expect(
+      updateUsername.execute({ userId: USER_ID, username: 'Arthur2026' }),
+    ).rejects.toMatchObject({ code: 'ACCESS_TOKEN_INVALID_OR_EXPIRED' });
   });
 
   it('verifies the current password, hashes the new one, and revokes sessions', async () => {

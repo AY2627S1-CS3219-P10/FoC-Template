@@ -20,6 +20,7 @@ import { RegisterAccountUseCase } from './application/use-cases/register-account
 import { RegisterWithEmailVerificationUseCase } from './application/use-cases/register-with-email-verification.use-case.js';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case.js';
 import { UpdatePhoneNumberUseCase } from './application/use-cases/update-phone-number.use-case.js';
+import { UpdateUsernameUseCase } from './application/use-cases/update-username.use-case.js';
 import { SmtpVerificationEmailSender } from './infrastructure/email/smtp-verification-email.sender.js';
 import { RedisVerificationEmailResendRateLimiter } from './infrastructure/messaging/redis-verification-email-resend-rate-limiter.js';
 import { BullMqVerificationEmailDelivery } from './infrastructure/messaging/verification-email.queue.js';
@@ -181,6 +182,13 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
       useFactory: (
         repository: PrismaProfileRepository,
       ): UpdatePhoneNumberUseCase => new UpdatePhoneNumberUseCase(repository),
+    },
+    {
+      inject: [PrismaProfileRepository],
+      provide: UpdateUsernameUseCase,
+      useFactory: (
+        repository: PrismaProfileRepository,
+      ): UpdateUsernameUseCase => new UpdateUsernameUseCase(repository),
     },
     {
       inject: [SystemClock, Argon2PasswordHasher, PrismaProfileRepository],
