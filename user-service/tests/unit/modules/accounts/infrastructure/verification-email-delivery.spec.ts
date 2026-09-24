@@ -9,7 +9,11 @@ import {
   type VerificationEmailJobData,
   type VerificationEmailQueue,
 } from '../../../../../src/modules/accounts/infrastructure/messaging/verification-email.queue.js';
-import { VerificationEmailProcessor } from '../../../../../src/modules/accounts/infrastructure/messaging/verification-email.worker.js';
+import {
+  formatVerificationEmailDeliveryError,
+  formatVerificationEmailWorkerError,
+  VerificationEmailProcessor,
+} from '../../../../../src/modules/accounts/infrastructure/messaging/verification-email.worker.js';
 
 const MESSAGE: VerificationEmailMessage = {
   code: '042731',
@@ -93,5 +97,26 @@ describe('verification email delivery', () => {
     });
 
     expect(sentMessages).toEqual([MESSAGE]);
+  });
+
+  it('formats worker failures without logging sensitive error details', () => {
+    const credential = 'credential-that-must-not-be-logged';
+    const error = Object.assign(
+      new Error(`Authentication failed: ${credential}`),
+      {
+        code: 'EAUTH',
+        response: `535 rejected ${credential}`,
+      },
+    );
+
+    const loggedMessage = formatVerificationEmailWorkerError(error);
+
+    expect(loggedMessage).toBe('Verification email worker error (EAUTH).');
+    expect(loggedMessage).not.toContain(credential);
+    expect(loggedMessage).not.toContain(error.message);
+    expect(loggedMessage).not.toContain(error.response);
+    expect(formatVerificationEmailDeliveryError(error)).toBe(
+      'Verification email delivery failed (EAUTH).',
+    );
   });
 });

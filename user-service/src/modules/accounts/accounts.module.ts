@@ -326,8 +326,10 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
       provide: SmtpVerificationEmailSender,
       useFactory: (
         config: ConfigService<EnvironmentVariables, true>,
-      ): SmtpVerificationEmailSender =>
-        new SmtpVerificationEmailSender(
+      ): SmtpVerificationEmailSender => {
+        const secure = config.get('SMTP_SECURE', { infer: true });
+
+        return new SmtpVerificationEmailSender(
           nodemailer.createTransport({
             auth: {
               pass: config.get('SMTP_PASSWORD', { infer: true }),
@@ -335,10 +337,12 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
             },
             host: config.get('SMTP_HOST', { infer: true }),
             port: config.get('SMTP_PORT', { infer: true }),
-            secure: config.get('SMTP_SECURE', { infer: true }),
+            requireTLS: !secure,
+            secure,
           }),
           config.get('SMTP_FROM', { infer: true }),
-        ),
+        );
+      },
     },
     {
       inject: [SmtpVerificationEmailSender],

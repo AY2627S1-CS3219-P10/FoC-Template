@@ -173,6 +173,57 @@ email address per 60 seconds and five requests per hour. Email addresses are
 SHA-256 hashed before they are used in Redis keys. Redis remains temporary
 coordination state; PostgreSQL remains authoritative for account eligibility.
 
+### Gmail SMTP verification
+
+Gmail delivery uses `smtp.gmail.com` with explicit STARTTLS on port 587. For
+this host, configuration validation rejects other ports and rejects
+`SMTP_SECURE=true`. Nodemailer uses `secure=false` to begin the SMTP connection
+normally and `requireTLS=true` to require a successful STARTTLS upgrade before
+authentication or message delivery.
+
+Never put a Gmail password or app password in `.env.example`, source control,
+commands, screenshots, or logs. Keep it only in the ignored local `.env` file
+or the deployment secret manager. For Gmail SMTP, configure:
+
+```text
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-gmail-address
+SMTP_PASSWORD=your-gmail-app-password
+SMTP_FROM=your-gmail-address
+```
+
+The Gmail account must have 2-Step Verification enabled before an app password
+can be created. Use the complete Gmail or Google Workspace address for
+`SMTP_USER`. Keep `SMTP_FROM` equal to that account unless Gmail has already
+been configured to send from the chosen alias.
+
+To test the complete registration and verification flow:
+
+1. Copy `.env.example` to the ignored `.env` file and replace every placeholder
+   locally. Do not paste secret values into a terminal command or commit them.
+2. Confirm outbound connectivity without credentials by running
+   `Test-NetConnection smtp.gmail.com -Port 587` in PowerShell.
+3. Start PostgreSQL and Redis with `docker compose up -d database redis`.
+4. Start the service with `corepack pnpm start:dev`. The same process starts the
+   BullMQ verification-email worker.
+5. Send `POST /api/accounts/register` with a unique username, NUS email, phone
+   number, and valid password. A successful request returns HTTP 201 and queues
+   the email.
+6. Read the six-digit code from the recipient inbox. Also check spam if needed.
+   The code expires after 10 minutes.
+7. Send `POST /api/accounts/verify-email` with the same email and code. Success
+   returns HTTP 204.
+8. Send `POST /api/auth/login` with the email and password to confirm the now
+   active account can authenticate.
+
+Example request bodies are available in the OpenAPI UI at `/api/docs`. An SMTP
+failure rejects the BullMQ job, which is retried up to five times with
+exponential backoff. Worker logs report only a safe error category such as
+`EAUTH`; they do not include SMTP response text, credentials, verification
+codes, or recipient addresses.
+
 ## Architecture
 
 The service uses feature-first modules with clean boundaries inside each

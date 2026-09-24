@@ -50,10 +50,21 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
     .uri({ scheme: ['redis', 'rediss'] })
     .required(),
   SMTP_FROM: Joi.string().email().required(),
-  SMTP_HOST: Joi.string().hostname().required(),
+  SMTP_HOST: Joi.string().hostname().lowercase().required(),
   SMTP_PASSWORD: Joi.string().required(),
-  SMTP_PORT: Joi.number().port().default(587),
-  SMTP_SECURE: Joi.boolean().default(false),
+  SMTP_PORT: Joi.number()
+    .port()
+    .default(587)
+    .when('SMTP_HOST', {
+      is: 'smtp.gmail.com',
+      then: Joi.valid(587),
+    }),
+  SMTP_SECURE: Joi.boolean()
+    .default(false)
+    .when('SMTP_HOST', {
+      is: 'smtp.gmail.com',
+      then: Joi.valid(false),
+    }),
   SMTP_USER: Joi.string().required(),
 });
 

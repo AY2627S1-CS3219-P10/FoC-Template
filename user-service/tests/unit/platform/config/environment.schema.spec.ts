@@ -72,4 +72,34 @@ describe('environmentSchema', () => {
       expect(error?.message).toContain('FRONTEND_ORIGIN');
     },
   );
+
+  it('accepts the Gmail STARTTLS configuration on port 587', () => {
+    const result = environmentSchema.validate({
+      ...VALID_ENVIRONMENT,
+      SMTP_HOST: 'smtp.gmail.com',
+      SMTP_PORT: 587,
+      SMTP_SECURE: false,
+    });
+    const value: unknown = result.value;
+
+    expect(result.error).toBeUndefined();
+    expect(value).toMatchObject({
+      SMTP_HOST: 'smtp.gmail.com',
+      SMTP_PORT: 587,
+      SMTP_SECURE: false,
+    });
+  });
+
+  it.each([
+    { SMTP_PORT: 465, SMTP_SECURE: false },
+    { SMTP_PORT: 587, SMTP_SECURE: true },
+  ])('rejects Gmail settings that do not use port 587 STARTTLS', (settings) => {
+    const { error } = environmentSchema.validate({
+      ...VALID_ENVIRONMENT,
+      ...settings,
+      SMTP_HOST: 'smtp.gmail.com',
+    });
+
+    expect(error?.message).toMatch(/SMTP_(PORT|SECURE)/);
+  });
 });

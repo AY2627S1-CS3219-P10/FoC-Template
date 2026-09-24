@@ -23,6 +23,31 @@ export class VerificationEmailProcessor {
   }
 }
 
+function safeEmailErrorCode(error: unknown): string | undefined {
+  const code =
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    /^[A-Z0-9_]{1,32}$/.test(error.code)
+      ? error.code
+      : undefined;
+
+  return code;
+}
+
+export function formatVerificationEmailDeliveryError(error: unknown): string {
+  const code = safeEmailErrorCode(error);
+
+  return `Verification email delivery failed${code ? ` (${code})` : ''}.`;
+}
+
+export function formatVerificationEmailWorkerError(error: unknown): string {
+  const code = safeEmailErrorCode(error);
+
+  return `Verification email worker error${code ? ` (${code})` : ''}.`;
+}
+
 export class VerificationEmailWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(VerificationEmailWorker.name);
   private worker?: Worker<VerificationEmailJobData>;
@@ -45,8 +70,18 @@ export class VerificationEmailWorker implements OnModuleInit, OnModuleDestroy {
       { connection: { url: this.redisUrl } },
     );
     this.worker.on('error', (error: Error) => {
-      this.logger.error(`Verification email worker error: ${error.message}`);
+      this.logger.error(formatVerificationEmailWorkerError(error));
     });
+    this.worker.on(
+      'failed',
+      (job: Job<VerificationEmailJobData> | undefined, error: Error) => {
+        const attempt = job?.attemptsMade;
+        const attemptSuffix = attempt ? ` Attempt ${attempt}.` : '';
+        this.logger.warn(
+          `${formatVerificationEmailDeliveryError(error)}${attemptSuffix}`,
+        );
+      },
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
