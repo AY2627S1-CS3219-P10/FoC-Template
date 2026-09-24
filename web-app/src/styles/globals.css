@@ -1281,3 +1281,233 @@ hr {
     padding: 65px 0;
   }
 }
+
+.admin-page {
+  padding: 48px 0;
+}
+.admin-page h1 {
+  font-size: clamp(30px, 5vw, 44px);
+  letter-spacing: -1.5px;
+  margin: 12px 0;
+}
+.admin-page h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.admin-page h3 {
+  font-size: 18px;
+}
+.admin-page p {
+  color: var(--muted);
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.admin-tabs,
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.admin-tabs {
+  margin: 28px 0;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.admin-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.admin-heading > div {
+  min-width: 0;
+}
+.admin-list {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+}
+.admin-card {
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 0;
+}
+.admin-card h3 {
+  overflow-wrap: anywhere;
+}
+.admin-location {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  margin-top: 18px;
+}
+.admin-location .button {
+  flex-shrink: 0;
+}
+.admin-form {
+  margin-top: 24px;
+}
+.admin-form fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.admin-form h3 {
+  margin: 24px 0 16px;
+}
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.admin-form label,
+.admin-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+}
+.admin-page input,
+.admin-page select,
+.admin-page textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #b7bdb2;
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+}
+.admin-page input:focus-visible,
+.admin-page select:focus-visible,
+.admin-page textarea:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.admin-page small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.admin-page textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.admin-span {
+  grid-column: 1 / -1;
+}
+.admin-form > .admin-actions {
+  margin-top: 24px;
+}
+.admin-search {
+  margin: 22px 0;
+  max-width: 520px;
+}
+.admin-search-form {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.admin-search-form .admin-search {
+  flex: 1;
+}
+.admin-search-form button {
+  margin-top: 24px;
+}
+.admin-confirm {
+  margin: 24px 0;
+  padding: 24px;
+  background: #fff7e7;
+  border: 1px solid #dabd82;
+  border-radius: 12px;
+}
+.admin-confirm .admin-actions {
+  margin-top: 20px;
+}
+.admin-page .admin-error {
+  background: #fff0ec;
+  color: #8f3529;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+.admin-error button {
+  text-decoration: underline;
+}
+.admin-page .admin-notice {
+  background: #edf2e7;
+  color: #344d2c;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+.admin-danger {
+  color: #8f3529;
+  background: #fff0ec;
+  border: 1px solid #e4b7ac;
+}
+.admin-page button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (max-width: 700px) {
+  .admin-page {
+    padding: 28px 0;
+  }
+  .admin-heading,
+  .admin-location {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-card {
+    padding: 20px;
+  }
+  .admin-tabs {
+    gap: 8px;
+  }
+  .admin-tabs .button {
+    padding: 10px 14px;
+  }
+  .site-header nav {
+    flex-wrap: wrap;
+  }
+}
+
+.profile-settings {
+  display: grid;
+  gap: 24px;
+}
+.profile-settings-card {
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  min-width: 0;
+}
+.profile-settings-card h2 {
+  font-size: 22px;
+}
+.profile-settings-card > p {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 8px;
+}
+.profile-settings-card button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+@media (max-width: 640px) {
+  .profile-settings-card {
+    padding: 20px;
+  }
+}

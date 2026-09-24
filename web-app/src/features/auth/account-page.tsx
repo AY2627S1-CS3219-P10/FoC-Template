@@ -1,9 +1,25 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useAuth } from "./auth-provider";
+import { ProfileSettings } from "./profile-settings";
 
 export function AccountPage() {
   const { user, loading, error, reload } = useAuth();
+  const [passwordChanged, setPasswordChanged] = useState(false);
+  if (passwordChanged && !user)
+    return (
+      <section className="empty-state">
+        <h1>Password changed</h1>
+        <p role="status">
+          You have been signed out of all sessions. Log in with your new
+          password.
+        </p>
+        <Link className="button button-dark" href="/login">
+          Log in
+        </Link>
+      </section>
+    );
   if (loading)
     return (
       <div className="empty-state" role="status">
@@ -59,9 +75,11 @@ export function AccountPage() {
           <dd>{user.isAdmin ? "Administrator" : "Student"}</dd>
         </div>
       </dl>
-      <Link className="button button-dark" href="/suppliers">
-        Explore suppliers
-      </Link>
+      <ProfileSettings
+        key={user.id}
+        phoneNumber={user.phoneNumber}
+        onPasswordChanged={() => setPasswordChanged(true)}
+      />
     </section>
   );
 }

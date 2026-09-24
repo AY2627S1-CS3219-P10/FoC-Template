@@ -21,7 +21,8 @@ export class PrismaAdministratorPrivilegeRepository implements AdministratorPriv
   ): Promise<AdministratorPrivilegeAccount | null> {
     try {
       return await this.prisma.$transaction(async (transaction) => {
-        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(3219, 1)`;
+        // The lock returns PostgreSQL void, which Prisma cannot deserialize.
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(3219, 1)`;
 
         const actor = await transaction.user.findUnique({
           select: { isAdmin: true, status: true },

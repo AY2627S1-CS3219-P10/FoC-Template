@@ -40,8 +40,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setInactive(false);
     try {
       if (mode === "login") {
-        await auth.login(email.trim(), String(data.get("password")));
-        router.replace("/suppliers");
+        const profile = await auth.login(
+          email.trim(),
+          String(data.get("password")),
+        );
+        router.replace(profile.isAdmin ? "/admin" : "/suppliers");
       } else if (mode === "register") {
         await request("auth/register", {
           email: email.trim(),

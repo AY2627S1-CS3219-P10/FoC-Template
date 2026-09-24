@@ -21,8 +21,13 @@ type AuthContextValue = {
   loading: boolean;
   error: string;
   reload: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<Profile>;
   logout: () => Promise<void>;
+  updatePhoneNumber: (phoneNumber: string) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -79,15 +84,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [reload]);
 
   async function login(email: string, password: string) {
-    await sessionLock(async () => {
+    const profile = await sessionLock(async () => {
       await request("auth/login", { email, password });
       const profile = await request<Profile>("auth/session");
       revision.current++;
       setUser(profile);
       setLoading(false);
       setError("");
+      return profile;
     });
     broadcast();
+    return profile;
   }
   async function logout() {
     await sessionLock(async () => {
@@ -99,9 +106,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     broadcast();
   }
+  async function updatePhoneNumber(phoneNumber: string) {
+    const profile = await authenticatedRequest<Profile>(
+      "auth/phone-number",
+      { phoneNumber },
+      "PATCH",
+    );
+    revision.current++;
+    setUser((current) => (current?.id === profile.id ? profile : current));
+    broadcast();
+  }
+  async function changePassword(currentPassword: string, newPassword: string) {
+    await authenticatedRequest(
+      "auth/password",
+      { currentPassword, newPassword },
+      "PATCH",
+    );
+    revision.current++;
+    setUser(null);
+    setError("");
+    broadcast();
+  }
   return (
     <AuthContext.Provider
-      value={{ user, loading, error, reload, login, logout }}
+      value={{
+        user,
+        loading,
+        error,
+        reload,
+        login,
+        logout,
+        updatePhoneNumber,
+        changePassword,
+      }}
     >
       {children}
     </AuthContext.Provider>
