@@ -30,9 +30,9 @@ export async function backend<T>(
     response = await fetch(`${origin.replace(/\/$/, "")}/api/${path}`, {
       method: options.method || "GET",
       headers: {
-        ...(options.body === undefined
-          ? {}
-          : { "Content-Type": "application/json" }),
+        ...(options.body !== undefined
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       },
       body:
