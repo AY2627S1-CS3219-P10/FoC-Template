@@ -95,7 +95,7 @@ export function errorResponse(error: unknown) {
   return response;
 }
 
-export function requireSameOrigin(request: NextRequest) {
+export function requireSameOrigin(request: NextRequest, requireJson = true) {
   // Next.js can normalize request.url to localhost behind its internal server.
   // Host retains the actual browser-facing host/port for local development.
   const expected = process.env.APP_ORIGIN
@@ -107,7 +107,10 @@ export function requireSameOrigin(request: NextRequest) {
   ) {
     throw new BackendError(403, "This request must come from the application.");
   }
-  if (!request.headers.get("content-type")?.startsWith("application/json")) {
+  if (
+    requireJson &&
+    !request.headers.get("content-type")?.startsWith("application/json")
+  ) {
     throw new BackendError(415, "A JSON request is required.");
   }
 }
