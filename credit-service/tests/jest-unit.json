@@ -7,7 +7,7 @@
     "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.spec.json" }]
   },
   "collectCoverageFrom": [
-    "src/api/internal-service-auth.guard.ts",
+    "src/api/**/*guard.ts",
     "src/domain/**/*.ts",
     "src/application/**/*.ts",
     "src/infrastructure/configuration.ts"

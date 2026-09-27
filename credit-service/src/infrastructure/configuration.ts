@@ -5,7 +5,8 @@ const parseInteger = (
   minimum: number,
   maximum = Number.MAX_SAFE_INTEGER,
 ): number => {
-  const value = rawValue === undefined || rawValue === '' ? fallback : Number(rawValue);
+  const value =
+    rawValue === undefined || rawValue === '' ? fallback : Number(rawValue);
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
     throw new Error(
       `${name} must be a safe integer between ${minimum} and ${maximum}`,
@@ -17,7 +18,17 @@ const parseInteger = (
 const requireSecret = (name: string, rawValue: string | undefined): string => {
   const value = rawValue?.trim();
   if (!value || value.length < 32) {
-    throw new Error(`${name} must contain at least 32 non-whitespace characters`);
+    throw new Error(
+      `${name} must contain at least 32 non-whitespace characters`,
+    );
+  }
+  return value;
+};
+
+const requireText = (name: string, rawValue: string | undefined): string => {
+  const value = rawValue?.trim();
+  if (!value) {
+    throw new Error(`${name} must not be empty`);
   }
   return value;
 };
@@ -32,9 +43,27 @@ export default () => ({
       'CREDIT_INTERNAL_API_TOKEN',
       process.env.CREDIT_INTERNAL_API_TOKEN,
     ),
+    jwtAccessTokenSecret: requireSecret(
+      'JWT_ACCESS_TOKEN_SECRET',
+      process.env.JWT_ACCESS_TOKEN_SECRET,
+    ),
+    jwtAudience: requireText(
+      'JWT_AUDIENCE',
+      process.env.JWT_AUDIENCE ?? 'foc-api',
+    ),
+    jwtIssuer: requireText(
+      'JWT_ISSUER',
+      process.env.JWT_ISSUER ?? 'foc-user-service',
+    ),
   },
   database: {
-    poolMax: parseInteger('DATABASE_POOL_MAX', process.env.DATABASE_POOL_MAX, 20, 1, 100),
+    poolMax: parseInteger(
+      'DATABASE_POOL_MAX',
+      process.env.DATABASE_POOL_MAX,
+      20,
+      1,
+      100,
+    ),
     connectionTimeoutMs: parseInteger(
       'DATABASE_CONNECTION_TIMEOUT_MS',
       process.env.DATABASE_CONNECTION_TIMEOUT_MS,
@@ -70,6 +99,7 @@ export default () => ({
       process.env.CREDIT_INITIAL_BALANCE,
       100,
       0,
+      2_000_000_000,
     ),
     transactionRetries: parseInteger(
       'CREDIT_TRANSACTION_RETRIES',

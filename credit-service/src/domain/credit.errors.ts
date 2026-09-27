@@ -71,6 +71,17 @@ export class SettlementCourierConflictError extends CreditDomainError {
   }
 }
 
+export class SelfSettlementError extends CreditDomainError {
+  constructor(errandId: string, userId: string) {
+    super(
+      'The requester cannot receive the courier payment for their own errand',
+      'SELF_SETTLEMENT_FORBIDDEN',
+      409,
+      { errandId, userId },
+    );
+  }
+}
+
 export class ConcurrentOperationError extends CreditDomainError {
   constructor() {
     super(
