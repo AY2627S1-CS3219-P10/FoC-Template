@@ -7,6 +7,8 @@ describe('credit service configuration', () => {
     process.env = { ...originalEnvironment };
     process.env.CREDIT_INTERNAL_API_TOKEN =
       'configuration-test-token-at-least-32-characters';
+    process.env.JWT_ACCESS_TOKEN_SECRET =
+      'configuration-access-token-at-least-32-characters';
     delete process.env.DATABASE_POOL_MAX;
     delete process.env.DATABASE_CONNECTION_TIMEOUT_MS;
     delete process.env.DATABASE_IDLE_TIMEOUT_MS;
@@ -22,6 +24,10 @@ describe('credit service configuration', () => {
     expect(configuration()).toMatchObject({
       security: {
         internalApiToken: 'configuration-test-token-at-least-32-characters',
+        jwtAccessTokenSecret:
+          'configuration-access-token-at-least-32-characters',
+        jwtAudience: 'foc-api',
+        jwtIssuer: 'foc-user-service',
       },
       database: {
         poolMax: 20,
@@ -38,6 +44,18 @@ describe('credit service configuration', () => {
     expect(() => configuration()).toThrow('at least 32');
     process.env.CREDIT_INTERNAL_API_TOKEN = 'too-short';
     expect(() => configuration()).toThrow('at least 32');
+  });
+
+  it('rejects a missing or weak JWT access-token secret', () => {
+    delete process.env.JWT_ACCESS_TOKEN_SECRET;
+    expect(() => configuration()).toThrow('at least 32');
+    process.env.JWT_ACCESS_TOKEN_SECRET = 'too-short';
+    expect(() => configuration()).toThrow('at least 32');
+  });
+
+  it('rejects an initial balance outside the PostgreSQL integer range', () => {
+    process.env.CREDIT_INITIAL_BALANCE = '2000000001';
+    expect(() => configuration()).toThrow('between 0 and 2000000000');
   });
 
   it('rejects startup windows that exceed the recovery objective', () => {

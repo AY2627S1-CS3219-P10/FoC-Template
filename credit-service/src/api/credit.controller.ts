@@ -23,11 +23,13 @@ import {
 } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { CreditService } from '../application/credit.service';
+import { BalanceAuthorizationGuard } from './balance-authorization.guard';
 import { ErrandParamsDto, UserParamsDto } from './dto/errand-params.dto';
 import { InitializeAccountDto } from './dto/initialize-account.dto';
 import { ReserveCreditsDto } from './dto/reserve-credits.dto';
 import { SettleCreditsDto } from './dto/settle-credits.dto';
 import { InternalServiceAuthGuard } from './internal-service-auth.guard';
+import { UserAccessTokenGuard } from './user-access-token.guard';
 
 @ApiTags('credits')
 @Controller('v1')
@@ -37,11 +39,15 @@ export class CreditController {
   @Post('credit-accounts')
   @UseGuards(InternalServiceAuthGuard)
   @ApiBearerAuth('internal-service-token')
-  @ApiUnauthorizedResponse({ description: 'Bearer token is missing or malformed' })
+  @ApiUnauthorizedResponse({
+    description: 'Bearer token is missing or malformed',
+  })
   @ApiForbiddenResponse({ description: 'Service token is not authorized' })
   @ApiOperation({ summary: 'Provision starting credits for a verified user' })
   @ApiCreatedResponse({ description: 'The account was provisioned' })
-  @ApiOkResponse({ description: 'The account already existed; no credits added' })
+  @ApiOkResponse({
+    description: 'The account already existed; no credits added',
+  })
   async initialize(
     @Body() body: InitializeAccountDto,
     @Res({ passthrough: true }) reply: FastifyReply,
@@ -52,6 +58,14 @@ export class CreditController {
   }
 
   @Get('credit-accounts/:userId')
+  @UseGuards(UserAccessTokenGuard, BalanceAuthorizationGuard)
+  @ApiBearerAuth('access-token')
+  @ApiUnauthorizedResponse({
+    description: 'A valid User Service access token is required',
+  })
+  @ApiForbiddenResponse({
+    description: 'Users may only read their own balance',
+  })
   @ApiOperation({ summary: 'Get available and reserved credit balances' })
   @ApiOkResponse({ description: 'Current authoritative balance' })
   @ApiNotFoundResponse({ description: 'Credit account does not exist' })
@@ -62,7 +76,9 @@ export class CreditController {
   @Post('credit-reservations')
   @UseGuards(InternalServiceAuthGuard)
   @ApiBearerAuth('internal-service-token')
-  @ApiUnauthorizedResponse({ description: 'Bearer token is missing or malformed' })
+  @ApiUnauthorizedResponse({
+    description: 'Bearer token is missing or malformed',
+  })
   @ApiForbiddenResponse({ description: 'Service token is not authorized' })
   @ApiOperation({ summary: 'Reserve requester credits for an errand' })
   @ApiCreatedResponse({ description: 'Credits were reserved' })
@@ -81,16 +97,19 @@ export class CreditController {
   @Post('credit-reservations/:errandId/settlement')
   @UseGuards(InternalServiceAuthGuard)
   @ApiBearerAuth('internal-service-token')
-  @ApiUnauthorizedResponse({ description: 'Bearer token is missing or malformed' })
+  @ApiUnauthorizedResponse({
+    description: 'Bearer token is missing or malformed',
+  })
   @ApiForbiddenResponse({ description: 'Service token is not authorized' })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Transfer reserved credits to the assigned courier' })
+  @ApiOperation({
+    summary: 'Transfer reserved credits to the assigned courier',
+  })
   @ApiOkResponse({ description: 'Credits were settled or replayed safely' })
-  @ApiConflictResponse({ description: 'Reservation is released or courier differs' })
-  settle(
-    @Param() params: ErrandParamsDto,
-    @Body() body: SettleCreditsDto,
-  ) {
+  @ApiConflictResponse({
+    description: 'Reservation is released or courier differs',
+  })
+  settle(@Param() params: ErrandParamsDto, @Body() body: SettleCreditsDto) {
     return this.creditService
       .settle(params.errandId, body.courierId)
       .then((result) => ({ ...result.data, replayed: result.replayed }));
@@ -99,10 +118,14 @@ export class CreditController {
   @Post('credit-reservations/:errandId/release')
   @UseGuards(InternalServiceAuthGuard)
   @ApiBearerAuth('internal-service-token')
-  @ApiUnauthorizedResponse({ description: 'Bearer token is missing or malformed' })
+  @ApiUnauthorizedResponse({
+    description: 'Bearer token is missing or malformed',
+  })
   @ApiForbiddenResponse({ description: 'Service token is not authorized' })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Return reserved credits after errand cancellation' })
+  @ApiOperation({
+    summary: 'Return reserved credits after errand cancellation',
+  })
   @ApiOkResponse({ description: 'Credits were released or replayed safely' })
   @ApiConflictResponse({ description: 'Reservation was already settled' })
   release(@Param() params: ErrandParamsDto) {

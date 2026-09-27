@@ -20,6 +20,10 @@ database. No other service should access that database directly.
 - Container startup applies pending service-owned migrations before listening.
 - All mutating endpoints require the configured internal Bearer token. Missing,
   malformed, and invalid credentials are rejected before any database access.
+- Balance reads require a valid User Service JWT. Students may read only their
+  own balance, while administrators may read any balance.
+- Requester and courier identities must differ. This is enforced in both domain
+  logic and PostgreSQL as defense in depth.
 - Database startup and migration retries are bounded to 55 seconds, keeping the
   service within the 60-second recovery objective when PostgreSQL returns.
 
@@ -45,7 +49,7 @@ return the identifier in their JSON body and logs are structured JSON.
 
 ### Authentication
 
-All `POST` endpoints require this header:
+All `POST` endpoints require this internal service header:
 
 ```http
 Authorization: Bearer <CREDIT_INTERNAL_API_TOKEN>
@@ -53,8 +57,12 @@ Authorization: Bearer <CREDIT_INTERNAL_API_TOKEN>
 
 Use a randomly generated secret of at least 32 characters and inject it through
 the deployment secret manager. Missing or malformed credentials return `401`;
-a well-formed but incorrect token returns `403`. The balance lookup and health
-checks remain read-only and do not require the internal mutation token.
+a well-formed but incorrect token returns `403`.
+
+`GET /v1/credit-accounts/:userId` instead accepts the short-lived User Service
+JWT. It validates the HS256 signature, issuer, audience, expiry, `sub`, `sid`,
+and `isAdmin` claims. A student may read only the account identified by their
+`sub`; an administrator may read any account. Health checks remain public.
 
 ### Database indexes and expected scale
 
@@ -87,6 +95,9 @@ Configuration:
 | --- | --- | --- |
 | `DATABASE_URL` | required | Service-owned PostgreSQL connection |
 | `CREDIT_INTERNAL_API_TOKEN` | required | Bearer token for all mutations; minimum 32 characters |
+| `JWT_ACCESS_TOKEN_SECRET` | required | User Service HS256 signing secret; minimum 32 characters |
+| `JWT_ISSUER` | `foc-user-service` | Required issuer for user access tokens |
+| `JWT_AUDIENCE` | `foc-api` | Required audience for user access tokens |
 | `PORT` | `3003` | HTTP listener port |
 | `CREDIT_INITIAL_BALANCE` | `100` | Credits assigned exactly once at initialization |
 | `CREDIT_TRANSACTION_RETRIES` | `5` | Serializable conflict retry limit |
