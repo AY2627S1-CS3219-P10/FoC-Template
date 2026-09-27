@@ -34,6 +34,26 @@ const supplier = {
     },
   ],
 };
+const campusLocations = [
+  {
+    id: "30000000-0000-4000-8000-000000000001",
+    building: "UTown",
+    latitude: 1.3,
+    longitude: 103.7,
+  },
+  {
+    id: "30000000-0000-4000-8000-000000000002",
+    building: "Science",
+    latitude: 1.2966,
+    longitude: 103.7801,
+  },
+  {
+    id: "30000000-0000-4000-8000-000000000003",
+    building: "Library",
+    latitude: 1.2967,
+    longitude: 103.7728,
+  },
+];
 
 async function session(page: Page, user: typeof admin | null) {
   await page.route("**/api/auth/session", (route) =>
@@ -56,6 +76,11 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   let rejectCreate = true;
   await page.route("**/api/admin/suppliers**", async (route) => {
     const request = route.request();
+    if (
+      request.method() === "GET" &&
+      new URL(request.url()).pathname.endsWith("/campus-locations")
+    )
+      return route.fulfill({ json: campusLocations });
     if (request.method() === "GET") return route.fulfill({ json: catalog });
     const body = request.postDataJSON();
     writes.push({
@@ -82,11 +107,11 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   await page
     .getByRole("combobox", { name: "Category" })
     .selectOption("FOOD_COFFEE");
-  await page.getByLabel("Building", { exact: true }).fill("Science");
+  await page
+    .getByRole("combobox", { name: "Building" })
+    .selectOption(campusLocations[1].id);
   await page.getByLabel("Floor", { exact: true }).fill("2");
   await page.getByLabel("Location description").fill("Near the entrance");
-  await page.getByLabel("Latitude").fill("1.3");
-  await page.getByLabel("Longitude").fill("103.7");
   await page.getByLabel("Opening time").fill("08:00");
   await page.getByLabel("Closing time").fill("20:00");
   await page.getByRole("button", { name: "Create supplier" }).click();
@@ -102,11 +127,9 @@ test("admin supplier workflows submit service contracts and show failures", asyn
     name: "New Coffee",
     category: "FOOD_COFFEE",
     location: {
-      building: "Science",
+      campusLocationId: campusLocations[1].id,
       floor: 2,
       locationDescription: "Near the entrance",
-      latitude: 1.3,
-      longitude: 103.7,
       opensAt: "08:00",
       closesAt: "20:00",
     },
@@ -124,7 +147,9 @@ test("admin supplier workflows submit service contracts and show failures", asyn
     body: { name: "Renamed Coffee", category: "FOOD_COFFEE" },
   });
   await page.getByRole("button", { name: "Edit pickup location" }).click();
-  await page.getByLabel("Building", { exact: true }).fill("Library");
+  await page
+    .getByRole("combobox", { name: "Building" })
+    .selectOption(campusLocations[2].id);
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Changes saved" }),
@@ -132,7 +157,7 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   expect(writes[3]).toMatchObject({
     method: "PATCH",
     path: `/api/admin/suppliers/${supplier.id}/locations/${supplier.locations[0].id}`,
-    body: { building: "Library", imageUrl: null },
+    body: { campusLocationId: campusLocations[2].id, imageUrl: null },
   });
   await page.getByRole("button", { name: "Deactivate", exact: true }).click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -152,8 +177,14 @@ test("account search, promotion and demotion require confirmation and protect se
   page,
 }) => {
   await session(page, admin);
-  await page.route("**/api/admin/suppliers", (route) =>
-    route.fulfill({ json: [] }),
+  await page.route("**/api/admin/suppliers**", (route) =>
+    route.fulfill({
+      json: new URL(route.request().url()).pathname.endsWith(
+        "/campus-locations",
+      )
+        ? campusLocations
+        : [],
+    }),
   );
   const changes: unknown[] = [];
   let search = "";
@@ -268,8 +299,14 @@ for (const user of [admin, student]) {
       loggedIn = true;
       return route.fulfill({ json: { user } });
     });
-    await page.route("**/api/admin/suppliers", (route) =>
-      route.fulfill({ json: [] }),
+    await page.route("**/api/admin/suppliers**", (route) =>
+      route.fulfill({
+        json: new URL(route.request().url()).pathname.endsWith(
+          "/campus-locations",
+        )
+          ? campusLocations
+          : [],
+      }),
     );
     await page.route("**/api/suppliers", (route) =>
       route.fulfill({ json: [] }),

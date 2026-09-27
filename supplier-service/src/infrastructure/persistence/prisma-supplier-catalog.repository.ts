@@ -9,6 +9,7 @@ import type {
   UpdateSupplierRecord,
 } from '../../application/ports/supplier-management.repository.port.js';
 import type {
+  CampusLocationCatalogEntry,
   SupplierCatalogEntry,
   SupplierLocationCatalogEntry,
 } from '../../domain/supplier-catalog.js';
@@ -47,6 +48,49 @@ export class PrismaSupplierCatalogRepository
     const suppliers = await this.prisma.supplier.findMany(ACTIVE_CATALOG_QUERY);
 
     return suppliers.map((supplier) => this.mapSupplier(supplier));
+  }
+
+  async findCampusLocations(): Promise<CampusLocationCatalogEntry[]> {
+    const locations = await this.prisma.supplierLocation.findMany({
+      distinct: ['building'],
+      orderBy: [{ building: 'asc' }, { id: 'asc' }],
+      select: {
+        building: true,
+        id: true,
+        latitude: true,
+        longitude: true,
+      },
+    });
+
+    return locations.map((location) => ({
+      building: location.building,
+      id: location.id,
+      latitude: location.latitude.toNumber(),
+      longitude: location.longitude.toNumber(),
+    }));
+  }
+
+  async findCampusLocationById(
+    campusLocationId: string,
+  ): Promise<CampusLocationCatalogEntry | null> {
+    const location = await this.prisma.supplierLocation.findUnique({
+      select: {
+        building: true,
+        id: true,
+        latitude: true,
+        longitude: true,
+      },
+      where: { id: campusLocationId },
+    });
+
+    return location
+      ? {
+          building: location.building,
+          id: location.id,
+          latitude: location.latitude.toNumber(),
+          longitude: location.longitude.toNumber(),
+        }
+      : null;
   }
 
   async createSupplier(

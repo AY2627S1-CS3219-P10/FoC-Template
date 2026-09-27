@@ -20,7 +20,8 @@ export async function request<T>(
       method,
       credentials: "same-origin",
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
+      headers:
+        body === undefined ? undefined : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {

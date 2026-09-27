@@ -26,6 +26,13 @@ export const categoryLabels = {
   SHOPPING: "Shopping",
 } as const;
 
+export interface CampusLocation {
+  id: string;
+  building: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface PickupLocation {
   id: string;
   supplierAtLocation: string;
