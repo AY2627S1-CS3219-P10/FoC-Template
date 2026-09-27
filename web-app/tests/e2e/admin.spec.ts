@@ -318,3 +318,24 @@ for (const user of [admin, student]) {
     await expect(page).toHaveURL(user.isAdmin ? /\/admin$/ : /\/suppliers$/);
   });
 }
+
+test("bodyless supplier deletion passes JSON validation but retains access checks", async ({
+  request,
+  baseURL,
+}) => {
+  const path = "/api/admin/suppliers/20000000-0000-4000-8000-000000000001";
+  const sameOrigin = await request.delete(path, {
+    headers: { Origin: baseURL! },
+  });
+  expect(sameOrigin.status()).toBe(401);
+  const crossOrigin = await request.delete(path, {
+    headers: { Origin: "https://untrusted.example" },
+  });
+  expect(crossOrigin.status()).toBe(403);
+  const missingOrigin = await request.delete(path);
+  expect(missingOrigin.status()).toBe(403);
+  const nonJsonUpdate = await request.patch(path, {
+    headers: { Origin: baseURL! },
+  });
+  expect(nonJsonUpdate.status()).toBe(415);
+});
