@@ -40,7 +40,7 @@ export class PrismaSupplierCatalogRepository
   constructor(
     private readonly prisma: Pick<
       PrismaClient,
-      'supplier' | 'supplierLocation'
+      '$transaction' | 'supplier' | 'supplierLocation'
     >,
   ) {}
 
@@ -129,17 +129,13 @@ export class PrismaSupplierCatalogRepository
 
   async deactivateSupplier(supplierId: string): Promise<void> {
     try {
-      await this.prisma.supplier.update({
-        data: {
-          isActive: false,
-          locations: {
-            updateMany: {
-              data: { isActive: false },
-              where: { isActive: true },
-            },
-          },
-        },
-        where: { id: supplierId },
+      await this.prisma.$transaction(async (transaction) => {
+        await transaction.supplierLocation.deleteMany({
+          where: { supplierId },
+        });
+        await transaction.supplier.delete({
+          where: { id: supplierId },
+        });
       });
     } catch (error: unknown) {
       if (

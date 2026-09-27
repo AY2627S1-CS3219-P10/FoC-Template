@@ -33,12 +33,12 @@ associated `supplier@location` label in the same atomic database operation. An
 empty update returns HTTP 400, an unknown supplier returns HTTP 404, and a name
 conflict returns HTTP 409.
 
-Administrators may soft-delete a supplier with
-`DELETE /api/admin/suppliers/:supplierId`. The supplier and all its pickup
-locations are deactivated atomically and disappear from the active catalog,
-while their records remain available for historical errand references. The
-operation returns HTTP 204 and is safe to repeat for an existing inactive
-supplier.
+Administrators may permanently delete a supplier with
+`DELETE /api/admin/suppliers/:supplierId`. Its pickup locations are deleted
+first and then the supplier is deleted in the same database transaction. The
+operation returns HTTP 204; a subsequent request for the same supplier returns
+HTTP 404. Deleting the record releases its unique name, so an administrator can
+create a replacement supplier with the same name.
 
 Administrators may replace any subset of a pickup location's details with
 `PATCH /api/admin/suppliers/:supplierId/locations/:locationId`. The existing
