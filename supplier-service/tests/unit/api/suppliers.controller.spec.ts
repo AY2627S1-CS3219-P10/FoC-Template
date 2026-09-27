@@ -13,8 +13,12 @@ import {
 import { Test } from '@nestjs/testing';
 
 import { SuppliersController } from '../../../src/api/http/suppliers.controller.js';
+import { ListCampusLocationsUseCase } from '../../../src/application/use-cases/list-campus-locations.use-case.js';
 import { ListSuppliersUseCase } from '../../../src/application/use-cases/list-suppliers.use-case.js';
-import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
+import type {
+  CampusLocationCatalogEntry,
+  SupplierCatalogEntry,
+} from '../../../src/domain/supplier-catalog.js';
 import { AuthModule } from '../../../src/platform/auth/auth.module.js';
 import { JwtAuthenticationGuard } from '../../../src/platform/auth/jwt-authentication.guard.js';
 import { RequireRoles } from '../../../src/platform/auth/require-roles.decorator.js';
@@ -49,6 +53,23 @@ const CATALOG: SupplierCatalogEntry[] = [
     name: 'Cafe+ Robot Cafe',
   },
 ];
+const CAMPUS_LOCATIONS: CampusLocationCatalogEntry[] = [
+  {
+    building: 'Central Library',
+    id: '20000000-0000-4000-8000-000000000006',
+    latitude: 1.296444,
+    longitude: 103.773032,
+  },
+];
+
+class StubListCampusLocationsUseCase {
+  calls = 0;
+
+  execute(): Promise<CampusLocationCatalogEntry[]> {
+    this.calls += 1;
+    return Promise.resolve(CAMPUS_LOCATIONS);
+  }
+}
 
 class StubListSuppliersUseCase {
   calls = 0;
@@ -72,9 +93,11 @@ class AdminProbeController {
 describe('SuppliersController authentication and RBAC', () => {
   let app: NestFastifyApplication;
   let jwtService: JwtService;
+  let listCampusLocations: StubListCampusLocationsUseCase;
   let listSuppliers: StubListSuppliersUseCase;
 
   beforeEach(async () => {
+    listCampusLocations = new StubListCampusLocationsUseCase();
     listSuppliers = new StubListSuppliersUseCase();
     const moduleRef = await Test.createTestingModule({
       controllers: [SuppliersController, AdminProbeController],
@@ -87,6 +110,10 @@ describe('SuppliersController authentication and RBAC', () => {
         AuthModule,
       ],
       providers: [
+        {
+          provide: ListCampusLocationsUseCase,
+          useValue: listCampusLocations,
+        },
         {
           provide: ListSuppliersUseCase,
           useValue: listSuppliers,
@@ -123,6 +150,18 @@ describe('SuppliersController authentication and RBAC', () => {
       expect(listSuppliers.calls).toBe(1);
     },
   );
+
+  it('returns fixed NUS campus locations without a request body', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'GET',
+      url: '/api/suppliers/campus-locations',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(CAMPUS_LOCATIONS);
+    expect(listCampusLocations.calls).toBe(1);
+  });
 
   it('rejects an unauthenticated supplier-list request', async () => {
     const response = await app.inject({

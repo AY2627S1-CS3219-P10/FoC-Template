@@ -6,12 +6,19 @@ import type {
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { UpdateSupplierLocationUseCase } from '../../../src/application/use-cases/update-supplier-location.use-case.js';
 import type {
+  CampusLocationCatalogEntry,
   SupplierCatalogEntry,
   SupplierLocationCatalogEntry,
 } from '../../../src/domain/supplier-catalog.js';
 
 const SUPPLIER_ID = '30000000-0000-4000-8000-000000000001';
 const LOCATION_ID = '40000000-0000-4000-8000-000000000001';
+const SCIENCE_CAMPUS_LOCATION: CampusLocationCatalogEntry = {
+  building: 'Science',
+  id: '20000000-0000-4000-8000-000000000002',
+  latitude: 1.2966,
+  longitude: 103.7801,
+};
 
 class StubSupplierManagementRepository implements SupplierManagementRepositoryPort {
   readonly locationRecords: UpdateSupplierLocationRecord[] = [];
@@ -24,6 +31,16 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
   deactivateSupplier(supplierId: string): Promise<void> {
     void supplierId;
     throw new Error('Not used by these tests.');
+  }
+
+  findCampusLocationById(
+    campusLocationId: string,
+  ): Promise<CampusLocationCatalogEntry | null> {
+    return Promise.resolve(
+      campusLocationId === SCIENCE_CAMPUS_LOCATION.id
+        ? SCIENCE_CAMPUS_LOCATION
+        : null,
+    );
   }
 
   updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry> {
@@ -60,13 +77,11 @@ describe('UpdateSupplierLocationUseCase', () => {
 
     await expect(
       useCase.execute(SUPPLIER_ID, LOCATION_ID, {
-        building: ' Science ',
+        campusLocationId: SCIENCE_CAMPUS_LOCATION.id,
         closesAt: '21:00',
         floor: 2,
         imageUrl: ' https://example.com/starbucks-science.jpg ',
-        latitude: 1.2966,
         locationDescription: ' Beside the main entrance ',
-        longitude: 103.7801,
         opensAt: '09:00',
       }),
     ).resolves.toMatchObject({
@@ -102,9 +117,8 @@ describe('UpdateSupplierLocationUseCase', () => {
 
   it.each([
     [{}, 'SUPPLIER_LOCATION_UPDATE_EMPTY'],
-    [{ building: '   ' }, 'BUILDING_REQUIRED'],
     [{ floor: -1 }, 'FLOOR_INVALID'],
-    [{ latitude: 91 }, 'LATITUDE_INVALID'],
+    [{ campusLocationId: 'not-a-uuid' }, 'CAMPUS_LOCATION_ID_INVALID'],
     [{ opensAt: '9am' }, 'OPENSAT_INVALID_FORMAT'],
     [{ imageUrl: 'javascript:alert(1)' }, 'IMAGE_URL_INVALID'],
   ])('rejects an invalid location update with %s', async (input, code) => {
@@ -114,6 +128,18 @@ describe('UpdateSupplierLocationUseCase', () => {
     await expect(
       useCase.execute(SUPPLIER_ID, LOCATION_ID, input),
     ).rejects.toMatchObject({ code });
+    expect(repository.locationRecords).toHaveLength(0);
+  });
+
+  it('rejects a valid location id that is not in the campus catalog', async () => {
+    const repository = new StubSupplierManagementRepository();
+    const useCase = new UpdateSupplierLocationUseCase(repository);
+
+    await expect(
+      useCase.execute(SUPPLIER_ID, LOCATION_ID, {
+        campusLocationId: '20000000-0000-4000-8000-000000000099',
+      }),
+    ).rejects.toMatchObject({ code: 'CAMPUS_LOCATION_NOT_FOUND' });
     expect(repository.locationRecords).toHaveLength(0);
   });
 });

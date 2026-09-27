@@ -1,22 +1,24 @@
-import type { SupplierLocationCatalogEntry } from '../../domain/supplier-catalog.js';
+import type {
+  CampusLocationCatalogEntry,
+  SupplierLocationCatalogEntry,
+} from '../../domain/supplier-catalog.js';
 import {
-  assertCoordinate,
   assertFloor,
+  assertUuid,
   normalizeOptionalImageUrl,
   normalizeRequiredText,
   parseCatalogTime,
 } from '../../domain/supplier-input.js';
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
+import { CampusLocationNotFoundError } from '../errors/campus-location-not-found.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
 export interface UpdateSupplierLocationInput {
-  building?: string;
+  campusLocationId?: string;
   closesAt?: string;
   floor?: number;
   imageUrl?: string | null;
-  latitude?: number;
   locationDescription?: string;
-  longitude?: number;
   opensAt?: string;
 }
 
@@ -30,10 +32,16 @@ export class UpdateSupplierLocationUseCase {
   ): Promise<SupplierLocationCatalogEntry> {
     this.assertNotEmpty(input);
 
-    const building =
-      input.building === undefined
-        ? undefined
-        : normalizeRequiredText(input.building, 'building', 160);
+    let campusLocation: CampusLocationCatalogEntry | null | undefined;
+    if (input.campusLocationId !== undefined) {
+      assertUuid(input.campusLocationId, 'campusLocationId');
+      campusLocation = await this.repository.findCampusLocationById(
+        input.campusLocationId,
+      );
+      if (!campusLocation) {
+        throw new CampusLocationNotFoundError(input.campusLocationId);
+      }
+    }
     const locationDescription =
       input.locationDescription === undefined
         ? undefined
@@ -45,14 +53,6 @@ export class UpdateSupplierLocationUseCase {
 
     if (input.floor !== undefined) {
       assertFloor(input.floor);
-    }
-
-    if (input.latitude !== undefined) {
-      assertCoordinate(input.latitude, 'latitude');
-    }
-
-    if (input.longitude !== undefined) {
-      assertCoordinate(input.longitude, 'longitude');
     }
 
     const opensAt =
@@ -69,14 +69,14 @@ export class UpdateSupplierLocationUseCase {
         : normalizeOptionalImageUrl(input.imageUrl ?? undefined);
 
     return this.repository.updateSupplierLocation({
-      building,
+      building: campusLocation?.building,
       closesAt,
       floor: input.floor,
       imageUrl,
-      latitude: input.latitude,
+      latitude: campusLocation?.latitude,
       locationDescription,
       locationId,
-      longitude: input.longitude,
+      longitude: campusLocation?.longitude,
       opensAt,
       supplierId,
     });
@@ -84,13 +84,11 @@ export class UpdateSupplierLocationUseCase {
 
   private assertNotEmpty(input: UpdateSupplierLocationInput): void {
     if (
-      input.building === undefined &&
+      input.campusLocationId === undefined &&
       input.closesAt === undefined &&
       input.floor === undefined &&
       input.imageUrl === undefined &&
-      input.latitude === undefined &&
       input.locationDescription === undefined &&
-      input.longitude === undefined &&
       input.opensAt === undefined
     ) {
       throw new SupplierValidationError(

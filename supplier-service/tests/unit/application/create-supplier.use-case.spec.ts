@@ -5,19 +5,26 @@ import type {
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
-import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
+import type {
+  CampusLocationCatalogEntry,
+  SupplierCatalogEntry,
+} from '../../../src/domain/supplier-catalog.js';
 import { SupplierValidationError } from '../../../src/domain/supplier-validation.error.js';
 
+const CAMPUS_LOCATION: CampusLocationCatalogEntry = {
+  building: 'UTown',
+  id: '20000000-0000-4000-8000-000000000001',
+  latitude: 1.3048,
+  longitude: 103.7739,
+};
 const INPUT = {
   category: 'FOOD_COFFEE',
   location: {
-    building: ' UTown ',
+    campusLocationId: CAMPUS_LOCATION.id,
     closesAt: '02:00',
     floor: 1,
     imageUrl: ' https://example.com/starbucks-utown.jpg ',
-    latitude: 1.3048,
     locationDescription: ' Near the main entrance ',
-    longitude: 103.7739,
     opensAt: '08:00',
   },
   name: ' Starbucks ',
@@ -39,6 +46,14 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
   deactivateSupplier(supplierId: string): Promise<void> {
     void supplierId;
     throw new Error('Not used by these tests.');
+  }
+
+  findCampusLocationById(
+    campusLocationId: string,
+  ): Promise<CampusLocationCatalogEntry | null> {
+    return Promise.resolve(
+      campusLocationId === CAMPUS_LOCATION.id ? CAMPUS_LOCATION : null,
+    );
   }
 
   updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry> {
@@ -88,8 +103,11 @@ describe('CreateSupplierUseCase', () => {
       'OPENSAT_INVALID_FORMAT',
     ],
     [
-      { ...INPUT, location: { ...INPUT.location, latitude: 91 } },
-      'LATITUDE_INVALID',
+      {
+        ...INPUT,
+        location: { ...INPUT.location, campusLocationId: 'not-a-uuid' },
+      },
+      'CAMPUS_LOCATION_ID_INVALID',
     ],
     [{ ...INPUT, location: { ...INPUT.location, floor: -1 } }, 'FLOOR_INVALID'],
     [
@@ -115,5 +133,21 @@ describe('CreateSupplierUseCase', () => {
     await expect(
       useCase.execute({ ...INPUT, name: '   ' }),
     ).rejects.toBeInstanceOf(SupplierValidationError);
+  });
+
+  it('rejects a valid location id that is not in the campus catalog', async () => {
+    const repository = new StubSupplierManagementRepository();
+    const useCase = new CreateSupplierUseCase(repository);
+
+    await expect(
+      useCase.execute({
+        ...INPUT,
+        location: {
+          ...INPUT.location,
+          campusLocationId: '20000000-0000-4000-8000-000000000099',
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'CAMPUS_LOCATION_NOT_FOUND' });
+    expect(repository.records).toHaveLength(0);
   });
 });

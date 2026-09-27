@@ -23,6 +23,7 @@ async function handle(request: NextRequest, context: Context) {
         new RegExp(`^accounts/${uuid}/administrator$`).test(path));
     const suppliers =
       (path === "suppliers" && ["GET", "POST"].includes(method)) ||
+      (path === "suppliers/campus-locations" && method === "GET") ||
       (["PATCH", "DELETE"].includes(method) &&
         new RegExp(`^suppliers/${uuid}$`).test(path)) ||
       (method === "PATCH" &&
@@ -52,7 +53,7 @@ async function handle(request: NextRequest, context: Context) {
         ? `?${new URLSearchParams({ search: request.nextUrl.searchParams.get("search") || "" })}`
         : "";
     const upstream =
-      method === "GET" && suppliers ? "suppliers" : `admin/${path}${query}`;
+      method === "GET" && suppliers ? path : `admin/${path}${query}`;
     const result = await backend<unknown>(
       accounts ? "user" : "supplier",
       upstream,

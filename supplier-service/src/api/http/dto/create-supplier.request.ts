@@ -3,12 +3,11 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Matches,
-  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -20,11 +19,12 @@ import { SUPPLIER_CATEGORIES } from '../../../domain/supplier-input.js';
 const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 
 export class CreateSupplierLocationRequest {
-  @ApiProperty({ example: 'UTown' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(160)
-  building!: string;
+  @ApiProperty({
+    description: 'Identifier from GET /api/suppliers/campus-locations',
+    example: '20000000-0000-4000-8000-000000000008',
+  })
+  @IsUUID('4')
+  campusLocationId!: string;
 
   @ApiProperty({ example: 1 })
   @IsInt()
@@ -36,18 +36,6 @@ export class CreateSupplierLocationRequest {
   @IsNotEmpty()
   @MaxLength(500)
   locationDescription!: string;
-
-  @ApiProperty({ example: 1.3048 })
-  @IsNumber({ allowInfinity: false, allowNaN: false })
-  @Min(-90)
-  @Max(90)
-  latitude!: number;
-
-  @ApiProperty({ example: 103.7739 })
-  @IsNumber({ allowInfinity: false, allowNaN: false })
-  @Min(-180)
-  @Max(180)
-  longitude!: number;
 
   @ApiProperty({ example: '08:00', pattern: 'HH:mm' })
   @IsString()

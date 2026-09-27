@@ -5,6 +5,7 @@ import { SuppliersController } from '../api/http/suppliers.controller.js';
 import { CreateSupplierUseCase } from '../application/use-cases/create-supplier.use-case.js';
 import { DeactivateSupplierUseCase } from '../application/use-cases/deactivate-supplier.use-case.js';
 import { ListSuppliersUseCase } from '../application/use-cases/list-suppliers.use-case.js';
+import { ListCampusLocationsUseCase } from '../application/use-cases/list-campus-locations.use-case.js';
 import { UpdateSupplierLocationUseCase } from '../application/use-cases/update-supplier-location.use-case.js';
 import { UpdateSupplierUseCase } from '../application/use-cases/update-supplier.use-case.js';
 import { PrismaSupplierCatalogRepository } from '../infrastructure/persistence/prisma-supplier-catalog.repository.js';
@@ -28,6 +29,14 @@ import { PrismaService } from '../platform/database/prisma.service.js';
       useFactory: (
         repository: PrismaSupplierCatalogRepository,
       ): CreateSupplierUseCase => new CreateSupplierUseCase(repository),
+    },
+    {
+      inject: [PrismaSupplierCatalogRepository],
+      provide: ListCampusLocationsUseCase,
+      useFactory: (
+        repository: PrismaSupplierCatalogRepository,
+      ): ListCampusLocationsUseCase =>
+        new ListCampusLocationsUseCase(repository),
     },
     {
       inject: [PrismaSupplierCatalogRepository],

@@ -8,6 +8,7 @@ import {
 import { Test } from '@nestjs/testing';
 
 import { AdminSuppliersController } from '../../../src/api/http/admin-suppliers.controller.js';
+import { CampusLocationNotFoundError } from '../../../src/application/errors/campus-location-not-found.error.js';
 import { SupplierAlreadyExistsError } from '../../../src/application/errors/supplier-already-exists.error.js';
 import { SupplierLocationNotFoundError } from '../../../src/application/errors/supplier-location-not-found.error.js';
 import { SupplierNotFoundError } from '../../../src/application/errors/supplier-not-found.error.js';
@@ -31,16 +32,16 @@ const JWT_ACCESS_TOKEN_SECRET =
   'test-access-token-secret-at-least-32-characters';
 const JWT_ISSUER = 'foc-user-service';
 const JWT_AUDIENCE = 'foc-api';
+const UTOWN_CAMPUS_LOCATION_ID = '20000000-0000-4000-8000-000000000001';
+const SCIENCE_CAMPUS_LOCATION_ID = '20000000-0000-4000-8000-000000000002';
 const REQUEST: CreateSupplierInput = {
   category: 'FOOD_COFFEE',
   location: {
-    building: 'UTown',
+    campusLocationId: UTOWN_CAMPUS_LOCATION_ID,
     closesAt: '20:00',
     floor: 1,
     imageUrl: 'https://example.com/starbucks-utown.jpg',
-    latitude: 1.3048,
     locationDescription: 'Near the main entrance',
-    longitude: 103.7739,
     opensAt: '08:00',
   },
   name: 'Starbucks',
@@ -274,6 +275,25 @@ describe('AdminSuppliersController', () => {
     });
   });
 
+  it('maps an unknown selected campus location to HTTP 404', async () => {
+    createSupplier.error = new CampusLocationNotFoundError(
+      UTOWN_CAMPUS_LOCATION_ID,
+    );
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'POST',
+      payload: REQUEST,
+      url: '/api/admin/suppliers',
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      code: 'CAMPUS_LOCATION_NOT_FOUND',
+      field: 'campusLocationId',
+    });
+  });
+
   it('allows an administrator to deactivate a supplier', async () => {
     const response = await app.inject({
       headers: { authorization: `Bearer ${createToken(true)}` },
@@ -419,11 +439,9 @@ describe('AdminSuppliersController', () => {
   it('allows an administrator to replace location details', async () => {
     const locationId = ORIGINAL_LOCATION.id;
     const update = {
-      building: 'Science',
+      campusLocationId: SCIENCE_CAMPUS_LOCATION_ID,
       floor: 2,
-      latitude: 1.2966,
       locationDescription: 'Beside the main entrance',
-      longitude: 103.7801,
     };
 
     const response = await app.inject({
@@ -444,7 +462,7 @@ describe('AdminSuppliersController', () => {
     const response = await app.inject({
       headers: { authorization: `Bearer ${createToken(false)}` },
       method: 'PATCH',
-      payload: { building: 'Science' },
+      payload: { campusLocationId: SCIENCE_CAMPUS_LOCATION_ID },
       url: `/api/admin/suppliers/${CREATED.id}/locations/${ORIGINAL_LOCATION.id}`,
     });
 
@@ -456,7 +474,7 @@ describe('AdminSuppliersController', () => {
     const response = await app.inject({
       headers: { authorization: `Bearer ${createToken(true)}` },
       method: 'PATCH',
-      payload: { building: 'Science' },
+      payload: { campusLocationId: SCIENCE_CAMPUS_LOCATION_ID },
       url: `/api/admin/suppliers/${CREATED.id}/locations/not-a-uuid`,
     });
 
@@ -494,7 +512,7 @@ describe('AdminSuppliersController', () => {
     const response = await app.inject({
       headers: { authorization: `Bearer ${createToken(true)}` },
       method: 'PATCH',
-      payload: { building: 'Science' },
+      payload: { campusLocationId: SCIENCE_CAMPUS_LOCATION_ID },
       url: `/api/admin/suppliers/${CREATED.id}/locations/${locationId}`,
     });
 
@@ -513,7 +531,7 @@ describe('AdminSuppliersController', () => {
     const response = await app.inject({
       headers: { authorization: `Bearer ${createToken(true)}` },
       method: 'PATCH',
-      payload: { building: 'Science' },
+      payload: { campusLocationId: SCIENCE_CAMPUS_LOCATION_ID },
       url: `/api/admin/suppliers/${CREATED.id}/locations/${ORIGINAL_LOCATION.id}`,
     });
 

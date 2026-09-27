@@ -32,6 +32,10 @@ class StubSupplierCatalogRepository implements SupplierCatalogRepositoryPort {
     this.calls += 1;
     return Promise.resolve(CATALOG);
   }
+
+  findCampusLocations(): Promise<never> {
+    throw new Error('Not used by these tests.');
+  }
 }
 
 describe('ListSuppliersUseCase', () => {

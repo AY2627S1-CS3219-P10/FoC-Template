@@ -1,8 +1,8 @@
 # Supplier Service
 
 Owns suppliers, campus pickup locations, categories, and availability state.
-The existing seed CSV and location images under `data/` are future inputs to
-this service; they are not loaded by the current scaffold.
+The seed CSV under `data/` is represented by the service-owned database
+migration; image paths remain catalog metadata.
 
 ## Current scope
 
@@ -22,8 +22,10 @@ the repository. Both students and administrators may use this operation.
 
 Administrators may create a new supplier and its first pickup location with
 `POST /api/admin/suppliers`. The supplier and location are created atomically;
-the service derives the `supplier@location` label and overnight-hours flag.
-Duplicate supplier names return HTTP 409.
+the request identifies a location from `GET /api/suppliers/campus-locations`,
+and the service resolves its building and coordinates. Admins therefore do not
+enter latitude or longitude. The service also derives the `supplier@location`
+label and overnight-hours flag. Duplicate supplier names return HTTP 409.
 
 Administrators may update a supplier's name and/or category with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
@@ -53,11 +55,9 @@ Example request:
   "name": "Starbucks",
   "category": "FOOD_COFFEE",
   "location": {
-    "building": "UTown",
+    "campusLocationId": "20000000-0000-4000-8000-000000000008",
     "floor": 1,
     "locationDescription": "Near the main entrance",
-    "latitude": 1.3048,
-    "longitude": 103.7739,
     "opensAt": "08:00",
     "closesAt": "20:00",
     "imageUrl": "https://example.com/starbucks-utown.jpg"
@@ -78,11 +78,9 @@ Example location move request:
 
 ```json
 {
-  "building": "Science",
+  "campusLocationId": "20000000-0000-4000-8000-000000000019",
   "floor": 2,
-  "locationDescription": "Beside the main entrance",
-  "latitude": 1.2966,
-  "longitude": 103.7801
+  "locationDescription": "Beside the main entrance"
 }
 ```
 

@@ -22,6 +22,10 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
     throw new Error('Not used by these tests.');
   }
 
+  findCampusLocationById(): Promise<null> {
+    return Promise.resolve(null);
+  }
+
   updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry> {
     this.records.push(record);
 

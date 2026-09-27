@@ -1,4 +1,5 @@
 import type {
+  CampusLocationCatalogEntry,
   SupplierCatalogEntry,
   SupplierLocationCatalogEntry,
 } from '../../domain/supplier-catalog.js';
@@ -43,6 +44,9 @@ export interface UpdateSupplierLocationRecord {
 export interface SupplierManagementRepositoryPort {
   createSupplier(record: CreateSupplierRecord): Promise<SupplierCatalogEntry>;
   deactivateSupplier(supplierId: string): Promise<void>;
+  findCampusLocationById(
+    campusLocationId: string,
+  ): Promise<CampusLocationCatalogEntry | null>;
   updateSupplier(record: UpdateSupplierRecord): Promise<SupplierCatalogEntry>;
   updateSupplierLocation(
     record: UpdateSupplierLocationRecord,

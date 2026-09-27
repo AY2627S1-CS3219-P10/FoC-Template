@@ -1,24 +1,23 @@
 import type { SupplierCatalogEntry } from '../../domain/supplier-catalog.js';
 import {
-  assertCoordinate,
   assertFloor,
   assertSupplierCategory,
+  assertUuid,
   normalizeOptionalImageUrl,
   normalizeRequiredText,
   parseCatalogTime,
 } from '../../domain/supplier-input.js';
+import { CampusLocationNotFoundError } from '../errors/campus-location-not-found.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
 export interface CreateSupplierInput {
   category: string;
   location: {
-    building: string;
+    campusLocationId: string;
     closesAt: string;
     floor: number;
     imageUrl?: string;
-    latitude: number;
     locationDescription: string;
-    longitude: number;
     opensAt: string;
   };
   name: string;
@@ -30,20 +29,19 @@ export class CreateSupplierUseCase {
   async execute(input: CreateSupplierInput): Promise<SupplierCatalogEntry> {
     const name = normalizeRequiredText(input.name, 'name', 160);
     assertSupplierCategory(input.category);
-
-    const building = normalizeRequiredText(
-      input.location.building,
-      'building',
-      160,
+    assertUuid(input.location.campusLocationId, 'campusLocationId');
+    const campusLocation = await this.repository.findCampusLocationById(
+      input.location.campusLocationId,
     );
+    if (!campusLocation) {
+      throw new CampusLocationNotFoundError(input.location.campusLocationId);
+    }
     const locationDescription = normalizeRequiredText(
       input.location.locationDescription,
       'locationDescription',
       500,
     );
     assertFloor(input.location.floor);
-    assertCoordinate(input.location.latitude, 'latitude');
-    assertCoordinate(input.location.longitude, 'longitude');
 
     const opensAt = parseCatalogTime(input.location.opensAt, 'opensAt');
     const closesAt = parseCatalogTime(input.location.closesAt, 'closesAt');
@@ -52,16 +50,16 @@ export class CreateSupplierUseCase {
     return this.repository.createSupplier({
       category: input.category,
       location: {
-        building,
+        building: campusLocation.building,
         closesAt,
         floor: input.location.floor,
         imageUrl,
         isOpenOvernight: closesAt.getTime() < opensAt.getTime(),
-        latitude: input.location.latitude,
+        latitude: campusLocation.latitude,
         locationDescription,
-        longitude: input.location.longitude,
+        longitude: campusLocation.longitude,
         opensAt,
-        supplierAtLocation: `${name}@${building}`,
+        supplierAtLocation: `${name}@${campusLocation.building}`,
       },
       name,
     });

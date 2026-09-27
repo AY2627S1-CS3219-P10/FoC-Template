@@ -2,12 +2,11 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Matches,
-  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -15,12 +14,13 @@ import {
 const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 
 export class UpdateSupplierLocationRequest {
-  @ApiPropertyOptional({ example: 'Science' })
+  @ApiPropertyOptional({
+    description: 'Identifier from GET /api/suppliers/campus-locations',
+    example: '20000000-0000-4000-8000-000000000008',
+  })
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(160)
-  building?: string;
+  @IsUUID('4')
+  campusLocationId?: string;
 
   @ApiPropertyOptional({ example: 2 })
   @IsOptional()
@@ -34,20 +34,6 @@ export class UpdateSupplierLocationRequest {
   @IsNotEmpty()
   @MaxLength(500)
   locationDescription?: string;
-
-  @ApiPropertyOptional({ example: 1.2966 })
-  @IsOptional()
-  @IsNumber({ allowInfinity: false, allowNaN: false })
-  @Min(-90)
-  @Max(90)
-  latitude?: number;
-
-  @ApiPropertyOptional({ example: 103.7801 })
-  @IsOptional()
-  @IsNumber({ allowInfinity: false, allowNaN: false })
-  @Min(-180)
-  @Max(180)
-  longitude?: number;
 
   @ApiPropertyOptional({ example: '09:00', pattern: 'HH:mm' })
   @IsOptional()
