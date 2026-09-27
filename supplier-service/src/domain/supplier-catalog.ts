@@ -2,6 +2,13 @@ import type { SupplierCategory } from './supplier-input.js';
 
 export type { SupplierCategory } from './supplier-input.js';
 
+export interface CampusLocationCatalogEntry {
+  building: string;
+  id: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface SupplierLocationCatalogEntry {
   building: string;
   closesAt: string;

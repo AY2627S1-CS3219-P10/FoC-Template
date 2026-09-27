@@ -28,6 +28,7 @@ import {
 } from '@nestjs/swagger';
 
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
+import { CampusLocationNotFoundError } from '../../application/errors/campus-location-not-found.error.js';
 import { SupplierLocationNotFoundError } from '../../application/errors/supplier-location-not-found.error.js';
 import { SupplierNotFoundError } from '../../application/errors/supplier-not-found.error.js';
 import { CreateSupplierUseCase } from '../../application/use-cases/create-supplier.use-case.js';
@@ -66,6 +67,9 @@ export class AdminSuppliersController {
     description: 'A valid, unexpired user-service access token is required.',
   })
   @ApiForbiddenResponse({ description: 'Administrator role is required.' })
+  @ApiNotFoundResponse({
+    description: 'Selected campus location does not exist.',
+  })
   @ApiConflictResponse({
     description: 'The supplier or supplier-location label already exists.',
   })
@@ -137,7 +141,8 @@ export class AdminSuppliersController {
   })
   @ApiForbiddenResponse({ description: 'Administrator role is required.' })
   @ApiNotFoundResponse({
-    description: 'Pickup location does not exist for this supplier.',
+    description:
+      'Pickup location does not exist for this supplier, or the selected campus location does not exist.',
   })
   @ApiConflictResponse({
     description: 'The updated supplier location already exists.',
@@ -189,6 +194,15 @@ export class AdminSuppliersController {
     }
 
     if (error instanceof SupplierLocationNotFoundError) {
+      throw new NotFoundException({
+        code: error.code,
+        field: error.field,
+        message: error.message,
+        statusCode: 404,
+      });
+    }
+
+    if (error instanceof CampusLocationNotFoundError) {
       throw new NotFoundException({
         code: error.code,
         field: error.field,

@@ -13,6 +13,18 @@ export const SUPPLIER_CATEGORIES = [
 export type SupplierCategory = (typeof SUPPLIER_CATEGORIES)[number];
 
 const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function assertUuid(value: string, field: 'campusLocationId'): void {
+  if (!UUID_V4_PATTERN.test(value)) {
+    throw new SupplierValidationError(
+      field,
+      'CAMPUS_LOCATION_ID_INVALID',
+      `${field} must be a valid UUID.`,
+    );
+  }
+}
 
 export function normalizeRequiredText(
   value: string,
@@ -63,21 +75,6 @@ export function assertSupplierCategory(
       'category',
       'CATEGORY_INVALID',
       'Supplier category is not supported.',
-    );
-  }
-}
-
-export function assertCoordinate(
-  value: number,
-  field: 'latitude' | 'longitude',
-): void {
-  const [minimum, maximum] = field === 'latitude' ? [-90, 90] : [-180, 180];
-
-  if (!Number.isFinite(value) || value < minimum || value > maximum) {
-    throw new SupplierValidationError(
-      field,
-      `${field.toUpperCase()}_INVALID`,
-      `${field} must be between ${minimum} and ${maximum}.`,
     );
   }
 }

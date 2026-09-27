@@ -6,6 +6,77 @@ const UTOWN_LOCATION_ID = '40000000-0000-4000-8000-000000000001';
 const SCIENCE_LOCATION_ID = '40000000-0000-4000-8000-000000000002';
 
 describe('PrismaSupplierCatalogRepository', () => {
+  it('lists one coordinate-backed option for each campus building', async () => {
+    let findManyArguments: unknown;
+    const findMany = (args: unknown): Promise<unknown[]> => {
+      findManyArguments = args;
+      return Promise.resolve([
+        {
+          building: 'Central Library',
+          id: UTOWN_LOCATION_ID,
+          latitude: { toNumber: (): number => 1.296444 },
+          longitude: { toNumber: (): number => 103.773032 },
+        },
+      ]);
+    };
+    const repository = new PrismaSupplierCatalogRepository({
+      supplierLocation: { findMany },
+    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+
+    await expect(repository.findCampusLocations()).resolves.toEqual([
+      {
+        building: 'Central Library',
+        id: UTOWN_LOCATION_ID,
+        latitude: 1.296444,
+        longitude: 103.773032,
+      },
+    ]);
+    expect(findManyArguments).toEqual({
+      distinct: ['building'],
+      orderBy: [{ building: 'asc' }, { id: 'asc' }],
+      select: {
+        building: true,
+        id: true,
+        latitude: true,
+        longitude: true,
+      },
+    });
+  });
+
+  it('resolves a selected campus location to server-owned coordinates', async () => {
+    let findUniqueArguments: unknown;
+    const findUnique = (args: unknown): Promise<unknown> => {
+      findUniqueArguments = args;
+      return Promise.resolve({
+        building: 'Science',
+        id: SCIENCE_LOCATION_ID,
+        latitude: { toNumber: (): number => 1.2966 },
+        longitude: { toNumber: (): number => 103.7801 },
+      });
+    };
+    const repository = new PrismaSupplierCatalogRepository({
+      supplierLocation: { findUnique },
+    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+
+    await expect(
+      repository.findCampusLocationById(SCIENCE_LOCATION_ID),
+    ).resolves.toEqual({
+      building: 'Science',
+      id: SCIENCE_LOCATION_ID,
+      latitude: 1.2966,
+      longitude: 103.7801,
+    });
+    expect(findUniqueArguments).toEqual({
+      select: {
+        building: true,
+        id: true,
+        latitude: true,
+        longitude: true,
+      },
+      where: { id: SCIENCE_LOCATION_ID },
+    });
+  });
+
   it('deactivates a supplier and all active locations in one nested update', async () => {
     let updateArguments: unknown;
     const update = (args: unknown): Promise<unknown> => {

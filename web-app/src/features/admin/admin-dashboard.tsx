@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { authenticatedRequest } from "@/services/api";
 import {
+  type CampusLocation,
   categoryLabels,
   type PickupLocation,
   type Profile,
@@ -102,6 +103,7 @@ function Dashboard({ user }: { user: Profile }) {
 }
 
 function SupplierManagement() {
+  const [campusLocations, setCampusLocations] = useState<CampusLocation[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -114,7 +116,14 @@ function SupplierManagement() {
     setLoading(true);
     setError("");
     try {
-      setSuppliers(await authenticatedRequest<Supplier[]>("admin/suppliers"));
+      const [supplierCatalog, locationCatalog] = await Promise.all([
+        authenticatedRequest<Supplier[]>("admin/suppliers"),
+        authenticatedRequest<CampusLocation[]>(
+          "admin/suppliers/campus-locations",
+        ),
+      ]);
+      setSuppliers(supplierCatalog);
+      setCampusLocations(locationCatalog);
     } catch (failure) {
       setError(message(failure));
     } finally {
@@ -149,6 +158,7 @@ function SupplierManagement() {
   if (editor)
     return (
       <SupplierEditor
+        campusLocations={campusLocations}
         editor={editor}
         onCancel={() => setEditor(null)}
         onSaved={async () => {
@@ -294,10 +304,12 @@ function SupplierManagement() {
 }
 
 function SupplierEditor({
+  campusLocations,
   editor,
   onCancel,
   onSaved,
 }: {
+  campusLocations: CampusLocation[];
   editor: Editor;
   onCancel: () => void;
   onSaved: () => Promise<void>;
@@ -306,6 +318,11 @@ function SupplierEditor({
   const [error, setError] = useState("");
   const supplier = editor.kind === "create" ? undefined : editor.supplier;
   const location = editor.kind === "location" ? editor.location : undefined;
+  const selectedCampusLocationId = location
+    ? campusLocations.find(
+        (candidate) => candidate.building === location.building,
+      )?.id
+    : undefined;
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -314,11 +331,9 @@ function SupplierEditor({
     const text = (name: string) => String(data.get(name) ?? "").trim();
     const supplierInput = { name: text("name"), category: text("category") };
     const locationInput = {
-      building: text("building"),
+      campusLocationId: text("campusLocationId"),
       floor: Number(text("floor")),
       locationDescription: text("locationDescription"),
-      latitude: Number(text("latitude")),
-      longitude: Number(text("longitude")),
       opensAt: text("opensAt"),
       closesAt: text("closesAt"),
       imageUrl:
@@ -398,12 +413,24 @@ function SupplierEditor({
               <div className="admin-form-grid">
                 <label>
                   Building
-                  <input
-                    name="building"
+                  <select
+                    name="campusLocationId"
                     required
-                    maxLength={160}
-                    defaultValue={location?.building}
-                  />
+                    defaultValue={selectedCampusLocationId ?? ""}
+                  >
+                    <option value="" disabled>
+                      Select an NUS campus location
+                    </option>
+                    {campusLocations.map((campusLocation) => (
+                      <option key={campusLocation.id} value={campusLocation.id}>
+                        {campusLocation.building}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    Coordinates are filled automatically by the Supplier
+                    Service.
+                  </small>
                 </label>
                 <label>
                   Floor
@@ -423,30 +450,6 @@ function SupplierEditor({
                     required
                     maxLength={500}
                     defaultValue={location?.locationDescription}
-                  />
-                </label>
-                <label>
-                  Latitude
-                  <input
-                    name="latitude"
-                    type="number"
-                    min={-90}
-                    max={90}
-                    step="any"
-                    required
-                    defaultValue={location?.latitude}
-                  />
-                </label>
-                <label>
-                  Longitude
-                  <input
-                    name="longitude"
-                    type="number"
-                    min={-180}
-                    max={180}
-                    step="any"
-                    required
-                    defaultValue={location?.longitude}
                   />
                 </label>
                 <label>
