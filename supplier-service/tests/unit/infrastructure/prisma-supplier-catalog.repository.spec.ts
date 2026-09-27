@@ -21,7 +21,10 @@ describe('PrismaSupplierCatalogRepository', () => {
     };
     const repository = new PrismaSupplierCatalogRepository({
       supplierLocation: { findMany },
-    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
 
     await expect(repository.findCampusLocations()).resolves.toEqual([
       {
@@ -56,7 +59,10 @@ describe('PrismaSupplierCatalogRepository', () => {
     };
     const repository = new PrismaSupplierCatalogRepository({
       supplierLocation: { findUnique },
-    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
 
     await expect(
       repository.findCampusLocationById(SCIENCE_LOCATION_ID),
@@ -77,30 +83,41 @@ describe('PrismaSupplierCatalogRepository', () => {
     });
   });
 
-  it('deactivates a supplier and all active locations in one nested update', async () => {
-    let updateArguments: unknown;
-    const update = (args: unknown): Promise<unknown> => {
-      updateArguments = args;
+  it('permanently deletes a supplier and its locations in one transaction', async () => {
+    let deleteManyArguments: unknown;
+    let deleteArguments: unknown;
+    const deleteMany = (args: unknown): Promise<unknown> => {
+      deleteManyArguments = args;
+      return Promise.resolve({ count: 1 });
+    };
+    const deleteSupplier = (args: unknown): Promise<unknown> => {
+      deleteArguments = args;
       return Promise.resolve({ id: SUPPLIER_ID });
     };
+    const $transaction = (
+      callback: (transaction: unknown) => Promise<unknown>,
+    ) =>
+      callback({
+        supplier: { delete: deleteSupplier },
+        supplierLocation: { deleteMany },
+      });
 
     const repository = new PrismaSupplierCatalogRepository({
-      supplier: { update },
-    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+      $transaction,
+      supplier: { delete: deleteSupplier },
+      supplierLocation: { deleteMany },
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
 
     await expect(
       repository.deactivateSupplier(SUPPLIER_ID),
     ).resolves.toBeUndefined();
-    expect(updateArguments).toEqual({
-      data: {
-        isActive: false,
-        locations: {
-          updateMany: {
-            data: { isActive: false },
-            where: { isActive: true },
-          },
-        },
-      },
+    expect(deleteManyArguments).toEqual({
+      where: { supplierId: SUPPLIER_ID },
+    });
+    expect(deleteArguments).toEqual({
       where: { id: SUPPLIER_ID },
     });
   });
@@ -139,7 +156,10 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplier: { findUnique, update },
-    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
 
     await expect(
       repository.updateSupplier({
@@ -194,7 +214,10 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplierLocation: { findFirst, update },
-    } as unknown as Pick<PrismaClient, 'supplier' | 'supplierLocation'>);
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
 
     await expect(
       repository.updateSupplierLocation({
