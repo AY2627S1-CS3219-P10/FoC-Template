@@ -1,10 +1,14 @@
 import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
 import {
   FastifyAdapter,
   type NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,6 +20,9 @@ import { PrismaService } from '../../src/infrastructure/prisma.service';
 
 describe('Credit API with PostgreSQL', () => {
   const authorization = `Bearer ${process.env.CREDIT_INTERNAL_API_TOKEN}`;
+  const jwt = new JwtService({
+    secret: process.env.JWT_ACCESS_TOKEN_SECRET!,
+  });
   let container: StartedPostgreSqlContainer;
   let app: NestFastifyApplication;
   let prisma: PrismaService;
@@ -31,16 +38,24 @@ describe('Credit API with PostgreSQL', () => {
     await client.connect();
     await client.query(
       readFileSync(
+        join(__dirname, '../../migrations/202609200001_init/migration.sql'),
+        'utf8',
+      ),
+    );
+    await client.query(
+      readFileSync(
         join(
           __dirname,
-          '../../migrations/202609200001_init/migration.sql',
+          '../../migrations/202609270001_harden_settlement_invariants/migration.sql',
         ),
         'utf8',
       ),
     );
     await client.end();
 
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(
       new FastifyAdapter(),
     );
@@ -77,6 +92,21 @@ describe('Credit API with PostgreSQL', () => {
     return userId;
   };
 
+  const userAuthorization = (userId: string, isAdmin = false) =>
+    `Bearer ${jwt.sign(
+      {
+        sid: randomUUID(),
+        isAdmin,
+      },
+      {
+        algorithm: 'HS256',
+        audience: 'foc-api',
+        expiresIn: 900,
+        issuer: 'foc-user-service',
+        subject: userId,
+      },
+    )}`;
+
   it('initializes an account exactly once', async () => {
     const userId = randomUUID();
     const first = await request(app.getHttpServer())
@@ -105,6 +135,33 @@ describe('Credit API with PostgreSQL', () => {
     expect(await prisma.creditLedgerEntry.count()).toBe(1);
   });
 
+  it('restricts balance reads to the account owner or an administrator', async () => {
+    const ownerId = await initialize();
+    const otherUserId = randomUUID();
+
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}`)
+      .expect(401);
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}`)
+      .set('authorization', userAuthorization(otherUserId))
+      .expect(403);
+
+    const owner = await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}`)
+      .set('authorization', userAuthorization(ownerId))
+      .expect(200);
+    expect(owner.body).toMatchObject({
+      userId: ownerId,
+      availableCredits: 100,
+    });
+
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}`)
+      .set('authorization', userAuthorization(otherUserId, true))
+      .expect(200);
+  });
+
   it('rejects insufficient credits and rolls the transaction back', async () => {
     const requesterId = await initialize();
     const response = await request(app.getHttpServer())
@@ -117,8 +174,65 @@ describe('Credit API with PostgreSQL', () => {
     const account = await prisma.creditAccount.findUniqueOrThrow({
       where: { userId: requesterId },
     });
-    expect(account).toMatchObject({ availableCredits: 100, reservedCredits: 0 });
+    expect(account).toMatchObject({
+      availableCredits: 100,
+      reservedCredits: 0,
+    });
     expect(await prisma.creditReservation.count()).toBe(0);
+  });
+
+  it('returns 404 for missing accounts and reservations without side effects', async () => {
+    const missingRequesterId = randomUUID();
+    const missingErrandId = randomUUID();
+
+    const reserve = await request(app.getHttpServer())
+      .post('/v1/credit-reservations')
+      .set('authorization', authorization)
+      .send({
+        errandId: randomUUID(),
+        requesterId: missingRequesterId,
+        amount: 10,
+      })
+      .expect(404);
+    expect(reserve.body.code).toBe('ACCOUNT_NOT_FOUND');
+
+    const settle = await request(app.getHttpServer())
+      .post(`/v1/credit-reservations/${missingErrandId}/settlement`)
+      .set('authorization', authorization)
+      .send({ courierId: randomUUID() })
+      .expect(404);
+    expect(settle.body.code).toBe('RESERVATION_NOT_FOUND');
+    expect(await prisma.creditReservation.count()).toBe(0);
+    expect(await prisma.creditLedgerEntry.count()).toBe(0);
+  });
+
+  it('rolls back settlement when the courier account does not exist', async () => {
+    const requesterId = await initialize();
+    const errandId = randomUUID();
+    await request(app.getHttpServer())
+      .post('/v1/credit-reservations')
+      .set('authorization', authorization)
+      .send({ errandId, requesterId, amount: 20 })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/credit-reservations/${errandId}/settlement`)
+      .set('authorization', authorization)
+      .send({ courierId: randomUUID() })
+      .expect(404);
+    expect(response.body.code).toBe('ACCOUNT_NOT_FOUND');
+
+    const account = await prisma.creditAccount.findUniqueOrThrow({
+      where: { userId: requesterId },
+    });
+    const reservation = await prisma.creditReservation.findUniqueOrThrow({
+      where: { errandId },
+    });
+    expect(account).toMatchObject({
+      availableCredits: 80,
+      reservedCredits: 20,
+    });
+    expect(reservation.status).toBe('RESERVED');
   });
 
   it('prevents concurrent reservations from overspending', async () => {
@@ -134,11 +248,16 @@ describe('Credit API with PostgreSQL', () => {
         .send({ errandId: randomUUID(), requesterId, amount: 70 }),
     ]);
 
-    expect(responses.map((response) => response.status).sort()).toEqual([201, 422]);
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      201, 422,
+    ]);
     const account = await prisma.creditAccount.findUniqueOrThrow({
       where: { userId: requesterId },
     });
-    expect(account).toMatchObject({ availableCredits: 30, reservedCredits: 70 });
+    expect(account).toMatchObject({
+      availableCredits: 30,
+      reservedCredits: 70,
+    });
     expect(await prisma.creditReservation.count()).toBe(1);
   });
 
@@ -156,11 +275,16 @@ describe('Credit API with PostgreSQL', () => {
         .send({ errandId, requesterId, amount: 30 }),
     ]);
 
-    expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      200, 201,
+    ]);
     const account = await prisma.creditAccount.findUniqueOrThrow({
       where: { userId: requesterId },
     });
-    expect(account).toMatchObject({ availableCredits: 70, reservedCredits: 30 });
+    expect(account).toMatchObject({
+      availableCredits: 70,
+      reservedCredits: 30,
+    });
     expect(await prisma.creditReservation.count()).toBe(1);
   });
 
@@ -185,7 +309,9 @@ describe('Credit API with PostgreSQL', () => {
         .send({ courierId }),
     ]);
     expect(responses.every((response) => response.status === 200)).toBe(true);
-    expect(responses.filter((response) => response.body.replayed).length).toBe(1);
+    expect(responses.filter((response) => response.body.replayed).length).toBe(
+      1,
+    );
 
     const requester = await prisma.creditAccount.findUniqueOrThrow({
       where: { userId: requesterId },
@@ -193,13 +319,59 @@ describe('Credit API with PostgreSQL', () => {
     const courier = await prisma.creditAccount.findUniqueOrThrow({
       where: { userId: courierId },
     });
-    expect(requester).toMatchObject({ availableCredits: 65, reservedCredits: 0 });
-    expect(courier).toMatchObject({ availableCredits: 135, reservedCredits: 0 });
+    expect(requester).toMatchObject({
+      availableCredits: 65,
+      reservedCredits: 0,
+    });
+    expect(courier).toMatchObject({
+      availableCredits: 135,
+      reservedCredits: 0,
+    });
     expect(
       await prisma.creditLedgerEntry.count({
         where: { reservation: { errandId } },
       }),
     ).toBe(3);
+  });
+
+  it('rejects self-settlement without moving reserved funds', async () => {
+    const requesterId = await initialize();
+    const errandId = randomUUID();
+    await request(app.getHttpServer())
+      .post('/v1/credit-reservations')
+      .set('authorization', authorization)
+      .send({ errandId, requesterId, amount: 25 })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/credit-reservations/${errandId}/settlement`)
+      .set('authorization', authorization)
+      .send({ courierId: requesterId })
+      .expect(409);
+    expect(response.body.code).toBe('SELF_SETTLEMENT_FORBIDDEN');
+
+    await expect(
+      prisma.creditReservation.update({
+        where: { errandId },
+        data: {
+          courierId: requesterId,
+          settledAt: new Date(),
+          status: 'SETTLED',
+        },
+      }),
+    ).rejects.toThrow();
+
+    const account = await prisma.creditAccount.findUniqueOrThrow({
+      where: { userId: requesterId },
+    });
+    const reservation = await prisma.creditReservation.findUniqueOrThrow({
+      where: { errandId },
+    });
+    expect(account).toMatchObject({
+      availableCredits: 75,
+      reservedCredits: 25,
+    });
+    expect(reservation).toMatchObject({ status: 'RESERVED', courierId: null });
   });
 
   it('releases once and rejects a later settlement', async () => {
@@ -231,7 +403,10 @@ describe('Credit API with PostgreSQL', () => {
     const requester = await prisma.creditAccount.findUniqueOrThrow({
       where: { userId: requesterId },
     });
-    expect(requester).toMatchObject({ availableCredits: 100, reservedCredits: 0 });
+    expect(requester).toMatchObject({
+      availableCredits: 100,
+      reservedCredits: 0,
+    });
   });
 
   it('validates UUID and amount DTOs', async () => {
@@ -289,8 +464,14 @@ describe('Credit API with PostgreSQL', () => {
     const reservation = await prisma.creditReservation.findUniqueOrThrow({
       where: { errandId },
     });
-    expect(requester).toMatchObject({ availableCredits: 80, reservedCredits: 20 });
-    expect(courier).toMatchObject({ availableCredits: 100, reservedCredits: 0 });
+    expect(requester).toMatchObject({
+      availableCredits: 80,
+      reservedCredits: 20,
+    });
+    expect(courier).toMatchObject({
+      availableCredits: 100,
+      reservedCredits: 0,
+    });
     expect(reservation.status).toBe('RESERVED');
     expect(await prisma.creditReservation.count()).toBe(1);
     expect(await prisma.creditLedgerEntry.count()).toBe(ledgerCount);

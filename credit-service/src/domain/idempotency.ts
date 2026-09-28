@@ -1,9 +1,19 @@
 import {
   IdempotencyConflictError,
   ReservationStateConflictError,
+  SelfSettlementError,
   SettlementCourierConflictError,
 } from './credit.errors';
 import type { CreditReservation } from './credit.types';
+
+export function assertDistinctSettlementParties(
+  reservation: CreditReservation,
+  courierId: string,
+): void {
+  if (reservation.requesterId === courierId) {
+    throw new SelfSettlementError(reservation.errandId, courierId);
+  }
+}
 
 export function assertMatchingReservation(
   existing: CreditReservation,
