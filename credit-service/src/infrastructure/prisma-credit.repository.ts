@@ -17,6 +17,7 @@ import {
   ReservationNotFoundError,
 } from '../domain/credit.errors';
 import {
+  assertDistinctSettlementParties,
   assertMatchingReservation,
   assertReleaseCanReplay,
   assertSettlementCanReplay,
@@ -128,6 +129,21 @@ export class PrismaCreditRepository implements CreditRepository {
         };
       }
 
+      await this.lockAccounts(tx, [command.requesterId]);
+      const accountBeforeReservation = await tx.creditAccount.findUnique({
+        where: { userId: command.requesterId },
+      });
+      if (!accountBeforeReservation) {
+        throw new AccountNotFoundError(command.requesterId);
+      }
+      if (accountBeforeReservation.availableCredits < command.amount) {
+        throw new InsufficientCreditsError(
+          command.requesterId,
+          command.amount,
+          accountBeforeReservation.availableCredits,
+        );
+      }
+
       const updated = await tx.creditAccount.updateMany({
         where: {
           userId: command.requesterId,
@@ -195,6 +211,7 @@ export class PrismaCreditRepository implements CreditRepository {
       }
 
       const current = this.toReservation(existing);
+      assertDistinctSettlementParties(current, courierId);
       if (assertSettlementCanReplay(current, courierId)) {
         return {
           data: {
@@ -209,6 +226,7 @@ export class PrismaCreditRepository implements CreditRepository {
         };
       }
 
+      await this.lockAccounts(tx, [current.requesterId, courierId]);
       await this.requireAccount(tx, courierId);
       const requesterUpdate = await tx.creditAccount.updateMany({
         where: {
@@ -270,9 +288,7 @@ export class PrismaCreditRepository implements CreditRepository {
       });
 
       const requester =
-        courierId === current.requesterId
-          ? courier
-          : requesterAfterDebit;
+        courierId === current.requesterId ? courier : requesterAfterDebit;
       return {
         data: {
           reservation: this.toReservation(reservation),
@@ -284,9 +300,7 @@ export class PrismaCreditRepository implements CreditRepository {
     });
   }
 
-  async release(
-    errandId: string,
-  ): Promise<OperationResult<ReservationResult>> {
+  async release(errandId: string): Promise<OperationResult<ReservationResult>> {
     return this.serializable(async (tx) => {
       await this.lockReservation(tx, errandId);
       const existing = await tx.creditReservation.findUnique({
@@ -310,6 +324,7 @@ export class PrismaCreditRepository implements CreditRepository {
         };
       }
 
+      await this.lockAccounts(tx, [current.requesterId]);
       const updated = await tx.creditAccount.updateMany({
         where: {
           userId: current.requesterId,
@@ -381,6 +396,21 @@ export class PrismaCreditRepository implements CreditRepository {
     `;
   }
 
+  private async lockAccounts(
+    tx: Prisma.TransactionClient,
+    userIds: string[],
+  ): Promise<void> {
+    const orderedUserIds = [...new Set(userIds)].sort();
+    for (const userId of orderedUserIds) {
+      await tx.$queryRaw`
+        SELECT "user_id"
+        FROM "credit_accounts"
+        WHERE "user_id" = ${userId}::uuid
+        FOR UPDATE
+      `;
+    }
+  }
+
   private async requireAccount(
     tx: Prisma.TransactionClient,
     userId: string,
@@ -438,7 +468,8 @@ export class PrismaCreditRepository implements CreditRepository {
           };
         }
       | undefined;
-    return meta?.driverAdapterError?.cause?.originalCode === '40001';
+    const originalCode = meta?.driverAdapterError?.cause?.originalCode;
+    return originalCode === '40001' || originalCode === '40P01';
   }
 
   private toBalance(account: DbAccount): CreditBalance {

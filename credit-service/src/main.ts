@@ -29,7 +29,9 @@ async function bootstrap(): Promise<void> {
 
   const openApi = new DocumentBuilder()
     .setTitle('Friend on Campus Credit Service')
-    .setDescription('Authoritative credit balances, reservations, and settlements')
+    .setDescription(
+      'Authoritative credit balances, reservations, and settlements',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -38,6 +40,15 @@ async function bootstrap(): Promise<void> {
         description: 'Internal service token for credit mutations',
       },
       'internal-service-token',
+    )
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'User Service access token for balance reads',
+      },
+      'access-token',
     )
     .build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, openApi));

@@ -1,9 +1,11 @@
 import {
   IdempotencyConflictError,
   ReservationStateConflictError,
+  SelfSettlementError,
   SettlementCourierConflictError,
 } from '../../src/domain/credit.errors';
 import {
+  assertDistinctSettlementParties,
   assertMatchingReservation,
   assertReleaseCanReplay,
   assertSettlementCanReplay,
@@ -27,6 +29,24 @@ const reservation = (
 });
 
 describe('credit idempotency rules', () => {
+  it('rejects settlement to the requester', () => {
+    expect(() =>
+      assertDistinctSettlementParties(
+        reservation(),
+        '30000000-0000-4000-8000-000000000001',
+      ),
+    ).toThrow(SelfSettlementError);
+  });
+
+  it('allows settlement to a distinct courier', () => {
+    expect(() =>
+      assertDistinctSettlementParties(
+        reservation(),
+        '40000000-0000-4000-8000-000000000001',
+      ),
+    ).not.toThrow();
+  });
+
   it('accepts an exact reservation replay', () => {
     expect(() =>
       assertMatchingReservation(
@@ -40,11 +60,14 @@ describe('credit idempotency rules', () => {
   it.each([
     { requesterId: '30000000-0000-4000-8000-000000000002', amount: 40 },
     { requesterId: '30000000-0000-4000-8000-000000000001', amount: 41 },
-  ])('rejects a reservation replay with changed data', ({ requesterId, amount }) => {
-    expect(() =>
-      assertMatchingReservation(reservation(), requesterId, amount),
-    ).toThrow(IdempotencyConflictError);
-  });
+  ])(
+    'rejects a reservation replay with changed data',
+    ({ requesterId, amount }) => {
+      expect(() =>
+        assertMatchingReservation(reservation(), requesterId, amount),
+      ).toThrow(IdempotencyConflictError);
+    },
+  );
 
   it('replays settlement only for the original courier', () => {
     const settled = reservation({
@@ -68,7 +91,10 @@ describe('credit idempotency rules', () => {
 
   it('rejects settlement after release', () => {
     expect(() =>
-      assertSettlementCanReplay(reservation({ status: 'RELEASED' }), '40000000-0000-4000-8000-000000000001'),
+      assertSettlementCanReplay(
+        reservation({ status: 'RELEASED' }),
+        '40000000-0000-4000-8000-000000000001',
+      ),
     ).toThrow(ReservationStateConflictError);
   });
 

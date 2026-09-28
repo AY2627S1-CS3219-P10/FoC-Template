@@ -143,14 +143,6 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                 {location.opensAt}–{location.closesAt}
                 {location.isOpenOvernight ? " (next day)" : ""}
               </p>
-              <a
-                className="text-link"
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${location.latitude},${location.longitude}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View pickup location on map <Icon name="arrow" />
-              </a>
             </article>
           ))}
         </div>

@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
+import { BalanceAuthorizationGuard } from './api/balance-authorization.guard';
 import { CorrelationIdInterceptor } from './api/correlation-id.interceptor';
 import { InternalServiceAuthGuard } from './api/internal-service-auth.guard';
 import { CreditController } from './api/credit.controller';
 import { HealthController } from './api/health.controller';
+import { UserAccessTokenGuard } from './api/user-access-token.guard';
 import { CreditService } from './application/credit.service';
 import configuration from './infrastructure/configuration';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
@@ -16,6 +19,17 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
+    }),
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.getOrThrow<string>('security.jwtAccessTokenSecret'),
+        verifyOptions: {
+          algorithms: ['HS256'],
+          audience: config.getOrThrow<string>('security.jwtAudience'),
+          issuer: config.getOrThrow<string>('security.jwtIssuer'),
+        },
+      }),
     }),
     LoggerModule.forRoot({
       assignResponse: true,
@@ -46,6 +60,8 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
   providers: [
     CreditService,
     InternalServiceAuthGuard,
+    UserAccessTokenGuard,
+    BalanceAuthorizationGuard,
     {
       provide: APP_INTERCEPTOR,
       useClass: CorrelationIdInterceptor,
