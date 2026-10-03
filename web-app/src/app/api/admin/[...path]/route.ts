@@ -29,7 +29,7 @@ async function handle(request: NextRequest, context: Context) {
       (method === "PATCH" &&
         new RegExp(`^suppliers/${uuid}/locations/${uuid}$`).test(path));
     if (!accounts && !suppliers) return json({ message: "Not found." }, 404);
-    if (method !== "GET") requireSameOrigin(request);
+    if (method !== "GET") requireSameOrigin(request, method !== "DELETE");
     const token = accessToken(request);
     // Check the current session and privileges, including supplier operations.
     const profile = await backend<Profile>("user", "accounts/me", { token });

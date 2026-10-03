@@ -85,9 +85,11 @@ export class AdminSuppliersController {
 
   @Delete(':supplierId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Deactivate a supplier and its pickup locations' })
+  @ApiOperation({
+    summary: 'Permanently delete a supplier and its pickup locations',
+  })
   @ApiNoContentResponse({
-    description: 'Supplier and pickup locations were deactivated.',
+    description: 'Supplier and pickup locations were permanently deleted.',
   })
   @ApiBadRequestResponse({ description: 'Supplier identifier is invalid.' })
   @ApiUnauthorizedResponse({
@@ -95,7 +97,7 @@ export class AdminSuppliersController {
   })
   @ApiForbiddenResponse({ description: 'Administrator role is required.' })
   @ApiNotFoundResponse({ description: 'Supplier does not exist.' })
-  async deactivate(
+  async delete(
     @Param('supplierId', new ParseUUIDPipe({ version: '4' }))
     supplierId: string,
   ): Promise<void> {

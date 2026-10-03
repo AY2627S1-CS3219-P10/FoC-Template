@@ -145,9 +145,7 @@ function SupplierManagement() {
         "DELETE",
       );
       setSuppliers((current) => current.filter((s) => s.id !== deactivate.id));
-      setNotice(
-        `${deactivate.name} and its pickup locations have been deactivated.`,
-      );
+      setNotice(`${deactivate.name} and its pickup locations were deleted.`);
       setDeactivate(null);
     } catch (failure) {
       setError(message(failure));
@@ -205,10 +203,10 @@ function SupplierManagement() {
       )}
       {deactivate && (
         <section className="admin-confirm" aria-label="Confirm deactivation">
-          <h3>Deactivate {deactivate.name}?</h3>
+          <h3>Delete {deactivate.name} permanently?</h3>
           <p>
-            This removes the supplier and all its pickup locations from the
-            active catalog. Reactivation is not available here.
+            This permanently removes the supplier and all its pickup locations.
+            You can create a new supplier with the same name afterwards.
           </p>
           <div className="admin-actions">
             <button
@@ -216,7 +214,7 @@ function SupplierManagement() {
               disabled={busy}
               onClick={() => void remove()}
             >
-              {busy ? "Deactivating…" : "Confirm deactivation"}
+              {busy ? "Deleting…" : "Confirm deletion"}
             </button>
             <button
               className="button button-outline"
@@ -269,7 +267,7 @@ function SupplierManagement() {
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
-                    Deactivate
+                    Delete
                   </button>
                 </div>
               </div>
