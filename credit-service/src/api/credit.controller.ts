@@ -42,6 +42,7 @@ export class CreditController {
 
   @Post('credit-accounts')
   @UseGuards(InternalServiceAuthGuard)
+  @InternalCallerOnly('user-service')
   @ApiBearerAuth('internal-service-token')
   @ApiUnauthorizedResponse({
     description: 'Bearer token is missing or malformed',
@@ -83,6 +84,7 @@ export class CreditController {
 
   @Post('credit-reservations')
   @UseGuards(InternalServiceAuthGuard)
+  @InternalCallerOnly('order-service')
   @ApiBearerAuth('internal-service-token')
   @ApiUnauthorizedResponse({
     description: 'Bearer token is missing or malformed',
@@ -139,6 +141,7 @@ export class CreditController {
 
   @Post('credit-reservations/:errandId/settlement')
   @UseGuards(InternalServiceAuthGuard)
+  @InternalCallerOnly('order-service')
   @ApiBearerAuth('internal-service-token')
   @ApiUnauthorizedResponse({
     description: 'Bearer token is missing or malformed',
