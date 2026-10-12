@@ -21,7 +21,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config tests/jest-unit.json --runInBand",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --config tests/jest-unit.json --coverage --runInBand",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --config tests/jest-unit.json --coverage --runInBand && NODE_OPTIONS=--experimental-vm-modules jest --config tests/jest-integration.json --coverage --runInBand",
     "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config tests/jest-integration.json --runInBand"
   },
   "dependencies": {

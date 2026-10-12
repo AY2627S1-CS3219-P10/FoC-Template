@@ -10,7 +10,7 @@ export interface CreditBalance {
 }
 
 export interface CreditReservation {
-  id: string;
+  reservationId: string;
   errandId: string;
   requesterId: string;
   courierId: string | null;

@@ -1,5 +1,6 @@
 import {
   AccountNotFoundError,
+  BalanceLimitExceededError,
   ConcurrentOperationError,
   InsufficientCreditsError,
   InvariantViolationError,
@@ -11,6 +12,11 @@ describe('credit domain errors', () => {
     [new AccountNotFoundError('user'), 'ACCOUNT_NOT_FOUND', 404],
     [new ReservationNotFoundError('errand'), 'RESERVATION_NOT_FOUND', 404],
     [new InsufficientCreditsError('user', 5, 2), 'INSUFFICIENT_CREDITS', 422],
+    [
+      new BalanceLimitExceededError('user', 10_000_000),
+      'ACCOUNT_BALANCE_LIMIT_EXCEEDED',
+      409,
+    ],
     [new ConcurrentOperationError(), 'CONCURRENT_OPERATION', 409],
     [new InvariantViolationError('broken'), 'CREDIT_INVARIANT_VIOLATION', 409],
   ])('exposes a stable code and status for %s', (error, code, statusCode) => {

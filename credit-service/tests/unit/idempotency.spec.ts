@@ -5,6 +5,7 @@ import {
   SettlementCourierConflictError,
 } from '../../src/domain/credit.errors';
 import {
+  assertAdjustmentAllowed,
   assertDistinctSettlementParties,
   assertMatchingReservation,
   assertReleaseCanReplay,
@@ -15,7 +16,7 @@ import type { CreditReservation } from '../../src/domain/credit.types';
 const reservation = (
   overrides: Partial<CreditReservation> = {},
 ): CreditReservation => ({
-  id: '10000000-0000-4000-8000-000000000001',
+  reservationId: '10000000-0000-4000-8000-000000000001',
   errandId: '20000000-0000-4000-8000-000000000001',
   requesterId: '30000000-0000-4000-8000-000000000001',
   courierId: null,
@@ -69,7 +70,7 @@ describe('credit idempotency rules', () => {
     },
   );
 
-  it('replays settlement only for the original courier', () => {
+  it('replays settlement to the same courier', () => {
     const settled = reservation({
       status: 'SETTLED',
       courierId: '40000000-0000-4000-8000-000000000001',
@@ -107,7 +108,7 @@ describe('credit idempotency rules', () => {
     ).toBe(false);
   });
 
-  it('replays release and rejects release after settlement', () => {
+  it('replays a released reservation and rejects release after settlement', () => {
     expect(assertReleaseCanReplay(reservation({ status: 'RELEASED' }))).toBe(
       true,
     );
@@ -118,5 +119,12 @@ describe('credit idempotency rules', () => {
 
   it('allows a new release for a reserved entry', () => {
     expect(assertReleaseCanReplay(reservation())).toBe(false);
+  });
+
+  it('allows adjustment only while reserved', () => {
+    expect(() => assertAdjustmentAllowed(reservation())).not.toThrow();
+    expect(() =>
+      assertAdjustmentAllowed(reservation({ status: 'SETTLED' })),
+    ).toThrow(ReservationStateConflictError);
   });
 });

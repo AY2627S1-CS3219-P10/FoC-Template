@@ -10,7 +10,8 @@
     "src/api/**/*guard.ts",
     "src/domain/**/*.ts",
     "src/application/**/*.ts",
-    "src/infrastructure/configuration.ts"
+    "src/infrastructure/configuration.ts",
+    "src/infrastructure/credit-metrics.service.ts"
   ],
   "coverageDirectory": "coverage/unit",
   "coverageThreshold": {

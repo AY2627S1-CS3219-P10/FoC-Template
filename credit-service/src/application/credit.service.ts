@@ -1,9 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  type ConsumedEvent,
   CREDIT_REPOSITORY,
+  type AdjustReservationCommand,
   type CreditRepository,
+  type ReleaseCreditsCommand,
   type ReserveCreditsCommand,
+  type SettleCreditsCommand,
 } from './credit.repository';
 
 @Injectable()
@@ -14,10 +18,20 @@ export class CreditService {
     private readonly config: ConfigService,
   ) {}
 
-  initializeAccount(userId: string) {
+  initializeAccount(userId: string, correlationId: string) {
     return this.repository.initializeAccount(
       userId,
       this.config.getOrThrow<number>('credit.initialBalance'),
+      correlationId,
+    );
+  }
+
+  initializeAccountFromEvent(userId: string, event: ConsumedEvent) {
+    return this.repository.initializeAccount(
+      userId,
+      this.config.getOrThrow<number>('credit.initialBalance'),
+      event.eventId,
+      event,
     );
   }
 
@@ -29,12 +43,27 @@ export class CreditService {
     return this.repository.reserve(command);
   }
 
-  settle(errandId: string, courierId: string) {
-    return this.repository.settle(errandId, courierId);
+  adjust(command: AdjustReservationCommand) {
+    return this.repository.adjust(command);
   }
 
-  release(errandId: string) {
-    return this.repository.release(errandId);
+  settle(command: SettleCreditsCommand) {
+    return this.repository.settle(command);
+  }
+
+  settleFromEvent(
+    command: Omit<SettleCreditsCommand, 'correlationId' | 'consumedEvent'>,
+    event: ConsumedEvent,
+  ) {
+    return this.repository.settle({
+      ...command,
+      correlationId: event.eventId,
+      consumedEvent: event,
+    });
+  }
+
+  release(command: ReleaseCreditsCommand) {
+    return this.repository.release(command);
   }
 
   isReady() {

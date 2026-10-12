@@ -7,6 +7,18 @@
   "transform": {
     "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.spec.json" }]
   },
+  "collectCoverageFrom": [
+    "src/infrastructure/prisma-credit.repository.ts"
+  ],
+  "coverageDirectory": "coverage/integration",
+  "coverageThreshold": {
+    "global": {
+      "branches": 70,
+      "functions": 80,
+      "lines": 80,
+      "statements": 80
+    }
+  },
   "testTimeout": 120000,
   "maxWorkers": 1
 }

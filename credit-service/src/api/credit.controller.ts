@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -21,12 +22,15 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import type { FastifyReply } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { CreditService } from '../application/credit.service';
 import { BalanceAuthorizationGuard } from './balance-authorization.guard';
+import { AdjustReservationDto } from './dto/adjust-reservation.dto';
 import { ErrandParamsDto, UserParamsDto } from './dto/errand-params.dto';
 import { InitializeAccountDto } from './dto/initialize-account.dto';
+import { InternalCallerOnly } from './internal-caller.decorator';
 import { ReserveCreditsDto } from './dto/reserve-credits.dto';
+import { ReleaseCreditsDto } from './dto/release-credits.dto';
 import { SettleCreditsDto } from './dto/settle-credits.dto';
 import { InternalServiceAuthGuard } from './internal-service-auth.guard';
 import { UserAccessTokenGuard } from './user-access-token.guard';
@@ -50,9 +54,13 @@ export class CreditController {
   })
   async initialize(
     @Body() body: InitializeAccountDto,
+    @Req() request: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const result = await this.creditService.initializeAccount(body.userId);
+    const result = await this.creditService.initializeAccount(
+      body.userId,
+      String(request.id),
+    );
     reply.status(result.replayed ? HttpStatus.OK : HttpStatus.CREATED);
     return { ...result.data, replayed: result.replayed };
   }
@@ -87,11 +95,46 @@ export class CreditController {
   @ApiUnprocessableEntityResponse({ description: 'Insufficient credits' })
   async reserve(
     @Body() body: ReserveCreditsDto,
+    @Req() request: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const result = await this.creditService.reserve(body);
+    const result = await this.creditService.reserve({
+      ...body,
+      correlationId: String(request.id),
+    });
     reply.status(result.replayed ? HttpStatus.OK : HttpStatus.CREATED);
     return { ...result.data, replayed: result.replayed };
+  }
+
+  @Post('credit-reservations/:errandId/adjustment')
+  @UseGuards(InternalServiceAuthGuard)
+  @InternalCallerOnly('order-service')
+  @ApiBearerAuth('internal-service-token')
+  @ApiUnauthorizedResponse({
+    description: 'Bearer token is missing or malformed',
+  })
+  @ApiForbiddenResponse({ description: 'Service token is not authorized' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Adjust the bounty reserved for an open errand' })
+  @ApiOkResponse({
+    description: 'The reservation amount was adjusted or replayed',
+  })
+  @ApiConflictResponse({
+    description: 'Reservation state or adjustment idempotency conflict',
+  })
+  @ApiUnprocessableEntityResponse({ description: 'Insufficient credits' })
+  adjust(
+    @Param() params: ErrandParamsDto,
+    @Body() body: AdjustReservationDto,
+    @Req() request: FastifyRequest,
+  ) {
+    return this.creditService
+      .adjust({
+        errandId: params.errandId,
+        ...body,
+        correlationId: String(request.id),
+      })
+      .then((result) => ({ ...result.data, replayed: result.replayed }));
   }
 
   @Post('credit-reservations/:errandId/settlement')
@@ -107,16 +150,25 @@ export class CreditController {
   })
   @ApiOkResponse({ description: 'Credits were settled or replayed safely' })
   @ApiConflictResponse({
-    description: 'Reservation is released or courier differs',
+    description: 'Reservation data conflicts or the reservation was released',
   })
-  settle(@Param() params: ErrandParamsDto, @Body() body: SettleCreditsDto) {
+  settle(
+    @Param() params: ErrandParamsDto,
+    @Body() body: SettleCreditsDto,
+    @Req() request: FastifyRequest,
+  ) {
     return this.creditService
-      .settle(params.errandId, body.courierId)
+      .settle({
+        errandId: params.errandId,
+        ...body,
+        correlationId: String(request.id),
+      })
       .then((result) => ({ ...result.data, replayed: result.replayed }));
   }
 
   @Post('credit-reservations/:errandId/release')
   @UseGuards(InternalServiceAuthGuard)
+  @InternalCallerOnly('order-service')
   @ApiBearerAuth('internal-service-token')
   @ApiUnauthorizedResponse({
     description: 'Bearer token is missing or malformed',
@@ -127,11 +179,23 @@ export class CreditController {
     summary: 'Return reserved credits after errand cancellation',
   })
   @ApiOkResponse({ description: 'Credits were released or replayed safely' })
-  @ApiConflictResponse({ description: 'Reservation was already settled' })
-  release(@Param() params: ErrandParamsDto) {
-    return this.creditService.release(params.errandId).then((result) => ({
-      ...result.data,
-      replayed: result.replayed,
-    }));
+  @ApiConflictResponse({
+    description: 'Reservation data conflicts or the reservation was settled',
+  })
+  release(
+    @Param() params: ErrandParamsDto,
+    @Body() body: ReleaseCreditsDto,
+    @Req() request: FastifyRequest,
+  ) {
+    return this.creditService
+      .release({
+        errandId: params.errandId,
+        ...body,
+        correlationId: String(request.id),
+      })
+      .then((result) => ({
+        ...result.data,
+        replayed: result.replayed,
+      }));
   }
 }

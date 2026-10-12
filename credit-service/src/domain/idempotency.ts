@@ -25,6 +25,18 @@ export function assertMatchingReservation(
   }
 }
 
+export function assertAdjustmentAllowed(
+  reservation: CreditReservation,
+): void {
+  if (reservation.status !== 'RESERVED') {
+    throw new ReservationStateConflictError(
+      reservation.errandId,
+      reservation.status,
+      'adjust',
+    );
+  }
+}
+
 export function assertSettlementCanReplay(
   reservation: CreditReservation,
   courierId: string,
