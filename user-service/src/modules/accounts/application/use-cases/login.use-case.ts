@@ -2,6 +2,7 @@ import { AccountStatus } from '../../domain/account-status.js';
 import { NusEmail } from '../../domain/nus-email.js';
 import { AuthenticationError } from '../errors/authentication.error.js';
 import type { AuthenticationRepositoryPort } from '../ports/authentication-repository.port.js';
+import type { ClockPort } from '../ports/clock.port.js';
 import type { PasswordVerifierPort } from '../ports/password-verifier.port.js';
 import type { SessionTokenPair } from '../services/session-token-issuer.js';
 import type { SessionTokenIssuer } from '../services/session-token-issuer.js';
@@ -20,6 +21,7 @@ export interface AuthenticationResult extends SessionTokenPair {
 }
 
 export interface LoginDependencies {
+  clock: ClockPort;
   passwordVerifier: PasswordVerifierPort;
   repository: Pick<
     AuthenticationRepositoryPort,
@@ -47,7 +49,11 @@ export class LoginUseCase {
       );
     }
 
-    if (account.status !== AccountStatus.Active) {
+    if (
+      account.status !== AccountStatus.Active ||
+      (account.suspendedUntil !== null &&
+        account.suspendedUntil > this.dependencies.clock.now())
+    ) {
       throw new AuthenticationError(
         'ACCOUNT_NOT_ACTIVE',
         'Account is not available for login.',

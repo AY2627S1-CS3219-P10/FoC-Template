@@ -34,6 +34,7 @@ const ACCOUNT: AuthenticationAccount = {
   isAdmin: false,
   passwordHash: 'stored-password-hash',
   status: AccountStatus.Active,
+  suspendedUntil: null,
   username: 'Arthur3219',
 };
 
@@ -145,6 +146,7 @@ function createContext(): TestContext {
   return {
     accessTokens,
     login: new LoginUseCase({
+      clock,
       passwordVerifier,
       repository,
       sessionTokenIssuer,
@@ -255,6 +257,31 @@ describe('authentication use cases', () => {
       }),
     ).rejects.toMatchObject({ code: 'ACCOUNT_NOT_ACTIVE' });
     expect(context.repository.createdSessions).toHaveLength(0);
+  });
+
+  it('does not create a session while temporary suspension is active', async () => {
+    const context = createContext();
+    context.repository.account = {
+      ...ACCOUNT,
+      suspendedUntil: new Date(NOW.getTime() + 60_000),
+    };
+
+    await expect(
+      context.login.execute({ email: ACCOUNT.email, password: 'Strong!Pass' }),
+    ).rejects.toMatchObject({ code: 'ACCOUNT_NOT_ACTIVE' });
+    expect(context.repository.createdSessions).toHaveLength(0);
+  });
+
+  it('allows login after temporary suspension expires', async () => {
+    const context = createContext();
+    context.repository.account = {
+      ...ACCOUNT,
+      suspendedUntil: new Date(NOW.getTime() - 1),
+    };
+
+    await expect(
+      context.login.execute({ email: ACCOUNT.email, password: 'Strong!Pass' }),
+    ).resolves.toMatchObject({ user: { id: ACCOUNT.id } });
   });
 
   it('rotates a valid refresh session and returns a new token pair', async () => {

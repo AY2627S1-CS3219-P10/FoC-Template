@@ -10,7 +10,8 @@ service's persistence store directly.
 The service foundation is initialized with NestJS, Fastify, TypeScript, strict
 static analysis, PostgreSQL 18, Prisma ORM 7, configuration validation, a smoke
 test, and a production-oriented container build. Its initial database structure
-contains users, email-verification codes, and authentication sessions.
+contains users, email-verification codes, authentication sessions, and user
+reports.
 The account domain defines framework-independent validation for usernames, NUS
 email addresses, phone numbers, passwords, and safe new-account defaults.
 The registration application use case coordinates validation, uniqueness
@@ -46,8 +47,8 @@ an account exists or is already verified.
 Access tokens are HS256 JWTs valid for 15 minutes. Refresh sessions are valid
 for 30 days, while only SHA-256 refresh-token hashes are stored in PostgreSQL.
 Reusing a revoked refresh token revokes the account's remaining active sessions
-as a defensive response. Pending, suspended, and banned accounts cannot create
-or refresh sessions.
+as a defensive response. Pending, permanently suspended, banned, and actively
+temporarily suspended accounts cannot create or refresh sessions.
 
 ### Cross-service access-token contract
 
@@ -134,6 +135,26 @@ password, applies the registration password policy to the new password, stores
 a fresh Argon2id hash, and revokes every session for the account so the user
 must sign in again.
 
+An authenticated user can submit `POST /api/accounts/reports` with a
+`reportedUserId` and a trimmed description of at most 500 characters. The
+authenticated session supplies the reporter identity; a client cannot report
+on behalf of another account or report itself. Reports begin in `OPEN` state
+and do not change account access automatically.
+
+Administrators can review reports with `GET /api/admin/reports` and mark one
+resolved with `PATCH /api/admin/reports/{reportId}/resolve`. Report responses
+identify reporter and reported accounts by stable ID and username only. They do
+not expose email addresses, phone numbers, credentials, tokens, or sessions.
+
+`PATCH /api/admin/accounts/{accountId}/suspension` accepts a future ISO-8601
+`suspendedUntil` value. It is an explicit administrator action, cannot target
+the acting administrator, and atomically stores the expiry and revokes all
+target sessions. Temporary suspension is independent of permanent `status`
+values such as `SUSPENDED` and `BANNED`. Authentication checks compare the
+expiry with the current time on login, refresh, and every protected User
+Service request. Once the expiry passes, the account can log in again without a
+database cleanup; sessions revoked by the suspension remain revoked.
+
 Administrator-only HTTP controllers or handlers must use the
 `@AdministratorOnly()` decorator. It applies bearer authentication before the
 administrator guard. Authentication reloads the active session and current
@@ -155,13 +176,21 @@ a case-insensitive substring match against username or email. The endpoint uses
 the same `@AdministratorOnly()` authorization flow and never returns passwords,
 contact numbers, verification codes, or session data.
 
-The database also rejects demotion or deletion of the last administrator. This
-protects the invariant even outside the HTTP workflow; there is currently no
-account-deletion API. Privilege changes use the same PostgreSQL advisory lock,
-so concurrent opposing demotions cannot reduce the administrator count to
-zero. To roll back this database guard, drop the
+The database also rejects demotion, deletion, permanent status changes, or
+temporary suspension that would leave no usable administrator. This protects
+the invariant even outside the HTTP workflow; there is currently no
+account-deletion API. Privilege and suspension changes use the same PostgreSQL
+advisory lock, so concurrent actions cannot reduce the usable administrator
+count to zero. To roll back this database guard, drop the
 `users_protect_last_administrator` trigger and then the
 `protect_last_administrator()` function.
+
+The report/suspension migration is additive. Before rollback, export any report
+records that must be retained. Rollback requires dropping `user_reports` and
+its enum, restoring the prior administrator-protection trigger function, and
+then dropping `users.suspended_until`. Dropping that column immediately removes
+all temporary-suspension enforcement, so rollback should be coordinated with an
+application rollback rather than run independently.
 
 Initial administrator creation is deliberately unavailable through the public
 registration API. Set `ADMIN_SEED_ACCOUNTS` to a JSON array containing exactly

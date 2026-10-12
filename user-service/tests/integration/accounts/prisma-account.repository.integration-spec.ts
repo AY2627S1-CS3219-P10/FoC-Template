@@ -25,6 +25,9 @@ const MIGRATION_PATHS = [
   resolve(
     'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
   ),
+  resolve(
+    'prisma/migrations/20261012000100_add_user_reports_and_temporary_suspensions/migration.sql',
+  ),
 ];
 const NOW = new Date('2026-09-20T02:00:00.000Z');
 

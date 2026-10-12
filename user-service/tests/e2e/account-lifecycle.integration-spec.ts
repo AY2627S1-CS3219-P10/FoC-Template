@@ -44,6 +44,9 @@ const MIGRATION_PATHS = [
   resolve(
     'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
   ),
+  resolve(
+    'prisma/migrations/20261012000100_add_user_reports_and_temporary_suspensions/migration.sql',
+  ),
 ];
 const STUDENT_EMAIL = 'lifecycle@u.nus.edu';
 const OLD_PASSWORD = 'Initial!Pass1';
@@ -427,7 +430,177 @@ describe('account lifecycle API', () => {
     });
     expect(revokedPromotedSession.statusCode).toBe(401);
   });
+
+  it('reports, reviews, resolves, and temporarily suspends an account', async () => {
+    const passwordHasher = new Argon2PasswordHasher();
+    const passwordHash = await passwordHasher.hash('Account!Pass1');
+    const [administrator, reporter, target] = await Promise.all([
+      prisma.user.create({
+        data: {
+          email: 'conflict-admin@u.nus.edu',
+          emailVerifiedAt: new Date(),
+          isAdmin: true,
+          passwordHash,
+          phoneNumber: '81112222',
+          status: 'ACTIVE',
+          username: 'ConflictAdmin',
+        },
+      }),
+      prisma.user.create({
+        data: {
+          email: 'conflict-reporter@u.nus.edu',
+          emailVerifiedAt: new Date(),
+          passwordHash,
+          phoneNumber: '82223333',
+          status: 'ACTIVE',
+          username: 'ConflictReporter',
+        },
+      }),
+      prisma.user.create({
+        data: {
+          email: 'conflict-target@u.nus.edu',
+          emailVerifiedAt: new Date(),
+          passwordHash,
+          phoneNumber: '83334444',
+          status: 'ACTIVE',
+          username: 'ConflictTarget',
+        },
+      }),
+    ]);
+    const [administratorSession, reporterSession, targetSession] =
+      await Promise.all([
+        login(app, administrator.email, 'Account!Pass1'),
+        login(app, reporter.email, 'Account!Pass1'),
+        login(app, target.email, 'Account!Pass1'),
+      ]);
+
+    const selfReport = await app.inject({
+      headers: { authorization: `Bearer ${reporterSession.accessToken}` },
+      method: 'POST',
+      payload: { description: 'Self report', reportedUserId: reporter.id },
+      url: '/api/accounts/reports',
+    });
+    expect(selfReport.statusCode).toBe(400);
+
+    const missingTarget = await app.inject({
+      headers: { authorization: `Bearer ${reporterSession.accessToken}` },
+      method: 'POST',
+      payload: {
+        description: 'Missing target',
+        reportedUserId: '5a84f480-b1cb-4b81-b632-8bb49034b9e7',
+      },
+      url: '/api/accounts/reports',
+    });
+    expect(missingTarget.statusCode).toBe(404);
+
+    const creation = await app.inject({
+      headers: { authorization: `Bearer ${reporterSession.accessToken}` },
+      method: 'POST',
+      payload: {
+        description: 'Repeated abusive messages',
+        reportedUserId: target.id,
+      },
+      url: '/api/accounts/reports',
+    });
+    expect(creation.statusCode).toBe(201);
+    const reportId = creation.json<{ id: string }>().id;
+
+    const forbiddenList = await app.inject({
+      headers: { authorization: `Bearer ${reporterSession.accessToken}` },
+      method: 'GET',
+      url: '/api/admin/reports',
+    });
+    expect(forbiddenList.statusCode).toBe(403);
+
+    const reportList = await app.inject({
+      headers: { authorization: `Bearer ${administratorSession.accessToken}` },
+      method: 'GET',
+      url: '/api/admin/reports',
+    });
+    expect(reportList.statusCode).toBe(200);
+    expect(reportList.json()).toEqual([
+      expect.objectContaining({
+        id: reportId,
+        reportedUser: { id: target.id, username: target.username },
+        reporter: { id: reporter.id, username: reporter.username },
+        status: 'OPEN',
+      }),
+    ]);
+
+    const resolution = await app.inject({
+      headers: { authorization: `Bearer ${administratorSession.accessToken}` },
+      method: 'PATCH',
+      url: `/api/admin/reports/${reportId}/resolve`,
+    });
+    expect(resolution.statusCode).toBe(200);
+    expect(resolution.json()).toMatchObject({
+      id: reportId,
+      status: 'RESOLVED',
+    });
+
+    const selfSuspension = await app.inject({
+      headers: { authorization: `Bearer ${administratorSession.accessToken}` },
+      method: 'PATCH',
+      payload: { suspendedUntil: '2099-01-01T00:00:00.000Z' },
+      url: `/api/admin/accounts/${administrator.id}/suspension`,
+    });
+    expect(selfSuspension.statusCode).toBe(403);
+
+    const suspension = await app.inject({
+      headers: { authorization: `Bearer ${administratorSession.accessToken}` },
+      method: 'PATCH',
+      payload: { suspendedUntil: '2099-01-01T00:00:00.000Z' },
+      url: `/api/admin/accounts/${target.id}/suspension`,
+    });
+    expect(suspension.statusCode).toBe(200);
+
+    const protectedAccess = await app.inject({
+      headers: { authorization: `Bearer ${targetSession.accessToken}` },
+      method: 'GET',
+      url: '/api/accounts/me',
+    });
+    expect(protectedAccess.statusCode).toBe(401);
+    const refresh = await app.inject({
+      method: 'POST',
+      payload: { refreshToken: targetSession.refreshToken },
+      url: '/api/auth/refresh',
+    });
+    expect(refresh.statusCode).toBe(401);
+    await expect(
+      login(app, target.email, 'Account!Pass1'),
+    ).rejects.toMatchObject({
+      statusCode: 401,
+    });
+
+    await prisma.user.update({
+      data: { suspendedUntil: new Date('2000-01-01T00:00:00.000Z') },
+      where: { id: target.id },
+    });
+    await expect(
+      login(app, target.email, 'Account!Pass1'),
+    ).resolves.toMatchObject({
+      user: { id: target.id },
+    });
+  });
 });
+
+async function login(
+  app: NestFastifyApplication,
+  email: string,
+  password: string,
+): Promise<AuthenticationBody> {
+  const response = await app.inject({
+    method: 'POST',
+    payload: { email, password },
+    url: '/api/auth/login',
+  });
+  if (response.statusCode !== 200) {
+    throw Object.assign(new Error('Login failed.'), {
+      statusCode: response.statusCode,
+    });
+  }
+  return response.json<AuthenticationBody>();
+}
 
 function restoreEnvironmentVariable(
   name: 'DATABASE_URL' | 'REDIS_URL',

@@ -17,6 +17,13 @@ enum UserStatus {
   @@map("user_status")
 }
 
+enum UserReportStatus {
+  OPEN
+  RESOLVED
+
+  @@map("user_report_status")
+}
+
 model User {
   id                String     @id @default(uuid()) @db.Uuid
   username          String     @unique @db.Citext
@@ -27,13 +34,38 @@ model User {
   status            UserStatus @default(PENDING_VERIFICATION)
   emailVerifiedAt   DateTime?  @map("email_verified_at") @db.Timestamptz(6)
   passwordChangedAt DateTime?  @map("password_changed_at") @db.Timestamptz(6)
+  suspendedUntil    DateTime?  @map("suspended_until") @db.Timestamptz(6)
   createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   emailVerificationCodes EmailVerificationCode[]
   sessions               Session[]
+  reportsSubmitted       UserReport[]            @relation("ReportReporter")
+  reportsReceived        UserReport[]            @relation("ReportTarget")
+  reportsResolved        UserReport[]            @relation("ReportResolver")
 
   @@map("users")
+}
+
+model UserReport {
+  id                String           @id @default(uuid()) @db.Uuid
+  reporterUserId    String           @map("reporter_user_id") @db.Uuid
+  reportedUserId    String           @map("reported_user_id") @db.Uuid
+  description       String           @db.VarChar(500)
+  status            UserReportStatus @default(OPEN)
+  resolvedAt        DateTime?        @map("resolved_at") @db.Timestamptz(6)
+  resolvedByAdminId String?          @map("resolved_by_admin_id") @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  reporter        User  @relation("ReportReporter", fields: [reporterUserId], references: [id], onDelete: Restrict)
+  reportedUser    User  @relation("ReportTarget", fields: [reportedUserId], references: [id], onDelete: Restrict)
+  resolvedByAdmin User? @relation("ReportResolver", fields: [resolvedByAdminId], references: [id], onDelete: Restrict)
+
+  @@index([reportedUserId, status, createdAt])
+  @@index([reporterUserId, createdAt])
+  @@index([status, createdAt])
+  @@map("user_reports")
 }
 
 model EmailVerificationCode {

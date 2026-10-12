@@ -18,6 +18,9 @@ const MIGRATION_PATHS = [
   resolve(
     'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
   ),
+  resolve(
+    'prisma/migrations/20261012000100_add_user_reports_and_temporary_suspensions/migration.sql',
+  ),
 ];
 const USER_ID = '4a84f480-b1cb-4b81-b632-8bb49034b9e7';
 const SESSION_ID = 'a23394c1-c131-4b77-bf0d-c39bc11bf81e';
@@ -181,5 +184,58 @@ describe('PrismaAuthenticationRepository', () => {
     await expect(
       prisma.session.findUnique({ where: { id: SESSION_ID } }),
     ).resolves.toMatchObject({ revokedAt: input.now });
+  });
+
+  it('rejects login, refresh, and protected access during suspension, then permits access after expiry', async () => {
+    await repository.createSession({
+      createdAt: NOW,
+      expiresAt: new Date(NOW.getTime() + 86_400_000),
+      id: SESSION_ID,
+      refreshTokenHash: 'suspended-refresh-token-hash',
+      userId: USER_ID,
+    });
+    const suspendedUntil = new Date(NOW.getTime() + 60_000);
+    await prisma.user.update({
+      data: { suspendedUntil },
+      where: { id: USER_ID },
+    });
+
+    await expect(
+      repository.findAccountByEmail('student@u.nus.edu'),
+    ).resolves.toMatchObject({ suspendedUntil });
+    await expect(
+      repository.findActiveSessionAccount({
+        now: NOW,
+        sessionId: SESSION_ID,
+        userId: USER_ID,
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      repository.rotateSession({
+        currentRefreshTokenHash: 'suspended-refresh-token-hash',
+        now: NOW,
+        replacement: {
+          createdAt: NOW,
+          expiresAt: new Date(NOW.getTime() + 86_400_000),
+          id: '77af9009-08e1-42f5-91d3-516920f0c571',
+          refreshTokenHash: 'replacement-hash',
+        },
+      }),
+    ).resolves.toBeNull();
+
+    await repository.createSession({
+      createdAt: new Date(suspendedUntil.getTime() + 1),
+      expiresAt: new Date(suspendedUntil.getTime() + 86_400_000),
+      id: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e',
+      refreshTokenHash: 'post-suspension-hash',
+      userId: USER_ID,
+    });
+    await expect(
+      repository.findActiveSessionAccount({
+        now: new Date(suspendedUntil.getTime() + 1),
+        sessionId: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e',
+        userId: USER_ID,
+      }),
+    ).resolves.toMatchObject({ id: USER_ID });
   });
 });

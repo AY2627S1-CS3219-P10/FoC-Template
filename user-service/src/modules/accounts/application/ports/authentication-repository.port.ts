@@ -10,6 +10,7 @@ export interface AuthenticatedAccount {
 export interface AuthenticationAccount extends AuthenticatedAccount {
   email: string;
   passwordHash: string;
+  suspendedUntil: Date | null;
 }
 
 export interface SessionRecord {

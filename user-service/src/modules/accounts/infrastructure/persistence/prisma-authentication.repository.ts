@@ -37,6 +37,7 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
             id: true,
             isAdmin: true,
             status: true,
+            suspendedUntil: true,
             username: true,
           },
         },
@@ -45,7 +46,13 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
         expiresAt: { gt: input.now },
         id: input.sessionId,
         revokedAt: null,
-        user: { status: UserStatus.ACTIVE },
+        user: {
+          status: UserStatus.ACTIVE,
+          OR: [
+            { suspendedUntil: null },
+            { suspendedUntil: { lte: input.now } },
+          ],
+        },
         userId: input.userId,
       },
     });
@@ -68,6 +75,7 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
         isAdmin: true,
         passwordHash: true,
         status: true,
+        suspendedUntil: true,
         username: true,
       },
       where: { email },
@@ -105,6 +113,7 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
               id: true,
               isAdmin: true,
               status: true,
+              suspendedUntil: true,
               username: true,
             },
           },
@@ -128,7 +137,9 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
 
       if (
         current.expiresAt <= input.now ||
-        current.user.status !== UserStatus.ACTIVE
+        current.user.status !== UserStatus.ACTIVE ||
+        (current.user.suspendedUntil !== null &&
+          current.user.suspendedUntil > input.now)
       ) {
         await transaction.session.updateMany({
           data: { revokedAt: input.now },

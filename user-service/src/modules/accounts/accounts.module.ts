@@ -14,6 +14,10 @@ import { FindAdministratorAccountsUseCase } from './application/use-cases/find-a
 import { GetProfileUseCase } from './application/use-cases/get-profile.use-case.js';
 import { IssueEmailVerificationCodeUseCase } from './application/use-cases/issue-email-verification-code.use-case.js';
 import { LoginUseCase } from './application/use-cases/login.use-case.js';
+import { CreateUserReportUseCase } from './application/use-cases/create-user-report.use-case.js';
+import { ListUserReportsUseCase } from './application/use-cases/list-user-reports.use-case.js';
+import { ResolveUserReportUseCase } from './application/use-cases/resolve-user-report.use-case.js';
+import { SuspendAccountUseCase } from './application/use-cases/suspend-account.use-case.js';
 import { LogoutUseCase } from './application/use-cases/logout.use-case.js';
 import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case.js';
 import { ResendVerificationEmailUseCase } from './application/use-cases/resend-verification-email.use-case.js';
@@ -36,6 +40,8 @@ import { PrismaAdministratorPrivilegeRepository } from './infrastructure/persist
 import { PrismaAuthenticationRepository } from './infrastructure/persistence/prisma-authentication.repository.js';
 import { PrismaEmailVerificationRepository } from './infrastructure/persistence/prisma-email-verification.repository.js';
 import { PrismaProfileRepository } from './infrastructure/persistence/prisma-profile.repository.js';
+import { PrismaTemporarySuspensionRepository } from './infrastructure/persistence/prisma-temporary-suspension.repository.js';
+import { PrismaUserReportRepository } from './infrastructure/persistence/prisma-user-report.repository.js';
 import { Argon2PasswordHasher } from './infrastructure/security/argon2-password-hasher.js';
 import { HmacVerificationCodeHasher } from './infrastructure/security/hmac-verification-code-hasher.js';
 import { JoseAccessToken } from './infrastructure/security/jose-access-token.js';
@@ -45,8 +51,11 @@ import { UuidGenerator } from './infrastructure/security/uuid-generator.js';
 import { SystemClock } from './infrastructure/system-clock.js';
 import { AccountsController } from './presentation/http/accounts.controller.js';
 import { AdministratorAccountsController } from './presentation/http/administrator-accounts.controller.js';
+import { AdministratorReportsController } from './presentation/http/administrator-reports.controller.js';
+import { AdministratorSuspensionsController } from './presentation/http/administrator-suspensions.controller.js';
 import { AuthenticationController } from './presentation/http/authentication.controller.js';
 import { ProfileController } from './presentation/http/profile.controller.js';
+import { UserReportsController } from './presentation/http/user-reports.controller.js';
 import { AdministratorAuthorizationGuard } from './presentation/http/security/administrator-authorization.guard.js';
 import { BearerAuthenticationGuard } from './presentation/http/security/bearer-authentication.guard.js';
 
@@ -54,8 +63,11 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
   controllers: [
     AccountsController,
     AdministratorAccountsController,
+    AdministratorReportsController,
+    AdministratorSuspensionsController,
     AuthenticationController,
     ProfileController,
+    UserReportsController,
   ],
   imports: [DatabaseModule],
   providers: [
@@ -106,6 +118,20 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
       provide: PrismaProfileRepository,
       useFactory: (prisma: PrismaService): PrismaProfileRepository =>
         new PrismaProfileRepository(prisma),
+    },
+    {
+      inject: [PrismaService],
+      provide: PrismaUserReportRepository,
+      useFactory: (prisma: PrismaService): PrismaUserReportRepository =>
+        new PrismaUserReportRepository(prisma),
+    },
+    {
+      inject: [PrismaService],
+      provide: PrismaTemporarySuspensionRepository,
+      useFactory: (
+        prisma: PrismaService,
+      ): PrismaTemporarySuspensionRepository =>
+        new PrismaTemporarySuspensionRepository(prisma),
     },
     {
       inject: [ConfigService],
@@ -225,21 +251,59 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
     },
     {
       inject: [
+        SystemClock,
         PrismaAuthenticationRepository,
         Argon2PasswordHasher,
         SessionTokenIssuer,
       ],
       provide: LoginUseCase,
       useFactory: (
+        clock: SystemClock,
         repository: PrismaAuthenticationRepository,
         passwordVerifier: Argon2PasswordHasher,
         sessionTokenIssuer: SessionTokenIssuer,
       ): LoginUseCase =>
         new LoginUseCase({
+          clock,
           passwordVerifier,
           repository,
           sessionTokenIssuer,
         }),
+    },
+    {
+      inject: [SystemClock, UuidGenerator, PrismaUserReportRepository],
+      provide: CreateUserReportUseCase,
+      useFactory: (
+        clock: SystemClock,
+        idGenerator: UuidGenerator,
+        repository: PrismaUserReportRepository,
+      ): CreateUserReportUseCase =>
+        new CreateUserReportUseCase({ clock, idGenerator, repository }),
+    },
+    {
+      inject: [PrismaUserReportRepository],
+      provide: ListUserReportsUseCase,
+      useFactory: (
+        repository: PrismaUserReportRepository,
+      ): ListUserReportsUseCase => new ListUserReportsUseCase(repository),
+    },
+    {
+      inject: [SystemClock, PrismaUserReportRepository],
+      provide: ResolveUserReportUseCase,
+      useFactory: (
+        clock: SystemClock,
+        repository: PrismaUserReportRepository,
+      ): ResolveUserReportUseCase =>
+        new ResolveUserReportUseCase({ clock, repository }),
+    },
+    {
+      inject: [SystemClock, PrismaTemporarySuspensionRepository],
+      provide: SuspendAccountUseCase,
+      useFactory: (
+        clock: SystemClock,
+        repository: PrismaTemporarySuspensionRepository,
+      ): SuspendAccountUseCase =>
+        new SuspendAccountUseCase({ clock, repository }),
     },
     {
       inject: [SystemClock, SecureRefreshToken, PrismaAuthenticationRepository],
