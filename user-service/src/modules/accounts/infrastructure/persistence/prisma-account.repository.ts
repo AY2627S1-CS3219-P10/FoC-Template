@@ -87,7 +87,15 @@ export class PrismaAccountRepository
       return undefined;
     }
 
-    const target = JSON.stringify(error.meta?.target ?? '').toLowerCase();
+    // Prisma's PostgreSQL driver adapter reports constraint fields in its cause.
+    const adapterError = error.meta?.driverAdapterError as
+      { cause?: { constraint?: unknown } } | undefined;
+    const target = JSON.stringify(
+      error.meta?.target ??
+        error.meta?.constraint ??
+        adapterError?.cause?.constraint ??
+        '',
+    ).toLowerCase();
 
     if (target.includes('username')) {
       return 'username';

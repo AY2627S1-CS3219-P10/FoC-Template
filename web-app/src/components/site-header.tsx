@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
+import { CreditHeader } from "@/features/credits/credit-header";
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -60,6 +61,7 @@ export function SiteHeader() {
             <span role="status">Connecting…</span>
           ) : user ? (
             <>
+              <CreditHeader />
               <Link
                 href="/account"
                 className="account-link"

@@ -163,6 +163,26 @@ function createContext(): TestContext {
 }
 
 describe('authentication use cases', () => {
+  it('rejects login during a temporary suspension without issuing tokens', async () => {
+    const context = createContext();
+    context.repository.account = {
+      ...ACCOUNT,
+      suspendedUntil: new Date(NOW.getTime() + 1000),
+    };
+    await expect(
+      context.login.execute({ email: ACCOUNT.email, password: 'Strong!Pass' }),
+    ).rejects.toMatchObject({ code: 'ACCOUNT_NOT_ACTIVE' });
+    expect(context.repository.createdSessions).toEqual([]);
+    expect(context.accessTokens.issueInputs).toEqual([]);
+  });
+  it('allows login at the exact timeout expiry', async () => {
+    const context = createContext();
+    context.repository.account = { ...ACCOUNT, suspendedUntil: NOW };
+    await expect(
+      context.login.execute({ email: ACCOUNT.email, password: 'Strong!Pass' }),
+    ).resolves.toMatchObject({ user: { id: ACCOUNT.id } });
+    expect(context.repository.createdSessions).toHaveLength(1);
+  });
   it('logs in an active account and persists only the refresh-token hash', async () => {
     const context = createContext();
 

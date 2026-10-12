@@ -13,6 +13,103 @@
   white-space: nowrap;
   font-weight: 600;
 }
+.header-credits {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid #ead7a0;
+  border-radius: 999px;
+  background: #fff8e5;
+  color: #70500a;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.header-credits svg {
+  color: #b78416;
+  fill: #f9e3a3;
+  flex-shrink: 0;
+}
+.header-credits:hover {
+  background: #ffefc4;
+  border-color: #c99d3b;
+}
+.header-credits:focus-visible {
+  outline: 2px solid #9a6c10;
+  outline-offset: 3px;
+}
+.account-credits-link {
+  margin: 20px 0;
+  font-weight: 600;
+  color: var(--green);
+}
+.credits-page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 56px 0;
+}
+.credits-page h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 44px;
+  line-height: 1.2;
+  margin: 12px 0 16px;
+}
+.credits-page h1 svg {
+  width: 36px;
+  height: 36px;
+  color: #b78416;
+  fill: #f9e3a3;
+}
+.credits-page .credit-balance {
+  margin-top: 28px;
+  border-top: 3px solid #d4aa4a;
+}
+.credits-page .profile-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.credits-page .profile-details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff8e5;
+}
+.credits-page .profile-details > div:last-child {
+  background: #f2f4ed;
+}
+.credits-page .profile-details dd {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #70500a;
+  font-variant-numeric: tabular-nums;
+}
+.credits-page .profile-details > div:last-child dd {
+  color: var(--ink);
+}
+.credits-guide {
+  margin: 24px 0;
+  padding: 24px;
+  border-radius: 10px;
+  background: #f2f4ed;
+}
+.credits-guide h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.credits-guide p {
+  color: var(--muted);
+  margin-top: 8px;
+}
 .logout-button {
   background: transparent;
   border: 0;
@@ -1487,6 +1584,12 @@ hr {
   display: grid;
   gap: 24px;
 }
+.credit-balance {
+  margin-bottom: 24px;
+}
+.credit-balance > button {
+  margin-top: 16px;
+}
 .profile-settings-card {
   padding: 28px;
   border: 1px solid var(--border);
@@ -1509,5 +1612,44 @@ hr {
 @media (max-width: 640px) {
   .profile-settings-card {
     padding: 20px;
+  }
+  .site-header .header-inner {
+    padding-top: 12px;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+  .header-inner .brand {
+    order: 1;
+  }
+  .header-inner .brand-name {
+    display: none;
+  }
+  .header-inner .header-account {
+    order: 2;
+    width: auto;
+    padding-bottom: 0;
+    gap: 8px;
+  }
+  .header-account .account-link {
+    max-width: 80px;
+  }
+  .header-inner nav {
+    order: 3;
+    width: 100%;
+    min-height: 38px;
+    margin-left: 0;
+    gap: 18px;
+  }
+  .credits-page {
+    padding: 32px 0;
+  }
+  .credits-page h1 {
+    font-size: 34px;
+  }
+  .credits-page .profile-details {
+    gap: 10px;
+  }
+  .credits-page .profile-details > div {
+    padding: 14px;
   }
 }

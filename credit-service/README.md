@@ -78,13 +78,43 @@ also affect sub-second performance.
 
 Requirements: Node.js 24 LTS, pnpm 12.5.1, Docker, and PostgreSQL 17.
 
+### Launch only the Credit Service on Windows
+
+If `scripts/start-local.ps1` has already configured your local `.env` files,
+start Docker Desktop and run from the repository root:
+
+```powershell
+docker compose up -d --wait credit-db
+pnpm --filter @foc/credit-service db:generate
+pnpm --filter @foc/credit-service db:migrate
+pnpm --filter @foc/credit-service start:dev
+```
+
+This launches only credit storage and the Credit Service, with database host port
+5435 and HTTP port 3003. Its configuration is read from `credit-service/.env`.
+Keep this terminal open. Check http://localhost:3003/health/ready; API docs are
+at http://localhost:3003/docs. The service can run independently, but signing in
+and displaying balances still requires the User Service and web app.
+
+Alternatively, run the service and database together in Docker:
+
+```powershell
+docker compose up -d --build credit-service
+docker compose logs -f credit-service
+```
+
+The Docker option reads root `.env` and automatically applies migrations.
+Run one copy of the Credit Service on port 3003; stop an existing native or
+Docker instance before switching launch methods.
+
 From the repository root:
 
 ```bash
 pnpm install
 docker compose up -d credit-db
-export DATABASE_URL=postgresql://foc_credit:local_credit_password@localhost:5433/foc_credit
+export DATABASE_URL=postgresql://foc_credit:local_credit_password@localhost:5435/foc_credit
 export CREDIT_INTERNAL_API_TOKEN=replace-with-a-random-secret-of-at-least-32-characters
+export JWT_ACCESS_TOKEN_SECRET=the-same-secret-as-user-service
 pnpm --filter @foc/credit-service db:migrate
 pnpm --filter @foc/credit-service start:dev
 ```

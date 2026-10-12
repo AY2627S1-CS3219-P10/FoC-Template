@@ -9,6 +9,12 @@ const profile = {
   status: "ACTIVE",
 };
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/credits", (route) => route.fulfill({
+    json: { userId: profile.id, availableCredits: 80, reservedCredits: 20 },
+  }));
+});
+
 test("phone updates refresh the profile and report duplicate phone errors", async ({
   page,
 }) => {
@@ -43,7 +49,7 @@ test("phone updates refresh the profile and report duplicate phone errors", asyn
   );
   await page.getByRole("button", { name: "Save phone number" }).click();
   await expect(page.getByRole("status")).toContainText("Phone number updated");
-  await expect(page.locator(".profile-details")).toContainText("91234567");
+  await expect(page.locator(".account-page > .profile-details")).toContainText("91234567");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

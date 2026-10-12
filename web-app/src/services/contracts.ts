@@ -1,4 +1,13 @@
-// HTTP contracts from the user-service and supplier-service response DTOs.
+// HTTP contracts from the backend service response DTOs.
+export interface CreditBalance {
+  userId: string;
+  availableCredits: number;
+  reservedCredits: number;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Profile {
   id: string;
   username: string;

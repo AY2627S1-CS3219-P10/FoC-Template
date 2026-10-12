@@ -53,6 +53,7 @@ export function AccountPage() {
       <p className="page-description">
         Your details, securely retrieved from your account.
       </p>
+      <p className="account-credits-link"><Link href="/credits">View your credits →</Link></p>
       <dl className="profile-details">
         <div>
           <dt>Username</dt>

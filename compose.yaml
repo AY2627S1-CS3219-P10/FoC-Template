@@ -58,7 +58,7 @@ services:
       POSTGRES_USER: ${CREDIT_DATABASE_USER:-foc_credit}
       POSTGRES_PASSWORD: ${CREDIT_DATABASE_PASSWORD:-local_credit_password}
     ports:
-      - "5433:5432"
+      - "${CREDIT_DATABASE_PORT:-5435}:5432"
     volumes:
       - credit-db-data:/var/lib/postgresql/data
     healthcheck:

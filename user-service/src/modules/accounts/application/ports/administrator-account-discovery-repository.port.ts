@@ -1,6 +1,7 @@
 import type { AccountStatus } from '../../domain/account-status.js';
 
 export interface AdministratorAccountSummary {
+  suspendedUntil?: Date | null;
   email: string;
   id: string;
   isAdmin: boolean;

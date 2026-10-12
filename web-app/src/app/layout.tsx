@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { AuthProvider } from "@/features/auth/auth-provider";
+import { CreditProvider } from "@/features/credits/credit-provider";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -22,10 +23,12 @@ export default function RootLayout({
           Skip to content
         </a>
         <AuthProvider>
-          <SiteHeader />
-          <main id="main" className="page-shell">
-            {children}
-          </main>
+          <CreditProvider>
+            <SiteHeader />
+            <main id="main" className="page-shell">
+              {children}
+            </main>
+          </CreditProvider>
         </AuthProvider>
         <footer className="site-footer">
           <Link href="/">

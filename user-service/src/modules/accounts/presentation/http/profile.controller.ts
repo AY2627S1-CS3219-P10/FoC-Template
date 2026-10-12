@@ -164,6 +164,7 @@ export class ProfileController {
   private toResponse(profile: AccountProfile): AccountProfileResponse {
     return {
       ...profile,
+      suspendedUntil: profile.suspendedUntil?.toISOString() ?? null,
       createdAt: profile.createdAt.toISOString(),
       emailVerifiedAt: profile.emailVerifiedAt?.toISOString() ?? null,
       updatedAt: profile.updatedAt.toISOString(),

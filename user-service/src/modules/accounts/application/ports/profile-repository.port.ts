@@ -1,6 +1,7 @@
 import type { AccountStatus } from '../../domain/account-status.js';
 
 export interface AccountProfile {
+  suspendedUntil?: Date | null;
   createdAt: Date;
   email: string;
   emailVerifiedAt: Date | null;

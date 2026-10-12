@@ -8,6 +8,21 @@ catalog is included. Order creation and acceptance are not implemented.
 
 ## Run locally
 
+On Windows, start Docker Desktop and launch all databases and application services
+from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```
+
+Add `-Install` on first setup to install all dependencies. The script generates
+missing local secrets, shares the User Service JWT secret with the other services,
+configures server-only credit provisioning, and applies migrations. Configure
+working SMTP credentials in `user-service/.env` for registration. Service logs
+are written to `.local/`. Open http://localhost:3000, log in, and click the gold
+coin and balance in the top bar to open `/credits`.
+The credit database uses host port 5435, separate from the user database on 5433.
+
 Use Node.js 24.11 or newer within Node.js 24 and pnpm 12.5.1. From the repository
 root:
 
@@ -110,6 +125,31 @@ profile data are persisted in localStorage. The frontend never reads a service's
 database directly.
 
 ## Account settings
+
+The dedicated `/credits` page displays available and reserved credits from the Credit Service,
+with refresh, retry, and unprovisioned-account states. Set the server-only
+`CREDIT_SERVICE_URL` (default `http://127.0.0.1:3003`, without `/v1`). Start the
+service and its database using [its setup guide](../credit-service/README.md).
+Its JWT secret, issuer, and audience must match the User Service configuration.
+The web app needs the matching server-only `CREDIT_INTERNAL_API_TOKEN` to provision
+missing accounts. It does not need the JWT signing secret.
+
+The shared credit provider loads after login and when an existing session is
+restored, sending a same-origin `POST /api/credits`. The top bar shows available
+credits beside a gold coin, linking to `/credits`. Refreshing that page updates
+both the top bar and the available/reserved balance details. Guests see a login
+prompt; loading and unavailable balances never display an invented zero.
+The adapter resolves the active, verified user from their live User Service
+session and reads their balance. If that account is missing, it provisions it
+through the internal Credit Service API. The Credit Service assigns its configured
+initial balance exactly once; retries and existing accounts never receive extra
+credits. No account ID or credit amount is accepted from the browser. The read-only
+`GET /api/credits` remains available without provisioning. Verification itself
+does not provision accounts; the first login after verification handles both
+existing and new users automatically, including retries after a service outage.
+Reservations, releases, and settlement remain internal errand operations.
+Credit browser tests use intercepted responses to check desktop/mobile behavior;
+they do not replace live backend integration tests.
 
 The account page supports phone-number updates and password changes through
 the user service's authenticated profile endpoints. Phone numbers must contain

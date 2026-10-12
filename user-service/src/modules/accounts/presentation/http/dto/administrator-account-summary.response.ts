@@ -3,6 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { AccountStatus } from '../../../domain/account-status.js';
 
 export class AdministratorAccountSummaryResponse {
+  @ApiProperty({ format: 'date-time', nullable: true })
+  suspendedUntil?: Date | null;
   @ApiProperty({ example: 'student@u.nus.edu' })
   email!: string;
 
