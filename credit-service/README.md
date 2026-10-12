@@ -151,3 +151,6 @@ and idempotency rules. Integration tests use Testcontainers and a real
 PostgreSQL instance to verify that unauthorized mutations leave no state,
 required indexes exist, transactions roll back, balances cannot be overspent
 concurrently, and duplicated settlement/release delivery remains idempotent.
+
+## Errand reservation adjustments
+Internal-token POST /v1/credit-reservations/:errandId/adjustment accepts operationId, requesterId, expectedAmount and amount. Amounts must be positive integers. Serializable transactions move only the difference between available and reserved balances, enforce ownership/RESERVED status, record the ledger, and replay identical operations without charging twice. Apply migrations before starting the updated API.

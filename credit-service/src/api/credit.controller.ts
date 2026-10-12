@@ -23,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { CreditService } from '../application/credit.service';
+import { AdjustReservationDto } from './dto/adjust-reservation.dto';
 import { BalanceAuthorizationGuard } from './balance-authorization.guard';
 import { ErrandParamsDto, UserParamsDto } from './dto/errand-params.dto';
 import { InitializeAccountDto } from './dto/initialize-account.dto';
@@ -92,6 +93,18 @@ export class CreditController {
     const result = await this.creditService.reserve(body);
     reply.status(result.replayed ? HttpStatus.OK : HttpStatus.CREATED);
     return { ...result.data, replayed: result.replayed };
+  }
+
+  @Post('credit-reservations/:errandId/adjustment')
+  @UseGuards(InternalServiceAuthGuard)
+  @ApiBearerAuth('internal-service-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Idempotently increase or decrease an OPEN errand reservation' })
+  @ApiOkResponse({ description: 'Reservation adjusted or replayed without adding credits twice' })
+  @ApiConflictResponse({ description: 'Terminal/stale reservation or reused operation ID' })
+  @ApiUnprocessableEntityResponse({ description: 'Insufficient available credits for the increase' })
+  adjust(@Param() params: ErrandParamsDto, @Body() body: AdjustReservationDto) {
+    return this.creditService.adjust({ ...body, errandId: params.errandId }).then((result) => ({ ...result.data, replayed: result.replayed }));
   }
 
   @Post('credit-reservations/:errandId/settlement')

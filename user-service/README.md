@@ -395,3 +395,5 @@ job payload and successful or exhausted jobs are removed. Prisma migrations
 live under `prisma/migrations/`. The generated client is written to
 `src/generated/prisma/`, regenerated during checks and builds, and is not
 committed.
+
+Authenticated GET /api/accounts/:id/identity returns only ID and username. Missing accounts return 404. Private contacts and security data are excluded.

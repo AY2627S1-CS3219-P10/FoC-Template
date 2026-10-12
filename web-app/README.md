@@ -186,3 +186,14 @@ seeding remains a service deployment operation.
 using intercepted API responses, plus real adapter origin and unauthenticated
 access checks. These UI contract tests do not replace live service integration
 tests or database tests.
+
+## Errands
+The /errands page browses authenticated OPEN, unassigned requests from Order Service, including pickup, delivery, instructions and offered credits. Configure ORDER_SERVICE_URL (default http://127.0.0.1:3004). See ../order-service/README.md for PowerShell setup. Users can create errands from the Errands page. Choose a pickup location, complete delivery details and offer credits; successful creation updates the list and credit balance. Pending requests can be checked and uncertain requests retried safely. An empty database displays an empty state.
+
+Create errands at /errands/create. A floating Create errand shortcut appears on every page, supports mouse/touch dragging and arrow keys when focused, and remembers its position in browser storage. Guests are prompted to log in on the creation page.
+
+Errand browse cards show only the title, pickup location and delivery destination. View details opens /errands/:id with a flexible full-information card. My requests lists the owner's requests; All requests is available to administrators. Owners can edit/delete OPEN unassigned requests. Administrators can delete any request and cannot edit. Deletion requires confirmation and refreshes credits; uncertain mutations retain their request keys for safe retries.
+
+Administrator creators can edit their own OPEN unassigned requests. Requester usernames come from User Service. Edit/save buttons are green; delete/confirm buttons are red.
+
+Catalogue cards show offered credits using the header balance gold coin badge. Sort errands offers latest/oldest creation time and highest/lowest credits; changing the sort returns to page 1.

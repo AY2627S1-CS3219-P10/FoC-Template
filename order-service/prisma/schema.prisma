@@ -1,0 +1,77 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ErrandStatus {
+  OPEN
+  ACCEPTED
+  IN_PROGRESS
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum OperationStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum OperationKind {
+  CREATE
+  EDIT
+  DELETE
+}
+
+model Errand {
+  id                  String           @id @db.Uuid
+  requesterId         String           @map("requester_id") @db.Uuid
+  courierId           String?          @map("courier_id") @db.Uuid
+  status              ErrandStatus     @default(OPEN)
+  pickupLocationId    String           @map("pickup_location_id") @db.Uuid
+  pickupSupplierName  String           @map("pickup_supplier_name") @db.VarChar(150)
+  pickupLocationLabel String           @map("pickup_location_label") @db.VarChar(300)
+  description         String           @db.VarChar(1000)
+  deliveryDestination String           @map("delivery_destination") @db.VarChar(250)
+  instructions        String           @db.VarChar(1000)
+  offeredCredits      Int              @map("offered_credits")
+  version             Int              @default(0)
+  pendingOperationId  String?          @unique @map("pending_operation_id") @db.Uuid
+  pendingOperation    ErrandOperation? @relation("PendingOperation", fields: [pendingOperationId], references: [id], onDelete: Restrict)
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime?        @map("deleted_at") @db.Timestamptz(3)
+
+  @@index([status, courierId, createdAt, id])
+  @@index([requesterId, createdAt])
+  @@map("errands")
+}
+
+model ErrandOperation {
+  lockedErrand    Errand?         @relation("PendingOperation")
+  id              String          @id @default(uuid()) @db.Uuid
+  idempotencyKey  String          @map("idempotency_key") @db.Uuid
+  requesterId     String          @map("requester_id") @db.Uuid
+  errandId        String          @map("errand_id") @db.Uuid
+  kind            OperationKind
+  status          OperationStatus @default(PENDING)
+  inputDigest     String          @map("input_digest") @db.VarChar(64)
+  payload         Json
+  expectedVersion Int?            @map("expected_version")
+  previousAmount  Int?            @map("previous_amount")
+  errorCode       String?         @map("error_code") @db.VarChar(100)
+  errorStatus     Int?            @map("error_status")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([requesterId, idempotencyKey])
+  @@index([status, createdAt])
+  @@map("errand_operations")
+}

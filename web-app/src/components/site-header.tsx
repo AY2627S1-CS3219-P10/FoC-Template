@@ -36,6 +36,7 @@ export function SiteHeader() {
           <span className="brand-name">friend on campus</span>
         </Link>
         <nav aria-label="Main navigation">
+          <Link href="/errands" aria-current={pathname === "/errands" ? "page" : undefined}>Errands</Link>
           {user?.isAdmin && (
             <Link
               href="/admin"

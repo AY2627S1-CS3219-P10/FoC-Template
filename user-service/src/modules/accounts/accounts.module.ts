@@ -59,6 +59,7 @@ import { AccountsController } from './presentation/http/accounts.controller.js';
 import { AdministratorAccountsController } from './presentation/http/administrator-accounts.controller.js';
 import { AuthenticationController } from './presentation/http/authentication.controller.js';
 import { ProfileController } from './presentation/http/profile.controller.js';
+import { AccountIdentityController } from './presentation/http/account-identity.controller.js';
 import { AdministratorAuthorizationGuard } from './presentation/http/security/administrator-authorization.guard.js';
 import { BearerAuthenticationGuard } from './presentation/http/security/bearer-authentication.guard.js';
 
@@ -71,6 +72,7 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
     AdministratorAccountsController,
     AuthenticationController,
     ProfileController,
+    AccountIdentityController,
   ],
   imports: [DatabaseModule],
   providers: [

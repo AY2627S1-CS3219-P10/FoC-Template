@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
+import { CreateErrandShortcut } from "@/components/create-errand-shortcut";
 import { AuthProvider } from "@/features/auth/auth-provider";
 import { CreditProvider } from "@/features/credits/credit-provider";
 import "@/styles/globals.css";
@@ -28,6 +29,7 @@ export default function RootLayout({
             <main id="main" className="page-shell">
               {children}
             </main>
+            <CreateErrandShortcut />
           </CreditProvider>
         </AuthProvider>
         <footer className="site-footer">

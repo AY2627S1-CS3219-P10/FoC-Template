@@ -8,6 +8,7 @@ import {
 import type {
   CreditRepository,
   ReserveCreditsCommand,
+  AdjustReservationCommand,
 } from '../application/credit.repository';
 import {
   AccountNotFoundError,
@@ -194,6 +195,38 @@ export class PrismaCreditRepository implements CreditRepository {
         },
         replayed: false,
       };
+    }, true);
+  }
+
+  async adjust(command: AdjustReservationCommand): Promise<OperationResult<ReservationResult>> {
+    return this.serializable(async (tx) => {
+      await this.lockReservation(tx, command.errandId);
+      const reservation = await tx.creditReservation.findUnique({ where: { errandId: command.errandId } });
+      if (!reservation) throw new ReservationNotFoundError(command.errandId);
+      const prior = await tx.creditReservationAdjustment.findUnique({ where: { operationId: command.operationId } });
+      if (prior) {
+        if (prior.reservationId !== reservation.id || prior.requesterId !== command.requesterId || prior.expectedAmount !== command.expectedAmount || prior.amount !== command.amount)
+          throw new InvariantViolationError('Adjustment idempotency key was reused with different data');
+        return { replayed: true, data: { reservation: this.toReservation(reservation), requesterBalance: await this.requireAccount(tx, command.requesterId) } };
+      }
+      if (reservation.status !== ReservationStatus.RESERVED || reservation.requesterId !== command.requesterId || reservation.amount !== command.expectedAmount)
+        throw new InvariantViolationError('Reservation is terminal, belongs to another user, or its amount has changed');
+      await this.lockAccounts(tx, [command.requesterId]);
+      const before = await this.requireAccount(tx, command.requesterId);
+      const delta = command.amount - reservation.amount;
+      if (delta > before.availableCredits) throw new InsufficientCreditsError(command.requesterId, delta, before.availableCredits);
+      const account = await tx.creditAccount.update({ where: { userId: command.requesterId }, data: {
+        availableCredits: { decrement: delta }, reservedCredits: { increment: delta }, version: { increment: 1 },
+      } });
+      const updated = await tx.creditReservation.update({ where: { id: reservation.id }, data: { amount: command.amount } });
+      await tx.creditReservationAdjustment.create({ data: { operationId: command.operationId, reservationId: reservation.id, requesterId: command.requesterId, expectedAmount: command.expectedAmount, amount: command.amount } });
+      if (delta !== 0) await tx.creditLedgerEntry.create({ data: {
+        accountUserId: command.requesterId, reservationId: reservation.id,
+        type: delta > 0 ? LedgerEntryType.RESERVATION : LedgerEntryType.RELEASE, amount: Math.abs(delta),
+        availableBalanceAfter: account.availableCredits, reservedBalanceAfter: account.reservedCredits,
+        referenceKey: `errand:${command.errandId}:adjust:${command.operationId}`,
+      } });
+      return { replayed: false, data: { reservation: this.toReservation(updated), requesterBalance: this.toBalance(account) } };
     }, true);
   }
 

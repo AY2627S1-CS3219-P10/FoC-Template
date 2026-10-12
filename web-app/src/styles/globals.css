@@ -6,6 +6,22 @@
   gap: 14px;
   font-size: 12px;
 }
+.errands-page { padding: 48px 0; }
+.errands-page h1 { font-size: 40px; line-height: 1.2; margin: 12px 0; }
+.errand-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 28px; }
+.errand-card { padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: white; min-width: 0; }
+.errand-card-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.errand-open { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--green); background: #edf4e8; padding: 4px 10px; border-radius: 99px; }
+.errand-reward { display: inline-flex; align-items: center; gap: 6px; color: #8b6514; font-weight: 700; white-space: nowrap; }
+.errand-reward svg { fill: #fae6af; }
+.errand-card h2 { font-size: 20px; margin: 20px 0; line-height: 1.4; overflow-wrap: anywhere; }
+.errand-card dl { display: grid; gap: 14px; }
+.errand-card dt { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.errand-card dd { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+.errand-card dd strong, .errand-card dd span { display: block; }
+.errand-card footer { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 14px; display: flex; justify-content: space-between; gap: 10px; font-size: 11px; color: var(--muted); }
+.errand-pagination { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 28px; }
+@media(max-width: 640px) { .errand-grid { grid-template-columns: 1fr; } .errands-page { padding: 28px 0; } .errands-page h1 { font-size: 34px; } .errand-card { padding: 20px; } }
 .account-link {
   max-width: 130px;
   overflow: hidden;
@@ -1653,3 +1669,35 @@ hr {
     padding: 14px;
   }
 }
+.create-errand { margin: 1.5rem 0 2rem; padding: 1.5rem; border: 1px solid #e7e5e4; border-radius: 16px; background: white; }
+.create-errand h2 { margin-bottom: .5rem; }
+.create-errand .account-form { max-width: 720px; margin-top: 1rem; }
+.create-errand fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 1rem; min-width: 0; }
+.create-errand label { display: grid; gap: .5rem; }
+.create-errand input, .create-errand select, .create-errand textarea { width: 100%; min-width: 0; padding: .75rem; border: 1px solid #d6d3d1; border-radius: 8px; font: inherit; }
+.create-errand textarea { resize: vertical; }
+.create-errand-shortcut { position: fixed; right: 20px; bottom: 24px; z-index: 50; border: 0; border-radius: 999px; background: #243c30; color: white; padding: 14px 20px; font: inherit; font-weight: 600; box-shadow: 0 4px 18px #0003; cursor: grab; touch-action: none; user-select: none; max-width: calc(100vw - 16px); }
+.create-errand-shortcut:active { cursor: grabbing; }
+.create-errand-shortcut:focus-visible { outline: 3px solid #d1a942; outline-offset: 3px; }
+.shortcut-help { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.errand-detail-card { width: 100%; max-width: 850px; height: auto; overflow-wrap: anywhere; }
+.errand-detail-card h1, .errand-card h2 { overflow-wrap: anywhere; }
+.errand-detail-card dd { white-space: pre-wrap; margin: .5rem 0 1rem; overflow-wrap: anywhere; }
+.errand-detail-card dt { font-weight: 600; }
+.errand-detail-card fieldset { min-width: 0; border: 0; padding: 0; display: grid; gap: 1rem; }
+.errand-detail-card label { display: grid; gap: .5rem; }
+.errand-detail-card input, .errand-detail-card textarea { width: 100%; min-width: 0; border: 1px solid #d6d3d1; border-radius: 8px; padding: .75rem; font: inherit; }
+.errand-delete-confirm { margin-top: 1rem; padding: 1rem; border: 1px solid #d6d3d1; border-radius: 8px; }
+.errands-page .errand-card { padding: 16px; }
+.errands-page .errand-card h2 { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; font-size: 18px; }
+.errands-page .errand-card dl { gap: 10px; }
+.errands-page .errand-card .text-link { display: inline-flex; margin-top: 12px; }
+.button.button-edit { background: #256c43; border-color: #256c43; color: #fff; }
+.button.button-edit:hover { background: #1c5434; }
+.button.button-delete { background: #b4232b; border-color: #b4232b; color: #fff; }
+.button.button-delete:hover { background: #901c23; }
+.errand-card-heading { display: grid; grid-template-columns: minmax(0, 1fr) max-content; align-items: start; gap: 12px; width: 100%; margin-bottom: 12px; }
+.errands-page .errand-card-heading h2 { line-height: 28px; }
+.errand-card-heading .header-credits { justify-self: end; height: 28px; min-height: 28px; padding: 3px 8px; }
+.errand-sort { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 18px 0; font-weight: 600; }
+.errand-sort select { max-width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }

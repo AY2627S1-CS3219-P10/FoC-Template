@@ -38,6 +38,7 @@ describe('CreditService', () => {
   beforeEach(() => {
     repository = {
       initializeAccount: jest.fn(),
+      adjust: jest.fn(),
       getBalance: jest.fn(),
       reserve: jest.fn(),
       settle: jest.fn(),

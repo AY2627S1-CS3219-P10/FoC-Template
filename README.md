@@ -7,8 +7,8 @@ and credits circulate within the platform as a closed, non-monetary economy.
 ## Current milestone
 
 The React frontend is available in `web-app/`, with account registration,
-verification, login, supplier browsing, and credit balances connected to the existing services.
-There is no mock-data fallback. User, Supplier, and Credit Services must be running. See
+verification, login, supplier browsing, credit balances and open errands connected to the existing services.
+There is no mock-data fallback. User, Supplier, Credit and Order Services must be running. See
 [web-app/README.md](web-app/README.md) for startup and verification commands.
 The original scaffold notes below describe the initial milestone and may not
 reflect services implemented since then.
@@ -87,3 +87,5 @@ choices all contributors and coding agents must follow.
 Nice-to-have capabilities should remain inside an existing service when they
 share its domain. Add another top-level service only when it has independent
 data ownership and deployment needs.
+
+Order Service FR4 implementation and manual PowerShell launch commands: [order-service/README.md](order-service/README.md).
