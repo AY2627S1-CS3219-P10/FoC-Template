@@ -403,6 +403,33 @@ describe('Credit API with PostgreSQL', () => {
     expect(await prisma.creditReservation.count()).toBe(1);
   });
 
+  it('rejects a duplicate errand reservation with changed data', async () => {
+    const requesterId = await initialize();
+    const errandId = randomUUID();
+    await request(app.getHttpServer())
+      .post('/v1/credit-reservations')
+      .set('authorization', authorization)
+      .send({ errandId, requesterId, amount: 30 })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post('/v1/credit-reservations')
+      .set('authorization', authorization)
+      .send({ errandId, requesterId, amount: 31 })
+      .expect(409);
+    expect(response.body.code).toBe('IDEMPOTENCY_CONFLICT');
+
+    await expect(
+      prisma.creditAccount.findUniqueOrThrow({ where: { userId: requesterId } }),
+    ).resolves.toMatchObject({ availableCredits: 70, reservedCredits: 30 });
+    await expect(
+      prisma.creditReservation.findUniqueOrThrow({ where: { errandId } }),
+    ).resolves.toMatchObject({ requesterId, amount: 30, status: 'RESERVED' });
+    expect(
+      await prisma.ledgerEntry.count({ where: { errandId, type: 'RESERVE' } }),
+    ).toBe(1);
+  });
+
   it('adjusts a reservation by delta and deduplicates adjustment retries', async () => {
     const requesterId = await initialize();
     const errandId = randomUUID();
@@ -548,6 +575,45 @@ describe('Credit API with PostgreSQL', () => {
         where: { reservation: { errandId } },
       }),
     ).toBe(3);
+  });
+
+  it('rejects release after settlement without changing settled state', async () => {
+    const requesterId = await initialize();
+    const courierId = await initialize();
+    const errandId = randomUUID();
+    await request(app.getHttpServer())
+      .post('/v1/credit-reservations')
+      .set('authorization', authorization)
+      .send({ errandId, requesterId, amount: 25 })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/v1/credit-reservations/${errandId}/settlement`)
+      .set('authorization', authorization)
+      .send({ requesterId, courierId, amount: 25 })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/credit-reservations/${errandId}/release`)
+      .set('authorization', authorization)
+      .send({ requesterId, amount: 25 })
+      .expect(409);
+    expect(response.body.code).toBe('RESERVATION_STATE_CONFLICT');
+
+    await expect(
+      prisma.creditAccount.findUniqueOrThrow({ where: { userId: requesterId } }),
+    ).resolves.toMatchObject({ availableCredits: 75, reservedCredits: 0 });
+    await expect(
+      prisma.creditAccount.findUniqueOrThrow({ where: { userId: courierId } }),
+    ).resolves.toMatchObject({ availableCredits: 125, reservedCredits: 0 });
+    await expect(
+      prisma.creditReservation.findUniqueOrThrow({ where: { errandId } }),
+    ).resolves.toMatchObject({ status: 'SETTLED', courierId });
+    expect(
+      await prisma.ledgerEntry.count({ where: { errandId, type: 'SETTLE' } }),
+    ).toBe(2);
+    expect(
+      await prisma.ledgerEntry.count({ where: { errandId, type: 'RELEASE' } }),
+    ).toBe(0);
   });
 
   it('survives commit-before-ACK redelivery of ErrandCompleted', async () => {
@@ -951,7 +1017,15 @@ describe('Credit API with PostgreSQL', () => {
         .set('authorization', studentJwt)
         .send({ requesterId: studentId, courierId, amount: 10 }),
     );
-    expect(attacks.map(({ status }) => status)).toEqual([403, 403, 403, 403]);
+    attacks.push(
+      await request(app.getHttpServer())
+        .post(`/v1/credit-reservations/${errandId}/release`)
+        .set('authorization', studentJwt)
+        .send({ requesterId: studentId, amount: 10 }),
+    );
+    expect(attacks.map(({ status }) => status)).toEqual([
+      403, 403, 403, 403, 403,
+    ]);
 
     await expect(
       prisma.creditAccount.findUniqueOrThrow({ where: { userId: studentId } }),
