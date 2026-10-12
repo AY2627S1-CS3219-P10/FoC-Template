@@ -92,5 +92,29 @@ model LedgerEntry {
   @@index([accountUserId, createdAt])
   @@index([reservationId])
   @@index([createdAt])
-  @@map("credit_ledger_entries")
+  @@index([errandId])
+  @@map("ledger_entries")
+}
+
+model ProcessedEvent {
+  eventId     String   @id @map("event_id") @db.Uuid
+  eventType   String   @map("event_type")
+  payloadHash String   @map("payload_hash") @db.Char(64)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@index([eventType, processedAt])
+  @@map("processed_events")
+}
+
+model OutboxEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  aggregateType String   @map("aggregate_type")
+  aggregateId   String   @map("aggregate_id") @db.Uuid
+  eventType     String   @map("event_type")
+  payload       Json
+  published     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([published, createdAt])
+  @@map("outbox_events")
 }

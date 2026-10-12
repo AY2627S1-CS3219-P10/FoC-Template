@@ -114,6 +114,17 @@ export class ConcurrentOperationError extends CreditDomainError {
   }
 }
 
+export class EventReplayConflictError extends CreditDomainError {
+  constructor(eventId: string) {
+    super(
+      'The event identifier was already processed with different content',
+      'EVENT_REPLAY_CONFLICT',
+      409,
+      { eventId },
+    );
+  }
+}
+
 export class InvariantViolationError extends CreditDomainError {
   constructor(message: string, details?: Record<string, unknown>) {
     super(message, 'CREDIT_INVARIANT_VIOLATION', 409, details);

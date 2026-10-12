@@ -112,6 +112,21 @@ export class PrismaCreditRepository implements CreditRepository {
             availableBalanceAfter: initialCredits,
             reservedBalanceAfter: 0,
             referenceKey: `user:${userId}:initialize`,
+            correlationId,
+          },
+        });
+      }
+      if (consumedEvent) {
+        await tx.outboxEvent.create({
+          data: {
+            aggregateType: 'credit-account',
+            aggregateId: userId,
+            eventType: 'credit.account-initialized.v1',
+            payload: {
+              causationEventId: consumedEvent.eventId,
+              userId,
+              availableCredits: initialCredits,
+            },
           },
         });
       }
@@ -488,6 +503,23 @@ export class PrismaCreditRepository implements CreditRepository {
           },
         ],
       });
+
+      if (command.consumedEvent) {
+        await tx.outboxEvent.create({
+          data: {
+            aggregateType: 'credit-reservation',
+            aggregateId: command.errandId,
+            eventType: 'credit.transferred.v1',
+            payload: {
+              causationEventId: command.consumedEvent.eventId,
+              errandId: command.errandId,
+              requesterId: current.requesterId,
+              courierId: command.courierId,
+              amount: current.amount,
+            },
+          },
+        });
+      }
 
       const requester =
         command.courierId === current.requesterId

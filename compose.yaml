@@ -27,7 +27,18 @@ services:
       DATABASE_URL: ${CREDIT_DATABASE_URL:-postgresql://foc_credit:local_credit_password@credit-db:5432/foc_credit}
       CREDIT_INITIAL_BALANCE: ${CREDIT_INITIAL_BALANCE:-100}
       CREDIT_TRANSACTION_RETRIES: ${CREDIT_TRANSACTION_RETRIES:-5}
-      CREDIT_INTERNAL_API_TOKEN: ${CREDIT_INTERNAL_API_TOKEN:?CREDIT_INTERNAL_API_TOKEN must be set}
+      CREDIT_USER_SERVICE_TOKEN: ${CREDIT_USER_SERVICE_TOKEN:?CREDIT_USER_SERVICE_TOKEN must be set}
+      CREDIT_ORDER_SERVICE_TOKEN: ${CREDIT_ORDER_SERVICE_TOKEN:?CREDIT_ORDER_SERVICE_TOKEN must be set}
+      CREDIT_MONITORING_TOKEN: ${CREDIT_MONITORING_TOKEN:?CREDIT_MONITORING_TOKEN must be set}
+      CREDIT_EVENTS_ENABLED: ${CREDIT_EVENTS_ENABLED:-true}
+      CREDIT_EVENTS_QUEUE: ${CREDIT_EVENTS_QUEUE:-credit-service.events}
+      CREDIT_EVENTS_EXCHANGE: ${CREDIT_EVENTS_EXCHANGE:-foc.events}
+      CREDIT_EVENTS_DEAD_LETTER_EXCHANGE: ${CREDIT_EVENTS_DEAD_LETTER_EXCHANGE:-foc.events.dlx}
+      CREDIT_EVENTS_DEAD_LETTER_QUEUE: ${CREDIT_EVENTS_DEAD_LETTER_QUEUE:-credit-service.events.dlq}
+      CREDIT_EVENTS_DEAD_LETTER_ROUTING_KEY: ${CREDIT_EVENTS_DEAD_LETTER_ROUTING_KEY:-credit-service.events.dead}
+      CREDIT_EVENTS_PREFETCH: ${CREDIT_EVENTS_PREFETCH:-10}
+      CREDIT_OUTBOX_POLL_INTERVAL_MS: ${CREDIT_OUTBOX_POLL_INTERVAL_MS:-1000}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://foc:foc_local_password@rabbitmq:5672}
       JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:?JWT_ACCESS_TOKEN_SECRET must be set}
       JWT_ISSUER: ${JWT_ISSUER:-foc-user-service}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-foc-api}
@@ -42,6 +53,8 @@ services:
       - "${CREDIT_SERVICE_PORT:-3003}:3003"
     depends_on:
       credit-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -66,6 +79,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: foc
+      RABBITMQ_DEFAULT_PASS: foc_local_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
 networks:
   default:

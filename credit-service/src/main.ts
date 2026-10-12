@@ -7,6 +7,8 @@ import {
 } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { connect } from 'amqplib';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './api/http-exception.filter';
 
@@ -54,6 +56,52 @@ async function bootstrap(): Promise<void> {
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, openApi));
 
   const config = app.get(ConfigService);
+  if (config.getOrThrow<boolean>('messaging.enabled')) {
+    const rabbitmqUrl = config.getOrThrow<string>('messaging.rabbitmqUrl');
+    const deadLetterExchange = config.getOrThrow<string>(
+      'messaging.deadLetterExchange',
+    );
+    const deadLetterQueue = config.getOrThrow<string>(
+      'messaging.deadLetterQueue',
+    );
+    const deadLetterRoutingKey = config.getOrThrow<string>(
+      'messaging.deadLetterRoutingKey',
+    );
+    const topologyConnection = await connect(rabbitmqUrl);
+    const topologyChannel = await topologyConnection.createChannel();
+    await topologyChannel.assertExchange(deadLetterExchange, 'direct', {
+      durable: true,
+    });
+    await topologyChannel.assertQueue(deadLetterQueue, { durable: true });
+    await topologyChannel.bindQueue(
+      deadLetterQueue,
+      deadLetterExchange,
+      deadLetterRoutingKey,
+    );
+    await topologyChannel.close();
+    await topologyConnection.close();
+
+    app.connectMicroservice<MicroserviceOptions>({
+      transport: Transport.RMQ,
+      options: {
+        urls: [rabbitmqUrl],
+        queue: config.getOrThrow<string>('messaging.queue'),
+        exchange: config.getOrThrow<string>('messaging.exchange'),
+        exchangeType: 'topic',
+        wildcards: true,
+        noAck: false,
+        prefetchCount: config.getOrThrow<number>('messaging.prefetchCount'),
+        queueOptions: {
+          durable: true,
+          arguments: {
+            'x-dead-letter-exchange': deadLetterExchange,
+            'x-dead-letter-routing-key': deadLetterRoutingKey,
+          },
+        },
+      },
+    });
+    await app.startAllMicroservices();
+  }
   await app.listen(config.getOrThrow<number>('app.port'), '0.0.0.0');
 }
 
