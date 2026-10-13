@@ -8,6 +8,7 @@ import type {
   SessionRecord,
 } from '../../application/ports/authentication-repository.port.js';
 import { AccountStatus } from '../../domain/account-status.js';
+import { AuthenticationError } from '../../application/errors/authentication.error.js';
 import {
   type PrismaClient,
   UserStatus,
@@ -24,7 +25,27 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
   constructor(private readonly prisma: PrismaClient) {}
 
   createSession(session: SessionRecord): Promise<void> {
-    return this.prisma.session.create({ data: session }).then(() => undefined);
+    return this.prisma.$transaction(async (tx) => {
+      // Serialize login session creation against suspension.
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${session.userId}::uuid FOR UPDATE`;
+      const account = await tx.user.findFirst({
+        where: {
+          id: session.userId,
+          status: UserStatus.ACTIVE,
+          OR: [
+            { suspendedUntil: null },
+            { suspendedUntil: { lte: session.createdAt } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!account)
+        throw new AuthenticationError(
+          'ACCOUNT_NOT_ACTIVE',
+          'Account is not available for login.',
+        );
+      await tx.session.create({ data: session });
+    });
   }
 
   async findActiveSessionAccount(
@@ -45,7 +66,13 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
         expiresAt: { gt: input.now },
         id: input.sessionId,
         revokedAt: null,
-        user: { status: UserStatus.ACTIVE },
+        user: {
+          status: UserStatus.ACTIVE,
+          OR: [
+            { suspendedUntil: null },
+            { suspendedUntil: { lte: input.now } },
+          ],
+        },
         userId: input.userId,
       },
     });
@@ -68,6 +95,7 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
         isAdmin: true,
         passwordHash: true,
         status: true,
+        suspendedUntil: true,
         username: true,
       },
       where: { email },
@@ -91,10 +119,19 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
       .then(() => undefined);
   }
 
-  rotateSession(
+  async rotateSession(
     input: RotateSessionInput,
   ): Promise<AuthenticatedAccount | null> {
+    // Capture the caller's initial token state before opening the locking
+    // transaction; overlapping callers can then lose rotation without being
+    // mistaken for a later replay of an already-revoked token.
+    const identity = await this.prisma.session.findUnique({
+      where: { refreshTokenHash: input.currentRefreshTokenHash },
+      select: { userId: true, revokedAt: true },
+    });
+    if (!identity) return null;
     return this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${identity.userId}::uuid FOR UPDATE`;
       const current = await transaction.session.findUnique({
         select: {
           expiresAt: true,
@@ -105,6 +142,7 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
               id: true,
               isAdmin: true,
               status: true,
+              suspendedUntil: true,
               username: true,
             },
           },
@@ -118,17 +156,23 @@ export class PrismaAuthenticationRepository implements AuthenticationRepositoryP
       }
 
       if (current.revokedAt) {
-        await transaction.session.updateMany({
-          data: { revokedAt: input.now },
-          where: { revokedAt: null, userId: current.userId },
-        });
+        // A concurrent rotation loser must not revoke the winning session.
+        // Deliberate reuse of an already-revoked token retains existing defenses.
+        if (identity.revokedAt) {
+          await transaction.session.updateMany({
+            data: { revokedAt: input.now },
+            where: { revokedAt: null, userId: current.userId },
+          });
+        }
 
         return null;
       }
 
       if (
         current.expiresAt <= input.now ||
-        current.user.status !== UserStatus.ACTIVE
+        current.user.status !== UserStatus.ACTIVE ||
+        (current.user.suspendedUntil !== null &&
+          current.user.suspendedUntil > input.now)
       ) {
         await transaction.session.updateMany({
           data: { revokedAt: input.now },

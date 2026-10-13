@@ -51,6 +51,7 @@ describe('Credit API with PostgreSQL', () => {
         'utf8',
       ),
     );
+    await client.query(readFileSync(join(__dirname, '../../migrations/202610120002_adjust_reservations/migration.sql'), 'utf8'));
     await client.end();
 
     const moduleRef = await Test.createTestingModule({
@@ -78,6 +79,7 @@ describe('Credit API with PostgreSQL', () => {
   });
 
   beforeEach(async () => {
+    await prisma.creditReservationAdjustment.deleteMany();
     await prisma.creditLedgerEntry.deleteMany();
     await prisma.creditReservation.deleteMany();
     await prisma.creditAccount.deleteMany();

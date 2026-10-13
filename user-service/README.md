@@ -7,6 +7,79 @@ service's persistence store directly.
 
 ## Current scope
 
+### User reports and temporary suspensions
+
+Reporting and moderation stay inside this service. All routes below require a
+live bearer session; the administrator routes reuse `@AdministratorOnly()`.
+Reporter and administrator identities come from that session, never the body.
+
+| Method | Path | Authorization and purpose |
+| --- | --- | --- |
+| POST | `/api/reports` | Any usable user reports another existing user |
+| GET | `/api/admin/reports` | Administrator lists reports |
+| GET | `/api/admin/reports/:reportId` | Administrator views one report |
+| PATCH | `/api/admin/reports/:reportId/resolve` | Administrator resolves a report |
+| PATCH | `/api/admin/accounts/:accountId/suspension` | Administrator sets a temporary timeout |
+
+Create a report with `{ "reportedUserId": "<user UUID>", "description": "Missed an agreed pickup." }`.
+Descriptions are trimmed and must contain 1–500 characters. Self-report returns
+403, a missing target returns 404, and malformed IDs/descriptions or additional
+body properties return 400. Creation returns 201 with OPEN status, timestamps,
+and safe reporter/target identities (IDs and usernames). Creating or resolving
+a report never changes the user's account status.
+
+Report lists support `status=OPEN|RESOLVED`, `limit=1..100` (default 50), and
+`offset=0..10000` (default 0), ordered newest first with an ID tie-breaker.
+Responses omit password hashes, refresh tokens, sessions, and phone numbers.
+Resolving a report records `resolvedAt` and the authenticated resolver. Repeating
+resolution returns the existing result without rewriting that audit timestamp.
+Missing reports return 404; non-administrators receive 403.
+
+Set a suspension with `{ "suspendedUntil": "2027-01-01T12:00:00Z" }`, using a
+future ISO 8601 timestamp with an explicit UTC timezone or offset. Invalid/past
+expiry returns 400, self-suspension returns 403, a missing target returns 404,
+and incompatible permanent statuses or last-usable-admin violations return 409.
+The response contains the target ID, username, effective SUSPENDED status and
+expiry. Every non-revoked session is revoked in the same database transaction.
+
+Temporary suspension is an overlay on the base ACTIVE account status, stored
+as `users.suspended_until`. While the timestamp is in the future, login returns
+403 and refresh/protected User Service routes return 401. At or after expiry,
+fresh login and protected access work automatically without clearing the field
+or running a scheduled job. Revoked sessions remain revoked; the user must sign
+in again. BANNED, PENDING_VERIFICATION, and legacy SUSPENDED statuses remain
+blocked independently of the timeout, and are never silently converted to ACTIVE.
+Profile/admin account responses expose the effective status and suspension expiry.
+
+Suspension and administrator privilege changes share the existing PostgreSQL
+advisory transaction lock. Both count only usable administrators. The database
+last-admin trigger also protects status/expiry changes and deletions. Login
+session creation and refresh rotation lock the target user row, preventing an
+in-flight session from escaping suspension revocation.
+
+Apply the additive schema migration before starting the updated service:
+
+```powershell
+pnpm prisma:generate
+pnpm db:migrate:deploy
+pnpm start:dev
+```
+
+Existing users receive a nullable expiry; reports use their own table, foreign
+keys, length/self-report constraints, indexed status/identity/timestamps, and
+resolution metadata. Report identities use RESTRICT on account deletion to
+preserve the report; a deleted resolver becomes null. For recovery, prefer a
+forward fix. A schema rollback must first stop moderation writes, back up report
+history, restore the previous last-admin function/trigger, and then remove the
+new table/indexes/column in a reviewed migration. Removing reports would lose
+audit history, so do not drop them as part of an application-only rollback.
+
+`pnpm test` covers use-case validation, expiry boundaries, and existing controllers.
+`pnpm test:integration` uses isolated real PostgreSQL/Redis containers and exercises
+the moderation controllers with real JWTs and sessions, permissions, resolution,
+expiry, revocation, permanent statuses, last-admin checks, and concurrency races.
+OpenAPI schemas and error descriptions are available at `/api/docs`.
+
 The service foundation is initialized with NestJS, Fastify, TypeScript, strict
 static analysis, PostgreSQL 18, Prisma ORM 7, configuration validation, a smoke
 test, and a production-oriented container build. Its initial database structure
@@ -322,3 +395,5 @@ job payload and successful or exhausted jobs are removed. Prisma migrations
 live under `prisma/migrations/`. The generated client is written to
 `src/generated/prisma/`, regenerated during checks and builds, and is not
 committed.
+
+Authenticated GET /api/accounts/:id/identity returns only ID and username. Missing accounts return 404. Private contacts and security data are excluded.

@@ -1,4 +1,16 @@
 import { Module } from '@nestjs/common';
+import {
+  ReportUserUseCase,
+  ResolveReportUseCase,
+  SuspendAccountUseCase,
+  ViewReportsUseCase,
+} from './application/use-cases/moderation.use-cases.js';
+import { PrismaModerationRepository } from './infrastructure/persistence/prisma-moderation.repository.js';
+import {
+  UserReportsController,
+  AdministratorReportsController,
+  AdministratorSuspensionsController,
+} from './presentation/http/moderation.controller.js';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 
@@ -47,18 +59,57 @@ import { AccountsController } from './presentation/http/accounts.controller.js';
 import { AdministratorAccountsController } from './presentation/http/administrator-accounts.controller.js';
 import { AuthenticationController } from './presentation/http/authentication.controller.js';
 import { ProfileController } from './presentation/http/profile.controller.js';
+import { AccountIdentityController } from './presentation/http/account-identity.controller.js';
 import { AdministratorAuthorizationGuard } from './presentation/http/security/administrator-authorization.guard.js';
 import { BearerAuthenticationGuard } from './presentation/http/security/bearer-authentication.guard.js';
 
 @Module({
   controllers: [
+    UserReportsController,
+    AdministratorReportsController,
+    AdministratorSuspensionsController,
     AccountsController,
     AdministratorAccountsController,
     AuthenticationController,
     ProfileController,
+    AccountIdentityController,
   ],
   imports: [DatabaseModule],
   providers: [
+    {
+      provide: PrismaModerationRepository,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) =>
+        new PrismaModerationRepository(prisma),
+    },
+    {
+      provide: ReportUserUseCase,
+      inject: [PrismaModerationRepository],
+      useFactory: (repository: PrismaModerationRepository) =>
+        new ReportUserUseCase(repository),
+    },
+    {
+      provide: ViewReportsUseCase,
+      inject: [PrismaModerationRepository],
+      useFactory: (repository: PrismaModerationRepository) =>
+        new ViewReportsUseCase(repository),
+    },
+    {
+      provide: ResolveReportUseCase,
+      inject: [PrismaModerationRepository, SystemClock],
+      useFactory: (
+        repository: PrismaModerationRepository,
+        clock: SystemClock,
+      ) => new ResolveReportUseCase(repository, clock),
+    },
+    {
+      provide: SuspendAccountUseCase,
+      inject: [PrismaModerationRepository, SystemClock],
+      useFactory: (
+        repository: PrismaModerationRepository,
+        clock: SystemClock,
+      ) => new SuspendAccountUseCase(repository, clock),
+    },
     {
       inject: [PrismaService],
       provide: PrismaAccountRepository,
@@ -449,6 +500,10 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
         new VerifyEmailUseCase({ clock, codeHasher, repository }),
     },
   ],
-  exports: [AdministratorAuthorizationGuard, BearerAuthenticationGuard],
+  exports: [
+    AdministratorAuthorizationGuard,
+    BearerAuthenticationGuard,
+    AuthenticateAccessTokenUseCase,
+  ],
 })
 export class AccountsModule {}

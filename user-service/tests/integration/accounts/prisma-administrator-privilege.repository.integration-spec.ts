@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -8,17 +7,7 @@ import { Pool } from 'pg';
 import { PrismaAdministratorPrivilegeRepository } from '../../../src/modules/accounts/infrastructure/persistence/prisma-administrator-privilege.repository.js';
 import { PrismaClient } from '../../../src/generated/prisma/client.js';
 
-const MIGRATION_PATHS = [
-  resolve(
-    'prisma/migrations/20260919000100_create_user_identity_tables/migration.sql',
-  ),
-  resolve(
-    'prisma/migrations/20260920000100_enforce_one_active_verification_code/migration.sql',
-  ),
-  resolve(
-    'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
-  ),
-];
+import { MIGRATION_PATHS } from './migration-paths.js';
 const ADMIN_ONE_ID = '4a84f480-b1cb-4b81-b632-8bb49034b9e7';
 const ADMIN_TWO_ID = '77af9009-08e1-42f5-91d3-516920f0c571';
 const STUDENT_ID = '9fa02524-f606-4e1d-8cef-bfa0cf884e3e';

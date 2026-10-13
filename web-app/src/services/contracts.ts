@@ -1,4 +1,26 @@
-// HTTP contracts from the user-service and supplier-service response DTOs.
+// HTTP contracts from the backend service response DTOs.
+export interface ErrandOperation {
+  operationId: string;
+  status: "PENDING" | "SUCCEEDED" | "FAILED";
+  errand?: Errand;
+  errorCode?: string;
+}
+export interface Errand {
+  requesterUsername?: string | null;
+  id: string; requesterId: string; courierId: string | null; status: string;
+  pickupLocationId: string; pickupSupplierName: string; pickupLocationLabel: string;
+  description: string; deliveryDestination: string; instructions: string; offeredCredits: number;
+  version: number; createdAt: string; updatedAt: string;
+}
+export interface CreditBalance {
+  userId: string;
+  availableCredits: number;
+  reservedCredits: number;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Profile {
   id: string;
   username: string;

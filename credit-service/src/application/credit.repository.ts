@@ -12,8 +12,12 @@ export interface ReserveCreditsCommand {
   requesterId: string;
   amount: number;
 }
+export interface AdjustReservationCommand {
+  errandId: string; operationId: string; requesterId: string; expectedAmount: number; amount: number;
+}
 
 export interface CreditRepository {
+  adjust(command: AdjustReservationCommand): Promise<OperationResult<ReservationResult>>;
   initializeAccount(
     userId: string,
     initialCredits: number,

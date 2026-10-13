@@ -1,4 +1,5 @@
 import { AccountStatus } from '../../domain/account-status.js';
+import { effectiveAccountStatus } from '../../domain/temporary-suspension.js';
 import { NusEmail } from '../../domain/nus-email.js';
 import { AuthenticationError } from '../errors/authentication.error.js';
 import type { AuthenticationRepositoryPort } from '../ports/authentication-repository.port.js';
@@ -47,14 +48,20 @@ export class LoginUseCase {
       );
     }
 
-    if (account.status !== AccountStatus.Active) {
+    const prepared = this.dependencies.sessionTokenIssuer.prepare();
+    if (
+      effectiveAccountStatus(
+        account.status,
+        account.suspendedUntil,
+        prepared.record.createdAt,
+      ) !== AccountStatus.Active
+    ) {
       throw new AuthenticationError(
         'ACCOUNT_NOT_ACTIVE',
         'Account is not available for login.',
       );
     }
 
-    const prepared = this.dependencies.sessionTokenIssuer.prepare();
     const tokens = await this.dependencies.sessionTokenIssuer.issueTokens(
       account,
       prepared,

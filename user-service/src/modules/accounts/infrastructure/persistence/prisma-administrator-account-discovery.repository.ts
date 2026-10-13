@@ -4,6 +4,7 @@ import type {
   FindAdministratorAccountsInput,
 } from '../../application/ports/administrator-account-discovery-repository.port.js';
 import { AccountStatus } from '../../domain/account-status.js';
+import { effectiveAccountStatus } from '../../domain/temporary-suspension.js';
 import {
   type PrismaClient,
   UserStatus,
@@ -29,6 +30,7 @@ export class PrismaAdministratorAccountDiscoveryRepository implements Administra
         id: true,
         isAdmin: true,
         status: true,
+        suspendedUntil: true,
         username: true,
       },
       take: input.limit,
@@ -54,7 +56,11 @@ export class PrismaAdministratorAccountDiscoveryRepository implements Administra
 
     return accounts.map((account) => ({
       ...account,
-      status: DOMAIN_STATUS_BY_PRISMA[account.status],
+      status: effectiveAccountStatus(
+        DOMAIN_STATUS_BY_PRISMA[account.status],
+        account.suspendedUntil,
+        new Date(),
+      ),
     }));
   }
 }

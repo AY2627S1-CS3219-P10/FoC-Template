@@ -4,6 +4,7 @@ import {
   CREDIT_REPOSITORY,
   type CreditRepository,
   type ReserveCreditsCommand,
+  type AdjustReservationCommand,
 } from './credit.repository';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class CreditService {
   getBalance(userId: string) {
     return this.repository.getBalance(userId);
   }
+  adjust(command: AdjustReservationCommand) { return this.repository.adjust(command); }
 
   reserve(command: ReserveCreditsCommand) {
     return this.repository.reserve(command);

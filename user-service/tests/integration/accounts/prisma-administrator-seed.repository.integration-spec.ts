@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -10,17 +9,7 @@ import { AccountStatus } from '../../../src/modules/accounts/domain/account-stat
 import { PrismaAdministratorSeedRepository } from '../../../src/modules/accounts/infrastructure/persistence/prisma-administrator-seed.repository.js';
 import { PrismaClient } from '../../../src/generated/prisma/client.js';
 
-const MIGRATION_PATHS = [
-  resolve(
-    'prisma/migrations/20260919000100_create_user_identity_tables/migration.sql',
-  ),
-  resolve(
-    'prisma/migrations/20260920000100_enforce_one_active_verification_code/migration.sql',
-  ),
-  resolve(
-    'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
-  ),
-];
+import { MIGRATION_PATHS } from './migration-paths.js';
 const NOW = new Date('2026-09-20T06:00:00.000Z');
 
 function makeRecords(): AdministratorSeedRecord[] {

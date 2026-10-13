@@ -8,6 +8,21 @@ catalog is included. Order creation and acceptance are not implemented.
 
 ## Run locally
 
+On Windows, start Docker Desktop and launch all databases and application services
+from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```
+
+Add `-Install` on first setup to install all dependencies. The script generates
+missing local secrets, shares the User Service JWT secret with the other services,
+configures server-only credit provisioning, and applies migrations. Configure
+working SMTP credentials in `user-service/.env` for registration. Service logs
+are written to `.local/`. Open http://localhost:3000, log in, and click the gold
+coin and balance in the top bar to open `/credits`.
+The credit database uses host port 5435, separate from the user database on 5433.
+
 Use Node.js 24.11 or newer within Node.js 24 and pnpm 12.5.1. From the repository
 root:
 
@@ -111,6 +126,31 @@ database directly.
 
 ## Account settings
 
+The dedicated `/credits` page displays available and reserved credits from the Credit Service,
+with refresh, retry, and unprovisioned-account states. Set the server-only
+`CREDIT_SERVICE_URL` (default `http://127.0.0.1:3003`, without `/v1`). Start the
+service and its database using [its setup guide](../credit-service/README.md).
+Its JWT secret, issuer, and audience must match the User Service configuration.
+The web app needs the matching server-only `CREDIT_INTERNAL_API_TOKEN` to provision
+missing accounts. It does not need the JWT signing secret.
+
+The shared credit provider loads after login and when an existing session is
+restored, sending a same-origin `POST /api/credits`. The top bar shows available
+credits beside a gold coin, linking to `/credits`. Refreshing that page updates
+both the top bar and the available/reserved balance details. Guests see a login
+prompt; loading and unavailable balances never display an invented zero.
+The adapter resolves the active, verified user from their live User Service
+session and reads their balance. If that account is missing, it provisions it
+through the internal Credit Service API. The Credit Service assigns its configured
+initial balance exactly once; retries and existing accounts never receive extra
+credits. No account ID or credit amount is accepted from the browser. The read-only
+`GET /api/credits` remains available without provisioning. Verification itself
+does not provision accounts; the first login after verification handles both
+existing and new users automatically, including retries after a service outage.
+Reservations, releases, and settlement remain internal errand operations.
+Credit browser tests use intercepted responses to check desktop/mobile behavior;
+they do not replace live backend integration tests.
+
 The account page supports phone-number updates and password changes through
 the user service's authenticated profile endpoints. Phone numbers must contain
 8–15 digits. Password changes require the current password and a new password
@@ -146,3 +186,14 @@ seeding remains a service deployment operation.
 using intercepted API responses, plus real adapter origin and unauthenticated
 access checks. These UI contract tests do not replace live service integration
 tests or database tests.
+
+## Errands
+The /errands page browses authenticated OPEN, unassigned requests from Order Service, including pickup, delivery, instructions and offered credits. Configure ORDER_SERVICE_URL (default http://127.0.0.1:3004). See ../order-service/README.md for PowerShell setup. Users can create errands from the Errands page. Choose a pickup location, complete delivery details and offer credits; successful creation updates the list and credit balance. Pending requests can be checked and uncertain requests retried safely. An empty database displays an empty state.
+
+Create errands at /errands/create. A floating Create errand shortcut appears on every page, supports mouse/touch dragging and arrow keys when focused, and remembers its position in browser storage. Guests are prompted to log in on the creation page.
+
+Errand browse cards show only the title, pickup location and delivery destination. View details opens /errands/:id with a flexible full-information card. My requests lists the owner's requests; All requests is available to administrators. Owners can edit/delete OPEN unassigned requests. Administrators can delete any request and cannot edit. Deletion requires confirmation and refreshes credits; uncertain mutations retain their request keys for safe retries.
+
+Administrator creators can edit their own OPEN unassigned requests. Requester usernames come from User Service. Edit/save buttons are green; delete/confirm buttons are red.
+
+Catalogue cards show offered credits using the header balance gold coin badge. Sort errands offers latest/oldest creation time and highest/lowest credits; changing the sort returns to page 1.

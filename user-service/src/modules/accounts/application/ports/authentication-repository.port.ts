@@ -8,6 +8,7 @@ export interface AuthenticatedAccount {
 }
 
 export interface AuthenticationAccount extends AuthenticatedAccount {
+  suspendedUntil?: Date | null;
   email: string;
   passwordHash: string;
 }
