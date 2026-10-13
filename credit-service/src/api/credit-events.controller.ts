@@ -59,7 +59,9 @@ export class CreditEventsController {
       channel.ack(message);
     } catch (error) {
       const permanent =
-        (error instanceof CreditDomainError && error.statusCode === 409) ||
+        (error instanceof CreditDomainError &&
+          error.statusCode === 409 &&
+          error.code !== 'CONCURRENT_OPERATION') ||
         (error instanceof HttpException &&
           error.getStatus() >= HttpStatus.BAD_REQUEST &&
           error.getStatus() < HttpStatus.INTERNAL_SERVER_ERROR &&

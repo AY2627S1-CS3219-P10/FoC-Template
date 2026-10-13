@@ -7,7 +7,10 @@ import {
   USER_VERIFIED_EVENT,
   type CreditEventsHandler,
 } from '../../src/api/credit-events.handler';
-import { EventReplayConflictError } from '../../src/domain/credit.errors';
+import {
+  ConcurrentOperationError,
+  EventReplayConflictError,
+} from '../../src/domain/credit.errors';
 
 describe('CreditEventsController acknowledgements', () => {
   const message = { fields: { deliveryTag: 1 } };
@@ -40,6 +43,27 @@ describe('CreditEventsController acknowledgements', () => {
 
   it('requests redelivery after a transient failure', async () => {
     handler.handleErrandCompleted.mockRejectedValue(new Error('DB unavailable'));
+    await controller.consumeErrandCompleted(
+      {
+        eventId: randomUUID(),
+        eventType: ERRAND_COMPLETED_EVENT,
+        data: {
+          errandId: randomUUID(),
+          requesterId: randomUUID(),
+          courierId: randomUUID(),
+          amount: 10,
+        },
+      },
+      context,
+    );
+    expect(channel.ack).not.toHaveBeenCalled();
+    expect(channel.nack).toHaveBeenCalledWith(message, false, true);
+  });
+
+  it('requests redelivery when database concurrency retries are exhausted', async () => {
+    handler.handleErrandCompleted.mockRejectedValue(
+      new ConcurrentOperationError(),
+    );
     await controller.consumeErrandCompleted(
       {
         eventId: randomUUID(),
