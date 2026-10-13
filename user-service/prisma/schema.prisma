@@ -17,6 +17,13 @@ enum UserStatus {
   @@map("user_status")
 }
 
+enum ReportStatus {
+  OPEN
+  RESOLVED
+
+  @@map("report_status")
+}
+
 model User {
   id                String     @id @default(uuid()) @db.Uuid
   username          String     @unique @db.Citext
@@ -27,13 +34,40 @@ model User {
   status            UserStatus @default(PENDING_VERIFICATION)
   emailVerifiedAt   DateTime?  @map("email_verified_at") @db.Timestamptz(6)
   passwordChangedAt DateTime?  @map("password_changed_at") @db.Timestamptz(6)
+  suspendedUntil    DateTime?  @map("suspended_until") @db.Timestamptz(6)
   createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   emailVerificationCodes EmailVerificationCode[]
   sessions               Session[]
+  reportsSubmitted       UserReport[]            @relation("reporter")
+  reportsReceived        UserReport[]            @relation("reportedUser")
+  reportsResolved        UserReport[]            @relation("reportResolver")
 
+  @@index([isAdmin, status, suspendedUntil])
   @@map("users")
+}
+
+model UserReport {
+  id             String       @id @default(uuid()) @db.Uuid
+  reporterUserId String       @map("reporter_user_id") @db.Uuid
+  reportedUserId String       @map("reported_user_id") @db.Uuid
+  description    String       @db.VarChar(500)
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resolvedAt     DateTime?    @map("resolved_at") @db.Timestamptz(6)
+  resolvedById   String?      @map("resolved_by_id") @db.Uuid
+
+  reporter     User  @relation("reporter", fields: [reporterUserId], references: [id], onDelete: Restrict)
+  reportedUser User  @relation("reportedUser", fields: [reportedUserId], references: [id], onDelete: Restrict)
+  resolvedBy   User? @relation("reportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt, id])
+  @@index([reporterUserId, createdAt])
+  @@index([reportedUserId, createdAt])
+  @@index([resolvedById])
+  @@map("user_reports")
 }
 
 model EmailVerificationCode {

@@ -25,11 +25,15 @@ export class PrismaAdministratorPrivilegeRepository implements AdministratorPriv
         await transaction.$executeRaw`SELECT pg_advisory_xact_lock(3219, 1)`;
 
         const actor = await transaction.user.findUnique({
-          select: { isAdmin: true, status: true },
+          select: { isAdmin: true, status: true, suspendedUntil: true },
           where: { id: input.actorUserId },
         });
 
-        if (!actor?.isAdmin || actor.status !== UserStatus.ACTIVE) {
+        if (
+          !actor?.isAdmin ||
+          actor.status !== UserStatus.ACTIVE ||
+          (actor.suspendedUntil && actor.suspendedUntil > input.changedAt)
+        ) {
           throw new AdministratorPrivilegeError(
             'ADMINISTRATOR_PRIVILEGES_REQUIRED',
             'Administrator privileges are required.',
@@ -51,7 +55,15 @@ export class PrismaAdministratorPrivilegeRepository implements AdministratorPriv
 
         if (!input.isAdmin) {
           const otherAdministratorCount = await transaction.user.count({
-            where: { id: { not: target.id }, isAdmin: true },
+            where: {
+              id: { not: target.id },
+              isAdmin: true,
+              status: UserStatus.ACTIVE,
+              OR: [
+                { suspendedUntil: null },
+                { suspendedUntil: { lte: input.changedAt } },
+              ],
+            },
           });
 
           if (otherAdministratorCount === 0) {

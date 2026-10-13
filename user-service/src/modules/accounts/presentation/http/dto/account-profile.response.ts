@@ -3,6 +3,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { AccountStatus } from '../../../domain/account-status.js';
 
 export class AccountProfileResponse {
+  @ApiProperty({ format: 'date-time', nullable: true })
+  suspendedUntil!: string | null;
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
 

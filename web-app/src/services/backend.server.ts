@@ -17,19 +17,25 @@ export class BackendError extends Error {
 }
 
 export async function backend<T>(
-  service: "user" | "supplier",
+  service: "user" | "supplier" | "credit" | "order",
   path: string,
-  options: { method?: string; body?: unknown; token?: string } = {},
+  options: { method?: string; body?: unknown; token?: string; idempotencyKey?: string } = {},
 ): Promise<T> {
   const origin =
     service === "user"
       ? process.env.USER_SERVICE_URL || "http://127.0.0.1:3001"
-      : process.env.SUPPLIER_SERVICE_URL || "http://127.0.0.1:3002";
+      : service === "supplier"
+        ? process.env.SUPPLIER_SERVICE_URL || "http://127.0.0.1:3002"
+        : service === "credit"
+          ? process.env.CREDIT_SERVICE_URL || "http://127.0.0.1:3003"
+          : process.env.ORDER_SERVICE_URL || "http://127.0.0.1:3004";
   let response: Response;
   try {
-    response = await fetch(`${origin.replace(/\/$/, "")}/api/${path}`, {
+    const prefix = service === "credit" ? "v1" : "api";
+    response = await fetch(`${origin.replace(/\/$/, "")}/${prefix}/${path}`, {
       method: options.method || "GET",
       headers: {
+        ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
         ...(options.body !== undefined
           ? { "Content-Type": "application/json" }
           : {}),
@@ -44,7 +50,7 @@ export async function backend<T>(
   } catch {
     throw new BackendError(
       503,
-      `The ${service === "user" ? "account" : "supplier"} service is unavailable. Please try again shortly.`,
+      `The ${service === "user" ? "account" : service} service is unavailable. Please try again shortly.`,
       "SERVICE_UNAVAILABLE",
     );
   }

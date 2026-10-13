@@ -77,7 +77,7 @@ export async function authenticatedRequest<T>(
           throw retryError;
         if (!(retryError instanceof ApiError) || retryError.status !== 401)
           throw retryError;
-        // Do not refresh a valid user token just because supplier configuration rejects it.
+        // Do not rotate a valid session when another service rejects its token.
         if (path !== "auth/session") {
           try {
             await request("auth/session");
@@ -92,7 +92,7 @@ export async function authenticatedRequest<T>(
           }
           throw new ApiError(
             403,
-            "The supplier service could not authorize your account. Please contact the administrator.",
+            "The requested service could not authorize your account. Please contact the administrator.",
           );
         }
         await request("auth/refresh", {});

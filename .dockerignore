@@ -5,3 +5,7 @@
 **/dist
 **/coverage
 credit-service/src/generated
+order-service/src/generated
+**/.env
+**/.env.*
+.local

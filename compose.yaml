@@ -17,7 +17,57 @@ services:
 
   order-service:
     build:
-      context: ./order-service
+      context: .
+      dockerfile: order-service/Dockerfile
+    environment:
+      PORT: 3004
+      DATABASE_URL: postgresql://foc_order:local_order_password@order-db:5432/foc_order
+      REDIS_URL: redis://order-redis:6379
+      CREDIT_INTERNAL_API_TOKEN: ${CREDIT_INTERNAL_API_TOKEN:?CREDIT_INTERNAL_API_TOKEN must be set}
+      USER_SERVICE_URL: ${ORDER_USER_SERVICE_URL:-http://host.docker.internal:3001}
+      SUPPLIER_SERVICE_URL: ${ORDER_SUPPLIER_SERVICE_URL:-http://host.docker.internal:3002}
+      CREDIT_SERVICE_URL: ${ORDER_CREDIT_SERVICE_URL:-http://host.docker.internal:3003}
+    ports:
+      - "3004:3004"
+    depends_on:
+      order-db:
+        condition: service_healthy
+      order-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3004/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  order-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: foc_order
+      POSTGRES_USER: foc_order
+      POSTGRES_PASSWORD: local_order_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foc_order -d foc_order"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  order-redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - order-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   credit-service:
     build:
@@ -71,7 +121,7 @@ services:
       POSTGRES_USER: ${CREDIT_DATABASE_USER:-foc_credit}
       POSTGRES_PASSWORD: ${CREDIT_DATABASE_PASSWORD:-local_credit_password}
     ports:
-      - "5433:5432"
+      - "${CREDIT_DATABASE_PORT:-5435}:5432"
     volumes:
       - credit-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -99,4 +149,6 @@ networks:
     name: foc-network
 
 volumes:
+  order-db-data:
+  order-redis-data:
   credit-db-data:

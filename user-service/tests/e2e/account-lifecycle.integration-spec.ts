@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { Controller, Get, type INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -34,17 +33,7 @@ import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { validateEnvironment } from '../../src/platform/config/environment.schema.js';
 import { configureHttpApplication } from '../../src/platform/http/configure-http-application.js';
 
-const MIGRATION_PATHS = [
-  resolve(
-    'prisma/migrations/20260919000100_create_user_identity_tables/migration.sql',
-  ),
-  resolve(
-    'prisma/migrations/20260920000100_enforce_one_active_verification_code/migration.sql',
-  ),
-  resolve(
-    'prisma/migrations/20260920000200_protect_last_administrator/migration.sql',
-  ),
-];
+import { MIGRATION_PATHS } from '../integration/accounts/migration-paths.js';
 const STUDENT_EMAIL = 'lifecycle@u.nus.edu';
 const OLD_PASSWORD = 'Initial!Pass1';
 const NEW_PASSWORD = 'Updated!Pass2';

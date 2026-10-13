@@ -6,6 +6,8 @@ import type {
   ProfileRepositoryPort,
 } from '../../application/ports/profile-repository.port.js';
 import { AccountStatus } from '../../domain/account-status.js';
+import type { ClockPort } from '../../application/ports/clock.port.js';
+import { effectiveAccountStatus } from '../../domain/temporary-suspension.js';
 import {
   Prisma,
   type PrismaClient,
@@ -20,6 +22,7 @@ const DOMAIN_STATUS_BY_PRISMA: Record<UserStatus, AccountStatus> = {
 };
 
 const PROFILE_SELECT = {
+  suspendedUntil: true,
   createdAt: true,
   email: true,
   emailVerifiedAt: true,
@@ -32,7 +35,10 @@ const PROFILE_SELECT = {
 } as const;
 
 export class PrismaProfileRepository implements ProfileRepositoryPort {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly clock: ClockPort = { now: () => new Date() },
+  ) {}
 
   async changePasswordAndRevokeSessions(
     input: ChangePasswordRecord,
@@ -66,7 +72,14 @@ export class PrismaProfileRepository implements ProfileRepositoryPort {
     });
 
     return profile
-      ? { ...profile, status: DOMAIN_STATUS_BY_PRISMA[profile.status] }
+      ? {
+          ...profile,
+          status: effectiveAccountStatus(
+            DOMAIN_STATUS_BY_PRISMA[profile.status],
+            profile.suspendedUntil,
+            this.clock.now(),
+          ),
+        }
       : null;
   }
 
@@ -83,7 +96,11 @@ export class PrismaProfileRepository implements ProfileRepositoryPort {
 
       return {
         ...profile,
-        status: DOMAIN_STATUS_BY_PRISMA[profile.status],
+        status: effectiveAccountStatus(
+          DOMAIN_STATUS_BY_PRISMA[profile.status],
+          profile.suspendedUntil,
+          this.clock.now(),
+        ),
       };
     } catch (error: unknown) {
       if (
@@ -117,7 +134,11 @@ export class PrismaProfileRepository implements ProfileRepositoryPort {
 
       return {
         ...profile,
-        status: DOMAIN_STATUS_BY_PRISMA[profile.status],
+        status: effectiveAccountStatus(
+          DOMAIN_STATUS_BY_PRISMA[profile.status],
+          profile.suspendedUntil,
+          this.clock.now(),
+        ),
       };
     } catch (error: unknown) {
       if (

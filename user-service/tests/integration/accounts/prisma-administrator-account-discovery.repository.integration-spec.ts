@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -9,9 +8,7 @@ import { AccountStatus } from '../../../src/modules/accounts/domain/account-stat
 import { PrismaAdministratorAccountDiscoveryRepository } from '../../../src/modules/accounts/infrastructure/persistence/prisma-administrator-account-discovery.repository.js';
 import { PrismaClient } from '../../../src/generated/prisma/client.js';
 
-const MIGRATION_PATH = resolve(
-  'prisma/migrations/20260919000100_create_user_identity_tables/migration.sql',
-);
+import { MIGRATION_PATHS } from './migration-paths.js';
 
 describe('PrismaAdministratorAccountDiscoveryRepository', () => {
   let container: Awaited<ReturnType<PostgreSqlContainer['start']>>;
@@ -24,7 +21,9 @@ describe('PrismaAdministratorAccountDiscoveryRepository', () => {
     const migrationPool = new Pool({ connectionString });
 
     try {
-      await migrationPool.query(await readFile(MIGRATION_PATH, 'utf8'));
+      for (const path of MIGRATION_PATHS) {
+        await migrationPool.query(await readFile(path, 'utf8'));
+      }
     } finally {
       await migrationPool.end();
     }
@@ -100,6 +99,7 @@ describe('PrismaAdministratorAccountDiscoveryRepository', () => {
       'id',
       'isAdmin',
       'status',
+      'suspendedUntil',
       'username',
     ]);
   });

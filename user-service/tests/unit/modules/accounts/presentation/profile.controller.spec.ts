@@ -204,6 +204,7 @@ describe('ProfileController', () => {
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.json()).toEqual({
       ...PROFILE,
+      suspendedUntil: null,
       createdAt: PROFILE.createdAt.toISOString(),
       emailVerifiedAt: PROFILE.emailVerifiedAt?.toISOString(),
       updatedAt: PROFILE.updatedAt.toISOString(),
