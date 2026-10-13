@@ -7,9 +7,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { BalanceAuthorizationGuard } from './api/balance-authorization.guard';
 import { CorrelationIdInterceptor } from './api/correlation-id.interceptor';
 import { InternalServiceAuthGuard } from './api/internal-service-auth.guard';
+import { MetricsController } from './api/metrics.controller';
 import { CreditController } from './api/credit.controller';
 import { HealthController } from './api/health.controller';
 import { UserAccessTokenGuard } from './api/user-access-token.guard';
+import { CreditEventsHandler } from './api/credit-events.handler';
+import { CreditEventsController } from './api/credit-events.controller';
 import { CreditService } from './application/credit.service';
 import configuration from './infrastructure/configuration';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
@@ -38,7 +41,9 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
         genReqId: (request, reply) => {
           const supplied = request.headers['x-correlation-id'];
           const correlationId =
-            typeof supplied === 'string' && supplied.length <= 128
+            typeof supplied === 'string' &&
+            supplied.length > 0 &&
+            supplied.length <= 128
               ? supplied
               : randomUUID();
           reply.setHeader('x-correlation-id', correlationId);
@@ -56,9 +61,15 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
     }),
     InfrastructureModule,
   ],
-  controllers: [CreditController, HealthController],
+  controllers: [
+    CreditController,
+    CreditEventsController,
+    HealthController,
+    MetricsController,
+  ],
   providers: [
     CreditService,
+    CreditEventsHandler,
     InternalServiceAuthGuard,
     UserAccessTokenGuard,
     BalanceAuthorizationGuard,

@@ -13,7 +13,11 @@ let verified = true;
 let userResponse = 200;
 let creditResponse = 200;
 let provisioningCalls = 0;
-let balance: { userId: string; availableCredits: number; reservedCredits: number } | null = null;
+let balance: {
+  userId: string;
+  availableCredits: number;
+  reservedCredits: number;
+} | null = null;
 let app: ChildProcess;
 let userServer: Server;
 let creditServer: Server;
@@ -35,9 +39,17 @@ test.beforeAll(async () => {
       res.writeHead(401).end(JSON.stringify({ message: "Unauthorized" }));
       return;
     }
-    res.writeHead(userResponse).end(JSON.stringify(userResponse === 200 ? {
-      id: userId, status: userStatus, emailVerifiedAt: verified ? "2026-01-01T00:00:00Z" : null,
-    } : { message: "Session invalid" }));
+    res.writeHead(userResponse).end(
+      JSON.stringify(
+        userResponse === 200
+          ? {
+              id: userId,
+              status: userStatus,
+              emailVerifiedAt: verified ? "2026-01-01T00:00:00Z" : null,
+            }
+          : { message: "Session invalid" },
+      ),
+    );
   });
   creditServer = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json");
@@ -50,15 +62,24 @@ test.beforeAll(async () => {
         res.writeHead(403).end(JSON.stringify({ message: "Wrong account or credential" }));
         return;
       }
-      res.writeHead(balance ? 200 : 404).end(JSON.stringify(balance || {
-        code: "ACCOUNT_NOT_FOUND", message: "Credit account not found",
-      }));
+      res.writeHead(balance ? 200 : 404).end(
+        JSON.stringify(
+          balance || {
+            code: "ACCOUNT_NOT_FOUND",
+            message: "Credit account not found",
+          },
+        ),
+      );
       return;
     }
     let body = "";
     for await (const chunk of req) body += chunk;
     provisioningCalls++;
-    if (req.url !== "/v1/credit-accounts" || req.headers.authorization !== "Bearer adapter-test-internal-token" || body !== JSON.stringify({ userId })) {
+    if (
+      req.url !== "/v1/credit-accounts" ||
+      req.headers.authorization !== "Bearer adapter-test-internal-token" ||
+      body !== JSON.stringify({ userId })
+    ) {
       res.writeHead(403).end(JSON.stringify({ message: "Invalid provisioning request" }));
       return;
     }
@@ -71,17 +92,28 @@ test.beforeAll(async () => {
   const appPort = await listen(portProbe);
   await new Promise<void>((done) => portProbe.close(() => done()));
   origin = `http://127.0.0.1:${appPort}`;
-  app = spawn(process.execPath, [resolve("node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(appPort)], {
-    windowsHide: true, stdio: "ignore", env: {
-      ...process.env, APP_ORIGIN: origin,
-      USER_SERVICE_URL: `http://127.0.0.1:${userPort}`,
-      CREDIT_SERVICE_URL: `http://127.0.0.1:${creditPort}`,
-      CREDIT_INTERNAL_API_TOKEN: "adapter-test-internal-token",
+  app = spawn(
+    process.execPath,
+    [resolve("node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(appPort)],
+    {
+      windowsHide: true,
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        APP_ORIGIN: origin,
+        USER_SERVICE_URL: `http://127.0.0.1:${userPort}`,
+        CREDIT_SERVICE_URL: `http://127.0.0.1:${creditPort}`,
+        CREDIT_USER_SERVICE_TOKEN: "adapter-test-internal-token",
+      },
     },
-  });
+  );
   for (let attempt = 0; attempt < 100; attempt++) {
     if (app.exitCode !== null) throw new Error("Adapter test server exited before startup");
-    try { if ((await fetch(`${origin}/login`)).ok) return; } catch { /* still starting */ }
+    try {
+      if ((await fetch(`${origin}/login`)).ok) return;
+    } catch {
+      /* still starting */
+    }
     await new Promise((done) => setTimeout(done, 200));
   }
   throw new Error("Adapter test server did not start");
@@ -98,8 +130,12 @@ test.afterAll(async () => {
 });
 
 test.beforeEach(() => {
-  userStatus = "ACTIVE"; verified = true; userResponse = 200; creditResponse = 200;
-  provisioningCalls = 0; balance = null;
+  userStatus = "ACTIVE";
+  verified = true;
+  userResponse = 200;
+  creditResponse = 200;
+  provisioningCalls = 0;
+  balance = null;
 });
 
 function headers() {
@@ -108,43 +144,104 @@ function headers() {
 
 test("provisions only the live user and preserves their balance on refresh", async ({ request }) => {
   const response = await request.post(`${origin}/api/credits`, {
-    headers: headers(), data: { userId: "someone-else", availableCredits: 99999 },
+    headers: headers(),
+    data: { userId: "someone-else", availableCredits: 99999 },
   });
   expect(response.status()).toBe(200);
-  expect(await response.json()).toEqual({ userId, availableCredits: 100, reservedCredits: 0 });
+  expect(await response.json()).toEqual({
+    userId,
+    availableCredits: 100,
+    reservedCredits: 0,
+  });
   expect(provisioningCalls).toBe(1);
   balance = { userId, availableCredits: 65, reservedCredits: 35 };
-  const refreshed = await request.post(`${origin}/api/credits`, { headers: headers(), data: {} });
+  const refreshed = await request.post(`${origin}/api/credits`, {
+    headers: headers(),
+    data: {},
+  });
   expect(await refreshed.json()).toEqual(balance);
   expect(provisioningCalls).toBe(1);
 });
 
 test("GET reports a missing account without provisioning", async ({ request }) => {
-  const response = await request.get(`${origin}/api/credits`, { headers: headers() });
+  const response = await request.get(`${origin}/api/credits`, {
+    headers: headers(),
+  });
   expect(response.status()).toBe(404);
   expect(provisioningCalls).toBe(0);
 });
 
 test("rejects unauthenticated and cross-origin provisioning", async ({ request }) => {
-  expect((await request.post(`${origin}/api/credits`, { headers: { Origin: origin }, data: {} })).status()).toBe(401);
-  expect((await request.post(`${origin}/api/credits`, { headers: { ...headers(), Origin: "https://elsewhere.example" }, data: {} })).status()).toBe(403);
+  expect(
+    (
+      await request.post(`${origin}/api/credits`, {
+        headers: { Origin: origin },
+        data: {},
+      })
+    ).status(),
+  ).toBe(401);
+  expect(
+    (
+      await request.post(`${origin}/api/credits`, {
+        headers: { ...headers(), Origin: "https://elsewhere.example" },
+        data: {},
+      })
+    ).status(),
+  ).toBe(403);
   expect(provisioningCalls).toBe(0);
 });
 
 test("rejects unverified and suspended users", async ({ request }) => {
   verified = false;
-  expect((await request.post(`${origin}/api/credits`, { headers: headers(), data: {} })).status()).toBe(403);
-  verified = true; userStatus = "SUSPENDED";
-  expect((await request.post(`${origin}/api/credits`, { headers: headers(), data: {} })).status()).toBe(403);
+  expect(
+    (
+      await request.post(`${origin}/api/credits`, {
+        headers: headers(),
+        data: {},
+      })
+    ).status(),
+  ).toBe(403);
+  verified = true;
+  userStatus = "SUSPENDED";
+  expect(
+    (
+      await request.post(`${origin}/api/credits`, {
+        headers: headers(),
+        data: {},
+      })
+    ).status(),
+  ).toBe(403);
   expect(provisioningCalls).toBe(0);
 });
 
 test("does not provision when session validation or balance reads fail", async ({ request }) => {
   userResponse = 401;
-  expect((await request.post(`${origin}/api/credits`, { headers: headers(), data: {} })).status()).toBe(401);
-  userResponse = 200; creditResponse = 500;
-  expect((await request.post(`${origin}/api/credits`, { headers: headers(), data: {} })).status()).toBe(503);
+  expect(
+    (
+      await request.post(`${origin}/api/credits`, {
+        headers: headers(),
+        data: {},
+      })
+    ).status(),
+  ).toBe(401);
+  userResponse = 200;
+  creditResponse = 500;
+  expect(
+    (
+      await request.post(`${origin}/api/credits`, {
+        headers: headers(),
+        data: {},
+      })
+    ).status(),
+  ).toBe(503);
   creditResponse = 401;
-  expect((await request.post(`${origin}/api/credits`, { headers: headers(), data: {} })).status()).toBe(401);
+  expect(
+    (
+      await request.post(`${origin}/api/credits`, {
+        headers: headers(),
+        data: {},
+      })
+    ).status(),
+  ).toBe(401);
   expect(provisioningCalls).toBe(0);
 });

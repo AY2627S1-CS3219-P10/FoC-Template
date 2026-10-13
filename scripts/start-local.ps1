@@ -46,7 +46,7 @@ Get-Command pnpm,docker -ErrorAction Stop | Out-Null
 & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Start Docker Desktop, wait until its engine is running, then run this script again.' }
 
-foreach ($service in @('user-service', 'supplier-service')) {
+foreach ($service in @('user-service', 'supplier-service', 'order-service')) {
     $envPath = Join-Path $repoPath "$service/.env"
     if (!(Test-Path $envPath)) { Copy-Item (Join-Path $repoPath "$service/.env.example") $envPath }
 }
@@ -61,14 +61,19 @@ if (!$userSettings['EMAIL_VERIFICATION_CODE_SECRET'] -or $userSettings['EMAIL_VE
 }
 $rootEnv = Join-Path $repoPath '.env'
 $rootSettings = Read-Settings $rootEnv
-$internalToken = $rootSettings['CREDIT_INTERNAL_API_TOKEN']
-if (!$internalToken -or $internalToken.Length -lt 32 -or $internalToken.StartsWith('replace-')) {
-    $internalToken = New-LocalSecret
-}
+$userServiceToken = $rootSettings['CREDIT_USER_SERVICE_TOKEN']
+if (!$userServiceToken -or $userServiceToken.Length -lt 32 -or $userServiceToken.StartsWith('replace-')) { $userServiceToken = New-LocalSecret }
+$orderServiceToken = $rootSettings['CREDIT_ORDER_SERVICE_TOKEN']
+if (!$orderServiceToken -or $orderServiceToken.Length -lt 32 -or $orderServiceToken.StartsWith('replace-')) { $orderServiceToken = New-LocalSecret }
+$monitoringToken = $rootSettings['CREDIT_MONITORING_TOKEN']
+if (!$monitoringToken -or $monitoringToken.Length -lt 32 -or $monitoringToken.StartsWith('replace-')) { $monitoringToken = New-LocalSecret }
 Save-Setting $rootEnv 'JWT_ACCESS_TOKEN_SECRET' $jwtSecret
-Save-Setting $rootEnv 'CREDIT_INTERNAL_API_TOKEN' $internalToken
+Save-Setting $rootEnv 'CREDIT_USER_SERVICE_TOKEN' $userServiceToken
+Save-Setting $rootEnv 'CREDIT_ORDER_SERVICE_TOKEN' $orderServiceToken
+Save-Setting $rootEnv 'CREDIT_MONITORING_TOKEN' $monitoringToken
 Save-Setting (Join-Path $repoPath 'supplier-service/.env') 'JWT_ACCESS_TOKEN_SECRET' $jwtSecret
-Save-Setting (Join-Path $repoPath 'web-app/.env.local') 'CREDIT_INTERNAL_API_TOKEN' $internalToken
+Save-Setting (Join-Path $repoPath 'web-app/.env.local') 'CREDIT_USER_SERVICE_TOKEN' $userServiceToken
+Save-Setting (Join-Path $repoPath 'order-service/.env') 'CREDIT_ORDER_SERVICE_TOKEN' $orderServiceToken
 
 $rootSettings = Read-Settings $rootEnv
 $creditPort = if ($rootSettings['CREDIT_DATABASE_PORT']) { $rootSettings['CREDIT_DATABASE_PORT'] } else { '5435' }
@@ -78,7 +83,9 @@ $creditDatabase = if ($rootSettings['CREDIT_DATABASE_NAME']) { $rootSettings['CR
 $creditEnv = Join-Path $repoPath 'credit-service/.env'
 Save-Setting $creditEnv 'DATABASE_URL' "postgresql://$([Uri]::EscapeDataString($creditUser)):$([Uri]::EscapeDataString($creditPassword))@127.0.0.1:$creditPort/$creditDatabase"
 Save-Setting $creditEnv 'JWT_ACCESS_TOKEN_SECRET' $jwtSecret
-Save-Setting $creditEnv 'CREDIT_INTERNAL_API_TOKEN' $internalToken
+Save-Setting $creditEnv 'CREDIT_USER_SERVICE_TOKEN' $userServiceToken
+Save-Setting $creditEnv 'CREDIT_ORDER_SERVICE_TOKEN' $orderServiceToken
+Save-Setting $creditEnv 'CREDIT_MONITORING_TOKEN' $monitoringToken
 foreach ($name in @('CREDIT_INITIAL_BALANCE','CREDIT_TRANSACTION_RETRIES','JWT_ISSUER','JWT_AUDIENCE','LOG_LEVEL')) {
     if ($rootSettings[$name]) { Save-Setting $creditEnv $name $rootSettings[$name] }
 }
@@ -89,13 +96,15 @@ foreach ($service in @('user-service','supplier-service')) {
 }
 Run-In 'user-service' 'docker' @('compose','up','-d','--wait','database','redis')
 Run-In 'supplier-service' 'docker' @('compose','up','-d','--wait','database')
-Run-In '.' 'docker' @('compose','up','-d','--wait','credit-db')
+Run-In '.' 'docker' @('compose','up','-d','--wait','credit-db','rabbitmq','order-db','order-redis')
 foreach ($service in @('user-service','supplier-service')) {
     Run-In $service 'pnpm' @('prisma:generate')
     Run-In $service 'pnpm' @('db:migrate:deploy')
 }
 Run-In 'credit-service' 'pnpm' @('db:generate')
 Run-In 'credit-service' 'pnpm' @('db:migrate')
+Run-In 'order-service' 'pnpm' @('db:generate')
+Run-In 'order-service' 'pnpm' @('db:migrate')
 
 $logPath = Join-Path $repoPath '.local'
 New-Item -ItemType Directory -Force -Path $logPath | Out-Null
@@ -103,6 +112,7 @@ $services = @(
     @{ Folder = 'user-service'; Port = 3001; Command = 'pnpm start:dev' },
     @{ Folder = 'supplier-service'; Port = 3002; Command = 'pnpm start:dev' },
     @{ Folder = 'credit-service'; Port = 3003; Command = 'pnpm start:dev' },
+    @{ Folder = 'order-service'; Port = 3004; Command = 'pnpm start:dev' },
     @{ Folder = '.'; Port = 3000; Command = 'pnpm web:dev' }
 )
 foreach ($service in $services) {
@@ -120,6 +130,7 @@ foreach ($target in @(
     @{ Url = 'http://127.0.0.1:3001/api/accounts/me'; Status = 401 },
     @{ Url = 'http://127.0.0.1:3002/api/suppliers'; Status = 401 },
     @{ Url = 'http://127.0.0.1:3003/health/ready'; Status = 200 },
+    @{ Url = 'http://127.0.0.1:3004/health/ready'; Status = 200 },
     @{ Url = 'http://localhost:3000/login'; Status = 200 }
 )) {
     $ready = $false

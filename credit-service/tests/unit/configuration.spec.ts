@@ -5,8 +5,12 @@ describe('credit service configuration', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnvironment };
-    process.env.CREDIT_INTERNAL_API_TOKEN =
-      'configuration-test-token-at-least-32-characters';
+    process.env.CREDIT_USER_SERVICE_TOKEN =
+      'configuration-user-token-at-least-32-characters';
+    process.env.CREDIT_ORDER_SERVICE_TOKEN =
+      'configuration-order-token-at-least-32-characters';
+    process.env.CREDIT_MONITORING_TOKEN =
+      'configuration-monitoring-token-at-least-32-characters';
     process.env.JWT_ACCESS_TOKEN_SECRET =
       'configuration-access-token-at-least-32-characters';
     delete process.env.DATABASE_POOL_MAX;
@@ -23,7 +27,11 @@ describe('credit service configuration', () => {
   it('uses bounded database recovery and pool defaults', () => {
     expect(configuration()).toMatchObject({
       security: {
-        internalApiToken: 'configuration-test-token-at-least-32-characters',
+        internalApiTokens: {
+          monitoring: 'configuration-monitoring-token-at-least-32-characters',
+          orderService: 'configuration-order-token-at-least-32-characters',
+          userService: 'configuration-user-token-at-least-32-characters',
+        },
         jwtAccessTokenSecret:
           'configuration-access-token-at-least-32-characters',
         jwtAudience: 'foc-api',
@@ -39,11 +47,17 @@ describe('credit service configuration', () => {
     });
   });
 
-  it('rejects a missing or weak internal service token', () => {
-    delete process.env.CREDIT_INTERNAL_API_TOKEN;
+  it('rejects missing or weak scoped internal service tokens', () => {
+    delete process.env.CREDIT_ORDER_SERVICE_TOKEN;
     expect(() => configuration()).toThrow('at least 32');
-    process.env.CREDIT_INTERNAL_API_TOKEN = 'too-short';
+    process.env.CREDIT_ORDER_SERVICE_TOKEN = 'too-short';
     expect(() => configuration()).toThrow('at least 32');
+  });
+
+  it('rejects reused internal service credentials', () => {
+    process.env.CREDIT_MONITORING_TOKEN =
+      process.env.CREDIT_ORDER_SERVICE_TOKEN;
+    expect(() => configuration()).toThrow('must be distinct');
   });
 
   it('rejects a missing or weak JWT access-token secret', () => {
@@ -53,9 +67,9 @@ describe('credit service configuration', () => {
     expect(() => configuration()).toThrow('at least 32');
   });
 
-  it('rejects an initial balance outside the PostgreSQL integer range', () => {
-    process.env.CREDIT_INITIAL_BALANCE = '2000000001';
-    expect(() => configuration()).toThrow('between 0 and 2000000000');
+  it('rejects an initial balance above the supported account limit', () => {
+    process.env.CREDIT_INITIAL_BALANCE = '10000001';
+    expect(() => configuration()).toThrow('between 0 and 10000000');
   });
 
   it('rejects startup windows that exceed the recovery objective', () => {

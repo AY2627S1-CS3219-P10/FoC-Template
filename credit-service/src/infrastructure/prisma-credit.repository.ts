@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   LedgerEntryType,
@@ -6,18 +6,28 @@ import {
   ReservationStatus,
 } from '../generated/prisma/client';
 import type {
-  CreditRepository,
-  ReserveCreditsCommand,
   AdjustReservationCommand,
+  ConsumedEvent,
+  CreditRepository,
+  ReleaseCreditsCommand,
+  ReserveCreditsCommand,
+  SettleCreditsCommand,
 } from '../application/credit.repository';
 import {
   AccountNotFoundError,
+  AdjustmentIdempotencyConflictError,
+  BalanceLimitExceededError,
   ConcurrentOperationError,
+  CreditDomainError,
+  EventReplayConflictError,
+  IdempotencyConflictError,
   InsufficientCreditsError,
   InvariantViolationError,
   ReservationNotFoundError,
 } from '../domain/credit.errors';
+import { MAX_CREDIT_BALANCE } from '../domain/credit.constants';
 import {
+  assertAdjustmentAllowed,
   assertDistinctSettlementParties,
   assertMatchingReservation,
   assertReleaseCanReplay,
@@ -26,11 +36,17 @@ import {
 import type {
   CreditBalance,
   CreditReservation,
+  CreditTransactionHistory,
   OperationResult,
   ReservationResult,
   SettlementResult,
 } from '../domain/credit.types';
 import { PrismaService } from './prisma.service';
+import {
+  CreditMetricsService,
+  type CreditOperation,
+  type RetryCause,
+} from './credit-metrics.service';
 
 type DbAccount = {
   userId: string;
@@ -42,7 +58,7 @@ type DbAccount = {
 };
 
 type DbReservation = {
-  id: string;
+  reservationId: string;
   errandId: string;
   requesterId: string;
   courierId: string | null;
@@ -54,12 +70,19 @@ type DbReservation = {
   releasedAt: Date | null;
 };
 
+type TransactionContext = {
+  operation: CreditOperation;
+  correlationId: string;
+};
+
 @Injectable()
 export class PrismaCreditRepository implements CreditRepository {
+  private readonly logger = new Logger(PrismaCreditRepository.name);
   private readonly maxRetries: number;
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly metrics: CreditMetricsService,
     config: ConfigService,
   ) {
     this.maxRetries = config.getOrThrow<number>('credit.transactionRetries');
@@ -68,8 +91,11 @@ export class PrismaCreditRepository implements CreditRepository {
   async initializeAccount(
     userId: string,
     initialCredits: number,
+    correlationId: string,
+    consumedEvent?: ConsumedEvent,
   ): Promise<OperationResult<CreditBalance>> {
-    return this.serializable(async (tx) => {
+    return this.serializable({ operation: 'initialize', correlationId }, async (tx) => {
+      await this.recordConsumedEvent(tx, consumedEvent);
       const existing = await tx.creditAccount.findUnique({ where: { userId } });
       if (existing) {
         return { data: this.toBalance(existing), replayed: true };
@@ -79,17 +105,33 @@ export class PrismaCreditRepository implements CreditRepository {
         data: { userId, availableCredits: initialCredits },
       });
       if (initialCredits > 0) {
-        await tx.creditLedgerEntry.create({
+        await tx.ledgerEntry.create({
           data: {
             accountUserId: userId,
-            type: LedgerEntryType.INITIAL_CREDIT,
+            type: LedgerEntryType.INITIALIZE,
             amount: initialCredits,
             availableBalanceAfter: initialCredits,
             reservedBalanceAfter: 0,
             referenceKey: `user:${userId}:initialize`,
+            correlationId,
           },
         });
       }
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-account',
+          aggregateId: userId,
+          eventType: 'credit.account-initialized.v1',
+          payload: {
+            ...(consumedEvent
+              ? { causationEventId: consumedEvent.eventId }
+              : {}),
+            correlationId,
+            userId,
+            availableCredits: initialCredits,
+          },
+        },
+      });
       return { data: this.toBalance(account), replayed: false };
     }, true);
   }
@@ -104,10 +146,54 @@ export class PrismaCreditRepository implements CreditRepository {
     return this.toBalance(account);
   }
 
+  async getTransactionHistory(
+    userId: string,
+    limit: number,
+    offset: number,
+  ): Promise<CreditTransactionHistory> {
+    const account = await this.prisma.creditAccount.findUnique({
+      where: { userId },
+      select: { userId: true },
+    });
+    if (!account) {
+      throw new AccountNotFoundError(userId);
+    }
+
+    const entries = await this.prisma.ledgerEntry.findMany({
+      where: { accountUserId: userId },
+      orderBy: [{ createdAt: 'desc' }, { ledgerEntryId: 'desc' }],
+      skip: offset,
+      take: limit + 1,
+    });
+    const hasMore = entries.length > limit;
+
+    return {
+      items: entries.slice(0, limit).map((entry) => ({
+        ledgerEntryId: entry.ledgerEntryId,
+        userId: entry.accountUserId,
+        reservationId: entry.reservationId,
+        errandId: entry.errandId,
+        type: entry.type,
+        amount: entry.amount,
+        availableBalanceAfter: entry.availableBalanceAfter,
+        reservedBalanceAfter: entry.reservedBalanceAfter,
+        correlationId: entry.correlationId,
+        createdAt: entry.createdAt,
+      })),
+      page: {
+        limit,
+        offset,
+        nextOffset: hasMore ? offset + limit : null,
+      },
+    };
+  }
+
   async reserve(
     command: ReserveCreditsCommand,
   ): Promise<OperationResult<ReservationResult>> {
-    return this.serializable(async (tx) => {
+    return this.serializable(
+      { operation: 'reserve', correlationId: command.correlationId },
+      async (tx) => {
       const existing = await tx.creditReservation.findUnique({
         where: { errandId: command.errandId },
       });
@@ -174,17 +260,36 @@ export class PrismaCreditRepository implements CreditRepository {
         where: { userId: command.requesterId },
       });
       const reservation = await tx.creditReservation.create({
-        data: command,
+        data: {
+          errandId: command.errandId,
+          requesterId: command.requesterId,
+          amount: command.amount,
+        },
       });
-      await tx.creditLedgerEntry.create({
+      await tx.ledgerEntry.create({
         data: {
           accountUserId: command.requesterId,
-          reservationId: reservation.id,
-          type: LedgerEntryType.RESERVATION,
+          reservationId: reservation.reservationId,
+          errandId: command.errandId,
+          type: LedgerEntryType.RESERVE,
           amount: command.amount,
           availableBalanceAfter: account.availableCredits,
           reservedBalanceAfter: account.reservedCredits,
           referenceKey: `errand:${command.errandId}:reserve`,
+          correlationId: command.correlationId,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-reservation',
+          aggregateId: command.errandId,
+          eventType: 'credit.reserved.v1',
+          payload: {
+            correlationId: command.correlationId,
+            errandId: command.errandId,
+            requesterId: command.requesterId,
+            amount: command.amount,
+          },
         },
       });
 
@@ -195,57 +300,190 @@ export class PrismaCreditRepository implements CreditRepository {
         },
         replayed: false,
       };
-    }, true);
+      },
+      true,
+    );
   }
 
-  async adjust(command: AdjustReservationCommand): Promise<OperationResult<ReservationResult>> {
-    return this.serializable(async (tx) => {
+  async adjust(
+    command: AdjustReservationCommand,
+  ): Promise<OperationResult<ReservationResult>> {
+    return this.serializable(
+      { operation: 'adjust', correlationId: command.correlationId },
+      async (tx) => {
       await this.lockReservation(tx, command.errandId);
-      const reservation = await tx.creditReservation.findUnique({ where: { errandId: command.errandId } });
-      if (!reservation) throw new ReservationNotFoundError(command.errandId);
-      const prior = await tx.creditReservationAdjustment.findUnique({ where: { operationId: command.operationId } });
-      if (prior) {
-        if (prior.reservationId !== reservation.id || prior.requesterId !== command.requesterId || prior.expectedAmount !== command.expectedAmount || prior.amount !== command.amount)
-          throw new InvariantViolationError('Adjustment idempotency key was reused with different data');
-        return { replayed: true, data: { reservation: this.toReservation(reservation), requesterBalance: await this.requireAccount(tx, command.requesterId) } };
-      }
-      if (reservation.status !== ReservationStatus.RESERVED || reservation.requesterId !== command.requesterId || reservation.amount !== command.expectedAmount)
-        throw new InvariantViolationError('Reservation is terminal, belongs to another user, or its amount has changed');
-      await this.lockAccounts(tx, [command.requesterId]);
-      const before = await this.requireAccount(tx, command.requesterId);
-      const delta = command.amount - reservation.amount;
-      if (delta > before.availableCredits) throw new InsufficientCreditsError(command.requesterId, delta, before.availableCredits);
-      const account = await tx.creditAccount.update({ where: { userId: command.requesterId }, data: {
-        availableCredits: { decrement: delta }, reservedCredits: { increment: delta }, version: { increment: 1 },
-      } });
-      const updated = await tx.creditReservation.update({ where: { id: reservation.id }, data: { amount: command.amount } });
-      await tx.creditReservationAdjustment.create({ data: { operationId: command.operationId, reservationId: reservation.id, requesterId: command.requesterId, expectedAmount: command.expectedAmount, amount: command.amount } });
-      if (delta !== 0) await tx.creditLedgerEntry.create({ data: {
-        accountUserId: command.requesterId, reservationId: reservation.id,
-        type: delta > 0 ? LedgerEntryType.RESERVATION : LedgerEntryType.RELEASE, amount: Math.abs(delta),
-        availableBalanceAfter: account.availableCredits, reservedBalanceAfter: account.reservedCredits,
-        referenceKey: `errand:${command.errandId}:adjust:${command.operationId}`,
-      } });
-      return { replayed: false, data: { reservation: this.toReservation(updated), requesterBalance: this.toBalance(account) } };
-    }, true);
-  }
-
-  async settle(
-    errandId: string,
-    courierId: string,
-  ): Promise<OperationResult<SettlementResult>> {
-    return this.serializable(async (tx) => {
-      await this.lockReservation(tx, errandId);
       const existing = await tx.creditReservation.findUnique({
-        where: { errandId },
+        where: { errandId: command.errandId },
       });
       if (!existing) {
-        throw new ReservationNotFoundError(errandId);
+        throw new ReservationNotFoundError(command.errandId);
       }
 
       const current = this.toReservation(existing);
-      assertDistinctSettlementParties(current, courierId);
-      if (assertSettlementCanReplay(current, courierId)) {
+      if (current.requesterId !== command.requesterId) {
+        throw new IdempotencyConflictError(command.errandId);
+      }
+
+      const priorAdjustment = await tx.creditReservationAdjustment.findUnique({
+        where: {
+          reservationId_idempotencyKey: {
+            reservationId: current.reservationId,
+            idempotencyKey: command.idempotencyKey,
+          },
+        },
+      });
+      if (priorAdjustment) {
+        if (priorAdjustment.targetAmount !== command.targetAmount) {
+          throw new AdjustmentIdempotencyConflictError(
+            command.errandId,
+            command.idempotencyKey,
+          );
+        }
+        return {
+          data: {
+            reservation: current,
+            requesterBalance: await this.requireAccount(
+              tx,
+              command.requesterId,
+            ),
+          },
+          replayed: true,
+        };
+      }
+
+      assertAdjustmentAllowed(current);
+      await this.lockAccounts(tx, [command.requesterId]);
+      const delta = command.targetAmount - current.amount;
+
+      if (delta > 0) {
+        const updated = await tx.creditAccount.updateMany({
+          where: {
+            userId: command.requesterId,
+            availableCredits: { gte: delta },
+          },
+          data: {
+            availableCredits: { decrement: delta },
+            reservedCredits: { increment: delta },
+            version: { increment: 1 },
+          },
+        });
+        if (updated.count !== 1) {
+          const account = await this.requireAccount(tx, command.requesterId);
+          throw new InsufficientCreditsError(
+            command.requesterId,
+            delta,
+            account.availableCredits,
+          );
+        }
+      } else if (delta < 0) {
+        const releasedAmount = Math.abs(delta);
+        const updated = await tx.creditAccount.updateMany({
+          where: {
+            userId: command.requesterId,
+            reservedCredits: { gte: releasedAmount },
+          },
+          data: {
+            availableCredits: { increment: releasedAmount },
+            reservedCredits: { decrement: releasedAmount },
+            version: { increment: 1 },
+          },
+        });
+        if (updated.count !== 1) {
+          throw new InvariantViolationError(
+            'Requester reserved balance is lower than the adjustment amount',
+            { errandId: command.errandId, requesterId: command.requesterId },
+          );
+        }
+      }
+
+      const reservation =
+        delta === 0
+          ? existing
+          : await tx.creditReservation.update({
+              where: { reservationId: current.reservationId },
+              data: { amount: command.targetAmount },
+            });
+      const account = await tx.creditAccount.findUniqueOrThrow({
+        where: { userId: command.requesterId },
+      });
+      await tx.creditReservationAdjustment.create({
+        data: {
+          reservationId: current.reservationId,
+          idempotencyKey: command.idempotencyKey,
+          previousAmount: current.amount,
+          targetAmount: command.targetAmount,
+          correlationId: command.correlationId,
+        },
+      });
+
+      if (delta !== 0) {
+        await tx.ledgerEntry.create({
+          data: {
+            accountUserId: command.requesterId,
+            reservationId: current.reservationId,
+            errandId: command.errandId,
+            type:
+              delta > 0
+                ? LedgerEntryType.ADJUST_RESERVE
+                : LedgerEntryType.ADJUST_RELEASE,
+            amount: Math.abs(delta),
+            availableBalanceAfter: account.availableCredits,
+            reservedBalanceAfter: account.reservedCredits,
+            referenceKey: `errand:${command.errandId}:adjust:${command.idempotencyKey}`,
+            correlationId: command.correlationId,
+          },
+        });
+        await tx.outboxEvent.create({
+          data: {
+            aggregateType: 'credit-reservation',
+            aggregateId: command.errandId,
+            eventType: 'credit.reservation-adjusted.v1',
+            payload: {
+              correlationId: command.correlationId,
+              errandId: command.errandId,
+              requesterId: command.requesterId,
+              previousAmount: current.amount,
+              targetAmount: command.targetAmount,
+              delta,
+            },
+          },
+        });
+      }
+
+      return {
+        data: {
+          reservation: this.toReservation(reservation),
+          requesterBalance: this.toBalance(account),
+        },
+        replayed: false,
+      };
+      },
+    );
+  }
+
+  async settle(
+    command: SettleCreditsCommand,
+  ): Promise<OperationResult<SettlementResult>> {
+    return this.serializable(
+      { operation: 'settle', correlationId: command.correlationId },
+      async (tx) => {
+      await this.recordConsumedEvent(tx, command.consumedEvent);
+      await this.lockReservation(tx, command.errandId);
+      const existing = await tx.creditReservation.findUnique({
+        where: { errandId: command.errandId },
+      });
+      if (!existing) {
+        throw new ReservationNotFoundError(command.errandId);
+      }
+
+      const current = this.toReservation(existing);
+      assertMatchingReservation(
+        current,
+        command.requesterId,
+        command.amount,
+      );
+      assertDistinctSettlementParties(current, command.courierId);
+      if (assertSettlementCanReplay(current, command.courierId)) {
         return {
           data: {
             reservation: current,
@@ -253,14 +491,14 @@ export class PrismaCreditRepository implements CreditRepository {
               tx,
               current.requesterId,
             ),
-            courierBalance: await this.requireAccount(tx, courierId),
+            courierBalance: await this.requireAccount(tx, command.courierId),
           },
           replayed: true,
         };
       }
 
-      await this.lockAccounts(tx, [current.requesterId, courierId]);
-      await this.requireAccount(tx, courierId);
+      await this.lockAccounts(tx, [current.requesterId, command.courierId]);
+      await this.requireAccount(tx, command.courierId);
       const requesterUpdate = await tx.creditAccount.updateMany({
         where: {
           userId: current.requesterId,
@@ -274,54 +512,92 @@ export class PrismaCreditRepository implements CreditRepository {
       if (requesterUpdate.count !== 1) {
         throw new InvariantViolationError(
           'Requester reserved balance is lower than the reservation amount',
-          { errandId, requesterId: current.requesterId },
+          { errandId: command.errandId, requesterId: current.requesterId },
         );
       }
 
       const requesterAfterDebit = await tx.creditAccount.findUniqueOrThrow({
         where: { userId: current.requesterId },
       });
-      const courier = await tx.creditAccount.update({
-        where: { userId: courierId },
+      const courierUpdate = await tx.creditAccount.updateMany({
+        where: {
+          userId: command.courierId,
+          availableCredits: {
+            lte: MAX_CREDIT_BALANCE - current.amount,
+          },
+        },
         data: {
           availableCredits: { increment: current.amount },
           version: { increment: 1 },
         },
       });
+      if (courierUpdate.count !== 1) {
+        throw new BalanceLimitExceededError(
+          command.courierId,
+          MAX_CREDIT_BALANCE,
+        );
+      }
+      const courier = await tx.creditAccount.findUniqueOrThrow({
+        where: { userId: command.courierId },
+      });
       const reservation = await tx.creditReservation.update({
-        where: { errandId },
+        where: { errandId: command.errandId },
         data: {
           status: ReservationStatus.SETTLED,
-          courierId,
+          courierId: command.courierId,
           settledAt: new Date(),
         },
       });
 
-      await tx.creditLedgerEntry.createMany({
+      await tx.ledgerEntry.createMany({
         data: [
           {
             accountUserId: current.requesterId,
-            reservationId: current.id,
-            type: LedgerEntryType.TRANSFER_DEBIT,
+            reservationId: current.reservationId,
+            errandId: command.errandId,
+            type: LedgerEntryType.SETTLE,
             amount: current.amount,
             availableBalanceAfter: requesterAfterDebit.availableCredits,
             reservedBalanceAfter: requesterAfterDebit.reservedCredits,
-            referenceKey: `errand:${errandId}:settle:requester`,
+            referenceKey: `errand:${command.errandId}:settle:requester`,
+            correlationId: command.correlationId,
           },
           {
-            accountUserId: courierId,
-            reservationId: current.id,
-            type: LedgerEntryType.TRANSFER_CREDIT,
+            accountUserId: command.courierId,
+            reservationId: current.reservationId,
+            errandId: command.errandId,
+            type: LedgerEntryType.SETTLE,
             amount: current.amount,
             availableBalanceAfter: courier.availableCredits,
             reservedBalanceAfter: courier.reservedCredits,
-            referenceKey: `errand:${errandId}:settle:courier`,
+            referenceKey: `errand:${command.errandId}:settle:courier`,
+            correlationId: command.correlationId,
           },
         ],
       });
 
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-reservation',
+          aggregateId: command.errandId,
+          eventType: 'credit.transferred.v1',
+          payload: {
+            ...(command.consumedEvent
+              ? { causationEventId: command.consumedEvent.eventId }
+              : {}),
+            correlationId: command.correlationId,
+            errandId: command.errandId,
+            requesterId: current.requesterId,
+            courierId: command.courierId,
+            amount: current.amount,
+          },
+        },
+      });
+
       const requester =
-        courierId === current.requesterId ? courier : requesterAfterDebit;
+        command.courierId === current.requesterId
+          ? courier
+          : requesterAfterDebit;
       return {
         data: {
           reservation: this.toReservation(reservation),
@@ -330,20 +606,31 @@ export class PrismaCreditRepository implements CreditRepository {
         },
         replayed: false,
       };
-    });
+      },
+      Boolean(command.consumedEvent),
+    );
   }
 
-  async release(errandId: string): Promise<OperationResult<ReservationResult>> {
-    return this.serializable(async (tx) => {
-      await this.lockReservation(tx, errandId);
+  async release(
+    command: ReleaseCreditsCommand,
+  ): Promise<OperationResult<ReservationResult>> {
+    return this.serializable(
+      { operation: 'release', correlationId: command.correlationId },
+      async (tx) => {
+      await this.lockReservation(tx, command.errandId);
       const existing = await tx.creditReservation.findUnique({
-        where: { errandId },
+        where: { errandId: command.errandId },
       });
       if (!existing) {
-        throw new ReservationNotFoundError(errandId);
+        throw new ReservationNotFoundError(command.errandId);
       }
 
       const current = this.toReservation(existing);
+      assertMatchingReservation(
+        current,
+        command.requesterId,
+        command.amount,
+      );
       if (assertReleaseCanReplay(current)) {
         return {
           data: {
@@ -372,7 +659,7 @@ export class PrismaCreditRepository implements CreditRepository {
       if (updated.count !== 1) {
         throw new InvariantViolationError(
           'Requester reserved balance is lower than the reservation amount',
-          { errandId, requesterId: current.requesterId },
+          { errandId: command.errandId, requesterId: current.requesterId },
         );
       }
 
@@ -380,21 +667,36 @@ export class PrismaCreditRepository implements CreditRepository {
         where: { userId: current.requesterId },
       });
       const reservation = await tx.creditReservation.update({
-        where: { errandId },
+        where: { errandId: command.errandId },
         data: {
           status: ReservationStatus.RELEASED,
           releasedAt: new Date(),
         },
       });
-      await tx.creditLedgerEntry.create({
+      await tx.ledgerEntry.create({
         data: {
           accountUserId: current.requesterId,
-          reservationId: current.id,
+          reservationId: current.reservationId,
+          errandId: command.errandId,
           type: LedgerEntryType.RELEASE,
           amount: current.amount,
           availableBalanceAfter: account.availableCredits,
           reservedBalanceAfter: account.reservedCredits,
-          referenceKey: `errand:${errandId}:release`,
+          referenceKey: `errand:${command.errandId}:release`,
+          correlationId: command.correlationId,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-reservation',
+          aggregateId: command.errandId,
+          eventType: 'credit.released.v1',
+          payload: {
+            correlationId: command.correlationId,
+            errandId: command.errandId,
+            requesterId: current.requesterId,
+            amount: current.amount,
+          },
         },
       });
 
@@ -405,7 +707,8 @@ export class PrismaCreditRepository implements CreditRepository {
         },
         replayed: false,
       };
-    });
+      },
+    );
   }
 
   async isReady(): Promise<boolean> {
@@ -422,7 +725,7 @@ export class PrismaCreditRepository implements CreditRepository {
     errandId: string,
   ): Promise<void> {
     await tx.$queryRaw`
-      SELECT "id"
+      SELECT "reservation_id"
       FROM "credit_reservations"
       WHERE "errand_id" = ${errandId}::uuid
       FOR UPDATE
@@ -455,32 +758,146 @@ export class PrismaCreditRepository implements CreditRepository {
     return this.toBalance(account);
   }
 
+  private async recordConsumedEvent(
+    tx: Prisma.TransactionClient,
+    event: ConsumedEvent | undefined,
+  ): Promise<void> {
+    if (!event) {
+      return;
+    }
+    const existing = await tx.processedEvent.findUnique({
+      where: { eventId: event.eventId },
+    });
+    if (existing) {
+      if (
+        existing.eventType !== event.eventType ||
+        existing.payloadHash !== event.payloadHash
+      ) {
+        throw new EventReplayConflictError(event.eventId);
+      }
+      return;
+    }
+    await tx.processedEvent.create({ data: event });
+  }
+
   private async serializable<T>(
+    context: TransactionContext,
     operation: (tx: Prisma.TransactionClient) => Promise<T>,
     retryUniqueConflict = false,
   ): Promise<T> {
     for (let attempt = 1; attempt <= this.maxRetries; attempt += 1) {
       try {
-        return await this.prisma.$transaction(operation, {
+        const result = await this.prisma.$transaction(operation, {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
           maxWait: 5_000,
           timeout: 10_000,
         });
+        this.metrics.recordOperation(
+          context.operation,
+          this.isReplayedResult(result) ? 'replayed' : 'success',
+        );
+        return result;
       } catch (error) {
-        const retryable =
-          this.isSerializationConflict(error) ||
-          (retryUniqueConflict &&
-            error instanceof Prisma.PrismaClientKnownRequestError &&
-            error.code === 'P2002');
-        if (!retryable || attempt === this.maxRetries) {
-          if (retryable) {
-            throw new ConcurrentOperationError();
-          }
-          throw error;
+        const retryCause = this.retryCause(error, retryUniqueConflict);
+        if (retryCause && attempt < this.maxRetries) {
+          this.metrics.recordRetry(context.operation, retryCause);
+          this.logger.warn(
+            {
+              operation: context.operation,
+              correlationId: context.correlationId,
+              attempt,
+              maxAttempts: this.maxRetries,
+              retryCause,
+              prismaCode: this.prismaErrorCode(error),
+              postgresCode: this.postgresErrorCode(error),
+            },
+            'Retrying serializable credit transaction',
+          );
+          continue;
         }
+
+        const finalError = retryCause ? new ConcurrentOperationError() : error;
+        const failureCause = this.failureCause(finalError);
+        this.metrics.recordFailure(context.operation, failureCause);
+        this.metrics.recordOperation(context.operation, failureCause);
+        if (
+          finalError instanceof CreditDomainError &&
+          finalError.statusCode === 409
+        ) {
+          this.metrics.recordConflict(
+            context.operation,
+            finalError.code.toLowerCase(),
+          );
+        }
+        if (retryCause) {
+          this.logger.error(
+            {
+              operation: context.operation,
+              correlationId: context.correlationId,
+              attempts: this.maxRetries,
+              retryCause,
+              prismaCode: this.prismaErrorCode(error),
+              postgresCode: this.postgresErrorCode(error),
+            },
+            'Credit transaction retries exhausted',
+          );
+        }
+        throw finalError;
       }
     }
     throw new ConcurrentOperationError();
+  }
+
+  private retryCause(
+    error: unknown,
+    retryUniqueConflict: boolean,
+  ): RetryCause | undefined {
+    if (this.isSerializationConflict(error)) {
+      return 'serialization';
+    }
+    if (
+      retryUniqueConflict &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      return 'unique_conflict';
+    }
+    return undefined;
+  }
+
+  private failureCause(error: unknown): string {
+    return error instanceof CreditDomainError
+      ? error.code.toLowerCase()
+      : 'unexpected_failure';
+  }
+
+  private isReplayedResult(value: unknown): boolean {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'replayed' in value &&
+      value.replayed === true
+    );
+  }
+
+  private prismaErrorCode(error: unknown): string | undefined {
+    return error instanceof Prisma.PrismaClientKnownRequestError
+      ? error.code
+      : undefined;
+  }
+
+  private postgresErrorCode(error: unknown): string | undefined {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      return undefined;
+    }
+    const meta = error.meta as
+      | {
+          driverAdapterError?: {
+            cause?: { originalCode?: string };
+          };
+        }
+      | undefined;
+    return meta?.driverAdapterError?.cause?.originalCode;
   }
 
   private isSerializationConflict(error: unknown): boolean {
@@ -494,14 +911,7 @@ export class PrismaCreditRepository implements CreditRepository {
       return false;
     }
 
-    const meta = error.meta as
-      | {
-          driverAdapterError?: {
-            cause?: { originalCode?: string };
-          };
-        }
-      | undefined;
-    const originalCode = meta?.driverAdapterError?.cause?.originalCode;
+    const originalCode = this.postgresErrorCode(error);
     return originalCode === '40001' || originalCode === '40P01';
   }
 

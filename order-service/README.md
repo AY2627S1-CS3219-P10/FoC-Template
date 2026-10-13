@@ -13,7 +13,7 @@ docker compose up -d --wait order-db order-redis
 Copy-Item order-service/.env.example order-service/.env # first setup only
 ```
 
-Set Order's CREDIT_INTERNAL_API_TOKEN to the same server-only value used by Credit Service. Apply the new Credit migration and restart Credit Service:
+Set Order's `CREDIT_ORDER_SERVICE_TOKEN` to the matching caller-scoped value used by Credit Service. Credit accounts must already be provisioned after user verification; Order Service cannot create them. Apply the Credit migrations and restart Credit Service:
 
 ```powershell
 Set-Location credit-service
@@ -58,7 +58,7 @@ POST/PATCH require a UUID v4 Idempotency-Key header. Retry with the same key and
 
 ## Consistency
 
-PostgreSQL persists an operation intent before calling Credit Service. Only successful reservation permits publishing an OPEN errand. Credit adjustments use immutable operation IDs and validate the previous amount. Pending edits are locked and hidden until fields and reserved credits agree.
+PostgreSQL persists an operation intent before calling Credit Service. Only successful reservation permits publishing an OPEN errand. Credit adjustments use immutable operation IDs and send the complete desired reservation amount. Pending edits are locked and hidden until fields and reserved credits agree.
 
 This is a recoverable workflow across independent databases, not a global ACID transaction. Definitive insufficient-credit failures return 422 and publish no errand/edit. Uncertain responses or a failed local commit return 202 with a PENDING operation ID. Poll the operation or retry the same key; BullMQ resumes the PostgreSQL journal without double charging. Redis outages delay recovery but do not lose persisted intents. Readiness checks PostgreSQL. No RabbitMQ events are introduced.
 

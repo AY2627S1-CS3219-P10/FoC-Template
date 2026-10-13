@@ -19,7 +19,9 @@ export class CorrelationIdInterceptor implements NestInterceptor {
     const response = http.getResponse<FastifyReply>();
     const supplied = request.headers['x-correlation-id'];
     const correlationId =
-      typeof supplied === 'string' && supplied.length <= 128
+      typeof supplied === 'string' &&
+      supplied.length > 0 &&
+      supplied.length <= 128
         ? supplied
         : randomUUID();
 

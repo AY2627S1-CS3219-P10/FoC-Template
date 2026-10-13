@@ -96,7 +96,7 @@ describe('PrismaSupplierCatalogRepository', () => {
     };
     const $transaction = (
       callback: (transaction: unknown) => Promise<unknown>,
-    ) =>
+    ): Promise<unknown> =>
       callback({
         supplier: { delete: deleteSupplier },
         supplierLocation: { deleteMany },

@@ -6,17 +6,33 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import type { FastifyRequest } from 'fastify';
 import { createHash, timingSafeEqual } from 'node:crypto';
+import {
+  INTERNAL_CALLER_METADATA,
+  type InternalCaller,
+} from './internal-caller.decorator';
 
 @Injectable()
 export class InternalServiceAuthGuard implements CanActivate {
-  private readonly expectedDigest: Buffer;
+  private readonly expectedDigests: Record<InternalCaller, Buffer>;
 
-  constructor(config: ConfigService) {
-    this.expectedDigest = this.digest(
-      config.getOrThrow<string>('security.internalApiToken'),
-    );
+  constructor(
+    config: ConfigService,
+    private readonly reflector: Reflector,
+  ) {
+    this.expectedDigests = {
+      monitoring: this.digest(
+        config.getOrThrow<string>('security.internalApiTokens.monitoring'),
+      ),
+      'order-service': this.digest(
+        config.getOrThrow<string>('security.internalApiTokens.orderService'),
+      ),
+      'user-service': this.digest(
+        config.getOrThrow<string>('security.internalApiTokens.userService'),
+      ),
+    };
   }
 
   canActivate(context: ExecutionContext): boolean {
@@ -32,7 +48,19 @@ export class InternalServiceAuthGuard implements CanActivate {
       throw new UnauthorizedException('Authorization must use a Bearer token');
     }
 
-    if (!timingSafeEqual(this.digest(match[1]), this.expectedDigest)) {
+    const caller = this.reflector.getAllAndOverride<InternalCaller>(
+      INTERNAL_CALLER_METADATA,
+      [context.getHandler(), context.getClass()],
+    );
+    if (!caller) {
+      throw new ForbiddenException(
+        'The endpoint has no internal caller authorization policy',
+      );
+    }
+
+    if (
+      !timingSafeEqual(this.digest(match[1]), this.expectedDigests[caller])
+    ) {
       throw new ForbiddenException('The service token is not authorized');
     }
 

@@ -72,13 +72,17 @@ export class OrderService {
           op.requesterId,
           op.payload.offeredCredits,
         );
-      else if (op.kind === 'DELETE') await this.clients.release(op.errandId);
+      else if (op.kind === 'DELETE')
+        await this.clients.release(
+          op.errandId,
+          op.requesterId,
+          op.payload.offeredCredits,
+        );
       else if (op.payload.offeredCredits !== op.previousAmount)
         await this.clients.adjust(
           op.errandId,
           op.id,
           op.requesterId,
-          op.previousAmount!,
           op.payload.offeredCredits,
         );
     });

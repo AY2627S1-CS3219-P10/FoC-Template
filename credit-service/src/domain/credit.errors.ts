@@ -34,10 +34,21 @@ export class InsufficientCreditsError extends CreditDomainError {
   }
 }
 
+export class BalanceLimitExceededError extends CreditDomainError {
+  constructor(userId: string, maximumBalance: number) {
+    super(
+      'The credit operation would exceed the maximum account balance',
+      'ACCOUNT_BALANCE_LIMIT_EXCEEDED',
+      409,
+      { userId, maximumBalance },
+    );
+  }
+}
+
 export class IdempotencyConflictError extends CreditDomainError {
   constructor(errandId: string) {
     super(
-      'The errand identifier was already used with different reservation data',
+      'The operation does not match the existing reservation data',
       'IDEMPOTENCY_CONFLICT',
       409,
       { errandId },
@@ -45,17 +56,13 @@ export class IdempotencyConflictError extends CreditDomainError {
   }
 }
 
-export class ReservationStateConflictError extends CreditDomainError {
-  constructor(
-    errandId: string,
-    currentStatus: string,
-    requestedOperation: 'settle' | 'release',
-  ) {
+export class AdjustmentIdempotencyConflictError extends CreditDomainError {
+  constructor(errandId: string, idempotencyKey: string) {
     super(
-      `Cannot ${requestedOperation} a ${currentStatus.toLowerCase()} reservation`,
-      'RESERVATION_STATE_CONFLICT',
+      'The adjustment idempotency key was already used with a different target amount',
+      'ADJUSTMENT_IDEMPOTENCY_CONFLICT',
       409,
-      { errandId, currentStatus, requestedOperation },
+      { errandId, idempotencyKey },
     );
   }
 }
@@ -67,6 +74,21 @@ export class SettlementCourierConflictError extends CreditDomainError {
       'SETTLEMENT_COURIER_CONFLICT',
       409,
       { errandId },
+    );
+  }
+}
+
+export class ReservationStateConflictError extends CreditDomainError {
+  constructor(
+    errandId: string,
+    currentStatus: string,
+    requestedOperation: 'adjust' | 'settle' | 'release',
+  ) {
+    super(
+      `Cannot ${requestedOperation} a ${currentStatus.toLowerCase()} reservation`,
+      'RESERVATION_STATE_CONFLICT',
+      409,
+      { errandId, currentStatus, requestedOperation },
     );
   }
 }
@@ -88,6 +110,17 @@ export class ConcurrentOperationError extends CreditDomainError {
       'The credit operation conflicted with another request; retry it',
       'CONCURRENT_OPERATION',
       409,
+    );
+  }
+}
+
+export class EventReplayConflictError extends CreditDomainError {
+  constructor(eventId: string) {
+    super(
+      'The event identifier was already processed with different content',
+      'EVENT_REPLAY_CONFLICT',
+      409,
+      { eventId },
     );
   }
 }

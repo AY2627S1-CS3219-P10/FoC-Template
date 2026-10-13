@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { isUUID } from 'class-validator';
 import { OrderError } from '../domain/errand';
 import type { ErrandDetails } from '../domain/errand';
 
@@ -50,9 +51,7 @@ export class ServiceClients {
       throw new UpstreamFailure(
         code,
         response.status,
-        response.status >= 500 ||
-          [401, 403].includes(response.status) ||
-          code === 'CONCURRENT_OPERATION',
+        response.status >= 500 || code === 'CONCURRENT_OPERATION',
       );
     }
     if (!data) throw new UpstreamFailure('INVALID_SERVICE_RESPONSE', 503, true);
@@ -64,6 +63,14 @@ export class ServiceClients {
       status: string;
       emailVerifiedAt: string | null;
     }>('USER', 'api/accounts/me', token);
+    if (
+      !isUUID(profile?.id, '4') ||
+      typeof profile.status !== 'string' ||
+      (profile.emailVerifiedAt !== null &&
+        (typeof profile.emailVerifiedAt !== 'string' ||
+          !Number.isFinite(Date.parse(profile.emailVerifiedAt))))
+    )
+      throw new UpstreamFailure('INVALID_SERVICE_RESPONSE', 503, true);
     if (profile.status !== 'ACTIVE' || !profile.emailVerifiedAt)
       throw new OrderError(
         'ACTIVE_ACCOUNT_REQUIRED',
@@ -78,29 +85,37 @@ export class ServiceClients {
       'api/accounts/me',
       token,
     );
-    return profile.isAdmin === true;
+    if (typeof profile?.isAdmin !== 'boolean')
+      throw new UpstreamFailure('INVALID_SERVICE_RESPONSE', 503, true);
+    return profile.isAdmin;
   }
   async username(userId: string, token: string) {
     try {
-      return (
-        await this.request<{ username: string }>(
-          'USER',
-          `api/accounts/${userId}/identity`,
-          token,
-        )
-      ).username;
+      const identity = await this.request<{ id: string; username: string }>(
+        'USER',
+        `api/accounts/${userId}/identity`,
+        token,
+      );
+      if (
+        identity?.id !== userId ||
+        typeof identity?.username !== 'string' ||
+        !identity.username.trim() ||
+        identity.username.length > 100
+      )
+        throw new UpstreamFailure('INVALID_SERVICE_RESPONSE', 503, true);
+      return identity.username;
     } catch (error) {
       if (error instanceof UpstreamFailure && error.status === 404) return null;
       throw error;
     }
   }
-  async release(errandId: string) {
+  async release(errandId: string, requesterId: string, amount: number) {
     try {
       await this.request(
         'CREDIT',
         `v1/credit-reservations/${errandId}/release`,
-        this.config.getOrThrow<string>('CREDIT_INTERNAL_API_TOKEN'),
-        {},
+        this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN'),
+        { requesterId, amount },
       );
     } catch (error) {
       if (
@@ -130,7 +145,16 @@ export class ServiceClients {
     if (!Array.isArray(suppliers))
       throw new UpstreamFailure('INVALID_SERVICE_RESPONSE', 503, true);
     for (const supplier of suppliers) {
-      const location = supplier.locations?.find((item) => item.id === id);
+      if (
+        !supplier ||
+        typeof supplier !== 'object' ||
+        typeof supplier.name !== 'string' ||
+        !Array.isArray(supplier.locations)
+      )
+        throw new UpstreamFailure('INVALID_SERVICE_RESPONSE', 503, true);
+      const location = supplier.locations.find(
+        (item) => item && typeof item === 'object' && item.id === id,
+      );
       if (
         location &&
         typeof supplier.name === 'string' &&
@@ -157,10 +181,7 @@ export class ServiceClients {
     );
   }
   async reserve(errandId: string, requesterId: string, amount: number) {
-    const token = this.config.getOrThrow<string>('CREDIT_INTERNAL_API_TOKEN');
-    await this.request('CREDIT', 'v1/credit-accounts', token, {
-      userId: requesterId,
-    });
+    const token = this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN');
     await this.request('CREDIT', 'v1/credit-reservations', token, {
       errandId,
       requesterId,
@@ -171,14 +192,13 @@ export class ServiceClients {
     errandId: string,
     operationId: string,
     requesterId: string,
-    expectedAmount: number,
     amount: number,
   ) {
     await this.request(
       'CREDIT',
       `v1/credit-reservations/${errandId}/adjustment`,
-      this.config.getOrThrow<string>('CREDIT_INTERNAL_API_TOKEN'),
-      { operationId, requesterId, expectedAmount, amount },
+      this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN'),
+      { requesterId, targetAmount: amount, idempotencyKey: operationId },
     );
   }
 }

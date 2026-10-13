@@ -12,7 +12,7 @@ import {
 } from '@testcontainers/postgresql';
 import { createServer, type Server } from 'node:http';
 import { once } from 'node:events';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
@@ -47,11 +47,15 @@ async function migrate(url: string, folder: string) {
   const client = new Client({ connectionString: url });
   await client.connect();
   try {
-    for (const name of readdirSync(folder).sort())
-      if (name !== 'migration_lock.toml' && !name.startsWith('.'))
-        await client.query(
-          readFileSync(resolve(folder, name, 'migration.sql'), 'utf8'),
-        );
+    for (const name of readdirSync(folder).sort()) {
+      const migration = resolve(folder, name, 'migration.sql');
+      if (
+        name !== 'migration_lock.toml' &&
+        !name.startsWith('.') &&
+        existsSync(migration)
+      )
+        await client.query(readFileSync(migration, 'utf8'));
+    }
   } finally {
     await client.end();
   }
@@ -208,7 +212,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
           USER_SERVICE_URL: process.env.USER_SERVICE_URL,
           SUPPLIER_SERVICE_URL: process.env.SUPPLIER_SERVICE_URL,
           CREDIT_SERVICE_URL: process.env.CREDIT_SERVICE_URL,
-          CREDIT_INTERNAL_API_TOKEN: process.env.CREDIT_INTERNAL_API_TOKEN,
+          CREDIT_ORDER_SERVICE_TOKEN: process.env.CREDIT_ORDER_SERVICE_TOKEN,
         }),
       )
       .overrideProvider(RecoveryWorker)
@@ -249,6 +253,17 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       'TRUNCATE errands, errand_operations CASCADE',
     );
     await creditPrisma.$executeRawUnsafe('TRUNCATE credit_accounts CASCADE');
+    for (const userId of [requesterId, otherId]) {
+      const response = await creditApp.inject({
+        method: 'POST',
+        url: '/v1/credit-accounts',
+        headers: {
+          authorization: `Bearer ${process.env.CREDIT_USER_SERVICE_TOKEN}`,
+        },
+        payload: { userId },
+      });
+      expect(response.statusCode).toBe(201);
+    }
   });
   const auth = { authorization: 'Bearer requester' };
   const create = (
@@ -309,7 +324,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       }),
     ).toMatchObject({ availableCredits: 100, reservedCredits: 0 });
     expect(
-      await creditPrisma.creditLedgerEntry.count({
+      await creditPrisma.ledgerEntry.count({
         where: { type: 'RELEASE' },
       }),
     ).toBe(1);
@@ -383,7 +398,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       'SUCCEEDED',
     );
     expect(
-      await creditPrisma.creditLedgerEntry.count({
+      await creditPrisma.ledgerEntry.count({
         where: { type: 'RELEASE' },
       }),
     ).toBe(1);
@@ -395,13 +410,16 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
   });
   it('admin deletion preserves completed credit transfers', async () => {
     const id = (await create()).json().errand.id;
-    await creditPrisma.creditAccount.create({
-      data: { userId: otherId, availableCredits: 100, reservedCredits: 0 },
-    });
     // Exercise actual settlement through the Credit Service application.
     const { CreditService } =
       await import('../../../credit-service/src/application/credit.service');
-    await creditApp.get(CreditService).settle(id, otherId);
+    await creditApp.get(CreditService).settle({
+      errandId: id,
+      requesterId,
+      courierId: otherId,
+      amount: input.offeredCredits,
+      correlationId: randomUUID(),
+    });
     await prisma.errand.update({
       where: { id },
       data: { status: 'COMPLETED', courierId: otherId },
@@ -549,8 +567,8 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       (await create({ ...input, description: 'Different' }, key)).statusCode,
     ).toBe(409);
     expect(
-      await creditPrisma.creditLedgerEntry.count({
-        where: { type: 'RESERVATION' },
+      await creditPrisma.ledgerEntry.count({
+        where: { type: 'RESERVE' },
       }),
     ).toBe(1);
   });
@@ -660,8 +678,8 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     expect((await service.process(operationId)).status).toBe('SUCCEEDED');
     expect(await prisma.errand.count()).toBe(1);
     expect(
-      await creditPrisma.creditLedgerEntry.count({
-        where: { type: 'RESERVATION' },
+      await creditPrisma.ledgerEntry.count({
+        where: { type: 'RESERVE' },
       }),
     ).toBe(1);
   });
@@ -680,8 +698,8 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     await service.process(response.json<{ operationId: string }>().operationId);
     expect(await prisma.errand.count()).toBe(1);
     expect(
-      await creditPrisma.creditLedgerEntry.count({
-        where: { type: 'RESERVATION' },
+      await creditPrisma.ledgerEntry.count({
+        where: { type: 'RESERVE' },
       }),
     ).toBe(1);
   });

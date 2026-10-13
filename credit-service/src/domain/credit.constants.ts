@@ -1,0 +1,1 @@
+export const MAX_CREDIT_BALANCE = 10_000_000;

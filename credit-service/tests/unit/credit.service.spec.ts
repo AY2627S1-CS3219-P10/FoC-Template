@@ -4,6 +4,7 @@ import { CreditService } from '../../src/application/credit.service';
 import type {
   CreditBalance,
   CreditReservation,
+  CreditTransactionHistory,
   OperationResult,
   ReservationResult,
   SettlementResult,
@@ -19,7 +20,7 @@ const balance: CreditBalance = {
   updatedAt: now,
 };
 const reservation: CreditReservation = {
-  id: '20000000-0000-4000-8000-000000000001',
+  reservationId: '20000000-0000-4000-8000-000000000001',
   errandId: '30000000-0000-4000-8000-000000000001',
   requesterId: balance.userId,
   courierId: null,
@@ -38,9 +39,10 @@ describe('CreditService', () => {
   beforeEach(() => {
     repository = {
       initializeAccount: jest.fn(),
-      adjust: jest.fn(),
       getBalance: jest.fn(),
+      getTransactionHistory: jest.fn(),
       reserve: jest.fn(),
+      adjust: jest.fn(),
       settle: jest.fn(),
       release: jest.fn(),
       isReady: jest.fn(),
@@ -57,8 +59,14 @@ describe('CreditService', () => {
       replayed: false,
     };
     repository.initializeAccount.mockResolvedValue(expected);
-    await expect(service.initializeAccount(balance.userId)).resolves.toBe(expected);
-    expect(repository.initializeAccount).toHaveBeenCalledWith(balance.userId, 100);
+    await expect(
+      service.initializeAccount(balance.userId, 'correlation-1'),
+    ).resolves.toBe(expected);
+    expect(repository.initializeAccount).toHaveBeenCalledWith(
+      balance.userId,
+      100,
+      'correlation-1',
+    );
   });
 
   it('delegates balance lookup', async () => {
@@ -66,11 +74,29 @@ describe('CreditService', () => {
     await expect(service.getBalance(balance.userId)).resolves.toBe(balance);
   });
 
+  it('delegates bounded transaction-history lookup', async () => {
+    const history: CreditTransactionHistory = {
+      items: [],
+      page: { limit: 25, offset: 50, nextOffset: null },
+    };
+    repository.getTransactionHistory.mockResolvedValue(history);
+
+    await expect(
+      service.getTransactionHistory(balance.userId, 25, 50),
+    ).resolves.toBe(history);
+    expect(repository.getTransactionHistory).toHaveBeenCalledWith(
+      balance.userId,
+      25,
+      50,
+    );
+  });
+
   it('delegates reservation', async () => {
     const command = {
       errandId: reservation.errandId,
       requesterId: reservation.requesterId,
       amount: reservation.amount,
+      correlationId: 'correlation-2',
     };
     const expected: OperationResult<ReservationResult> = {
       data: { reservation, requesterBalance: balance },
@@ -79,6 +105,26 @@ describe('CreditService', () => {
     repository.reserve.mockResolvedValue(expected);
     await expect(service.reserve(command)).resolves.toBe(expected);
     expect(repository.reserve).toHaveBeenCalledWith(command);
+  });
+
+  it('delegates reservation adjustment', async () => {
+    const command = {
+      errandId: reservation.errandId,
+      requesterId: reservation.requesterId,
+      targetAmount: 30,
+      idempotencyKey: 'adjustment-1',
+      correlationId: 'correlation-3',
+    };
+    const expected: OperationResult<ReservationResult> = {
+      data: {
+        reservation: { ...reservation, amount: 30 },
+        requesterBalance: balance,
+      },
+      replayed: false,
+    };
+    repository.adjust.mockResolvedValue(expected);
+    await expect(service.adjust(command)).resolves.toBe(expected);
+    expect(repository.adjust).toHaveBeenCalledWith(command);
   });
 
   it('delegates settlement', async () => {
@@ -91,11 +137,16 @@ describe('CreditService', () => {
       },
       replayed: false,
     };
+    const command = {
+      errandId: reservation.errandId,
+      requesterId: reservation.requesterId,
+      courierId,
+      amount: reservation.amount,
+      correlationId: 'correlation-4',
+    };
     repository.settle.mockResolvedValue(expected);
-    await expect(service.settle(reservation.errandId, courierId)).resolves.toBe(
-      expected,
-    );
-    expect(repository.settle).toHaveBeenCalledWith(reservation.errandId, courierId);
+    await expect(service.settle(command)).resolves.toBe(expected);
+    expect(repository.settle).toHaveBeenCalledWith(command);
   });
 
   it('delegates release', async () => {
@@ -106,8 +157,15 @@ describe('CreditService', () => {
       },
       replayed: false,
     };
+    const command = {
+      errandId: reservation.errandId,
+      requesterId: reservation.requesterId,
+      amount: reservation.amount,
+      correlationId: 'correlation-5',
+    };
     repository.release.mockResolvedValue(expected);
-    await expect(service.release(reservation.errandId)).resolves.toBe(expected);
+    await expect(service.release(command)).resolves.toBe(expected);
+    expect(repository.release).toHaveBeenCalledWith(command);
   });
 
   it('delegates readiness', async () => {
