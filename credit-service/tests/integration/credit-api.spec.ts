@@ -256,6 +256,71 @@ describe('Credit API with PostgreSQL', () => {
       .expect(200);
   });
 
+  it('returns bounded transaction history only to the owner or an administrator', async () => {
+    const ownerId = await initialize();
+    const otherUserId = randomUUID();
+    const errandId = randomUUID();
+    await request(app.getHttpServer())
+      .post('/v1/credit-reservations')
+      .set('authorization', authorization)
+      .send({ errandId, requesterId: ownerId, amount: 20 })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}/transactions`)
+      .expect(401);
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}/transactions`)
+      .set('authorization', userAuthorization(otherUserId))
+      .expect(403);
+
+    const firstPage = await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}/transactions?limit=1`)
+      .set('authorization', userAuthorization(ownerId))
+      .expect(200);
+    expect(firstPage.body.items).toHaveLength(1);
+    expect(firstPage.body.page).toEqual({
+      limit: 1,
+      offset: 0,
+      nextOffset: 1,
+    });
+
+    const secondPage = await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}/transactions?limit=1&offset=1`)
+      .set('authorization', userAuthorization(otherUserId, true))
+      .expect(200);
+    expect(secondPage.body.items).toHaveLength(1);
+    expect(secondPage.body.page).toEqual({
+      limit: 1,
+      offset: 1,
+      nextOffset: null,
+    });
+    expect(
+      [...firstPage.body.items, ...secondPage.body.items].map(
+        ({ type }: { type: string }) => type,
+      ),
+    ).toEqual(expect.arrayContaining(['INITIALIZE', 'RESERVE']));
+  });
+
+  it('validates transaction-history pagination and missing accounts', async () => {
+    const ownerId = await initialize();
+
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}/transactions?limit=101`)
+      .set('authorization', userAuthorization(ownerId))
+      .expect(400);
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}/transactions?offset=-1`)
+      .set('authorization', userAuthorization(ownerId))
+      .expect(400);
+
+    const missingId = randomUUID();
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${missingId}/transactions`)
+      .set('authorization', userAuthorization(missingId))
+      .expect(404);
+  });
+
   it('rejects insufficient credits and rolls the transaction back', async () => {
     const requesterId = await initialize();
     const response = await request(app.getHttpServer())

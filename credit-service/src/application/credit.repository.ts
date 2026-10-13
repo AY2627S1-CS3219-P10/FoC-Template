@@ -1,5 +1,6 @@
 import type {
   CreditBalance,
+  CreditTransactionHistory,
   OperationResult,
   ReservationResult,
   SettlementResult,
@@ -52,6 +53,11 @@ export interface CreditRepository {
     consumedEvent?: ConsumedEvent,
   ): Promise<OperationResult<CreditBalance>>;
   getBalance(userId: string): Promise<CreditBalance>;
+  getTransactionHistory(
+    userId: string,
+    limit: number,
+    offset: number,
+  ): Promise<CreditTransactionHistory>;
   reserve(
     command: ReserveCreditsCommand,
   ): Promise<OperationResult<ReservationResult>>;

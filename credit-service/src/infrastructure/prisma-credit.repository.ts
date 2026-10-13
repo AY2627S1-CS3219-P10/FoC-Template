@@ -36,6 +36,7 @@ import {
 import type {
   CreditBalance,
   CreditReservation,
+  CreditTransactionHistory,
   OperationResult,
   ReservationResult,
   SettlementResult,
@@ -142,6 +143,48 @@ export class PrismaCreditRepository implements CreditRepository {
       throw new AccountNotFoundError(userId);
     }
     return this.toBalance(account);
+  }
+
+  async getTransactionHistory(
+    userId: string,
+    limit: number,
+    offset: number,
+  ): Promise<CreditTransactionHistory> {
+    const account = await this.prisma.creditAccount.findUnique({
+      where: { userId },
+      select: { userId: true },
+    });
+    if (!account) {
+      throw new AccountNotFoundError(userId);
+    }
+
+    const entries = await this.prisma.ledgerEntry.findMany({
+      where: { accountUserId: userId },
+      orderBy: [{ createdAt: 'desc' }, { ledgerEntryId: 'desc' }],
+      skip: offset,
+      take: limit + 1,
+    });
+    const hasMore = entries.length > limit;
+
+    return {
+      items: entries.slice(0, limit).map((entry) => ({
+        ledgerEntryId: entry.ledgerEntryId,
+        userId: entry.accountUserId,
+        reservationId: entry.reservationId,
+        errandId: entry.errandId,
+        type: entry.type,
+        amount: entry.amount,
+        availableBalanceAfter: entry.availableBalanceAfter,
+        reservedBalanceAfter: entry.reservedBalanceAfter,
+        correlationId: entry.correlationId,
+        createdAt: entry.createdAt,
+      })),
+      page: {
+        limit,
+        offset,
+        nextOffset: hasMore ? offset + limit : null,
+      },
+    };
   }
 
   async reserve(

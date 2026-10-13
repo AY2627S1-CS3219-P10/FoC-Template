@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -32,6 +33,7 @@ import { InternalCallerOnly } from './internal-caller.decorator';
 import { ReserveCreditsDto } from './dto/reserve-credits.dto';
 import { ReleaseCreditsDto } from './dto/release-credits.dto';
 import { SettleCreditsDto } from './dto/settle-credits.dto';
+import { TransactionHistoryQueryDto } from './dto/transaction-history-query.dto';
 import { InternalServiceAuthGuard } from './internal-service-auth.guard';
 import { UserAccessTokenGuard } from './user-access-token.guard';
 
@@ -80,6 +82,29 @@ export class CreditController {
   @ApiNotFoundResponse({ description: 'Credit account does not exist' })
   getBalance(@Param() params: UserParamsDto) {
     return this.creditService.getBalance(params.userId);
+  }
+
+  @Get('credit-accounts/:userId/transactions')
+  @UseGuards(UserAccessTokenGuard, BalanceAuthorizationGuard)
+  @ApiBearerAuth('access-token')
+  @ApiUnauthorizedResponse({
+    description: 'A valid User Service access token is required',
+  })
+  @ApiForbiddenResponse({
+    description: 'Users may only read their own transaction history',
+  })
+  @ApiOperation({ summary: 'Get immutable credit transaction history' })
+  @ApiOkResponse({ description: 'Newest-first transaction history page' })
+  @ApiNotFoundResponse({ description: 'Credit account does not exist' })
+  getTransactionHistory(
+    @Param() params: UserParamsDto,
+    @Query() query: TransactionHistoryQueryDto,
+  ) {
+    return this.creditService.getTransactionHistory(
+      params.userId,
+      query.limit,
+      query.offset,
+    );
   }
 
   @Post('credit-reservations')

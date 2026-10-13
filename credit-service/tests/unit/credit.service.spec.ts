@@ -4,6 +4,7 @@ import { CreditService } from '../../src/application/credit.service';
 import type {
   CreditBalance,
   CreditReservation,
+  CreditTransactionHistory,
   OperationResult,
   ReservationResult,
   SettlementResult,
@@ -39,6 +40,7 @@ describe('CreditService', () => {
     repository = {
       initializeAccount: jest.fn(),
       getBalance: jest.fn(),
+      getTransactionHistory: jest.fn(),
       reserve: jest.fn(),
       adjust: jest.fn(),
       settle: jest.fn(),
@@ -70,6 +72,23 @@ describe('CreditService', () => {
   it('delegates balance lookup', async () => {
     repository.getBalance.mockResolvedValue(balance);
     await expect(service.getBalance(balance.userId)).resolves.toBe(balance);
+  });
+
+  it('delegates bounded transaction-history lookup', async () => {
+    const history: CreditTransactionHistory = {
+      items: [],
+      page: { limit: 25, offset: 50, nextOffset: null },
+    };
+    repository.getTransactionHistory.mockResolvedValue(history);
+
+    await expect(
+      service.getTransactionHistory(balance.userId, 25, 50),
+    ).resolves.toBe(history);
+    expect(repository.getTransactionHistory).toHaveBeenCalledWith(
+      balance.userId,
+      25,
+      50,
+    );
   });
 
   it('delegates reservation', async () => {

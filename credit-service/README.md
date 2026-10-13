@@ -48,6 +48,7 @@ database. No other service should access that database directly.
 | --- | --- | --- |
 | `POST` | `/v1/credit-accounts` | Initialize a verified user's account |
 | `GET` | `/v1/credit-accounts/:userId` | Read available and reserved balances |
+| `GET` | `/v1/credit-accounts/:userId/transactions` | Read newest-first immutable ledger history |
 | `POST` | `/v1/credit-reservations` | Reserve an errand bounty |
 | `POST` | `/v1/credit-reservations/:errandId/adjustment` | Change an open errand bounty to a target amount |
 | `POST` | `/v1/credit-reservations/:errandId/settlement` | Pay the courier |
@@ -92,8 +93,8 @@ Reservation mutation requests require `Authorization: Bearer
 `CREDIT_MONITORING_TOKEN`. These are distinct service credentials, not
 end-user JWTs, and must not share a value. Requests may also provide
 `x-correlation-id`; when omitted, Credit Service generates one and returns it
-in the response. End-user balance reads use
-`Authorization: Bearer <JWT>` on `GET /v1/credit-accounts/:userId`.
+in the response. End-user balance and transaction-history reads use
+`Authorization: Bearer <JWT>` on the corresponding account endpoint.
 
 OpenAPI documentation is served at `/docs`. All DTOs reject unknown fields,
 invalid UUIDs, fractional amounts, zero amounts, and values outside the safe
@@ -145,10 +146,13 @@ them through the deployment secret manager. A valid credential for the wrong
 caller also returns `403`. Missing or malformed credentials return `401`; a
 well-formed but incorrect token returns `403`.
 
-`GET /v1/credit-accounts/:userId` instead accepts the short-lived User Service
-JWT. It validates the HS256 signature, issuer, audience, expiry, `sub`, `sid`,
-and `isAdmin` claims. A student may read only the account identified by their
-`sub`; an administrator may read any account. Health checks remain public.
+The `GET /v1/credit-accounts/:userId` balance and `/transactions` endpoints
+instead accept the short-lived User Service JWT. They validate the HS256
+signature, issuer, audience, expiry, `sub`, `sid`, and `isAdmin` claims. A
+student may read only the account identified by their `sub`; an administrator
+may read any account. History is ordered newest first and accepts bounded
+`limit` (1-100) and `offset` (0-100,000) query parameters. Health checks remain
+public.
 
 ### Database indexes and expected scale
 
@@ -229,4 +233,5 @@ and idempotency rules. Integration tests use Testcontainers and a real
 PostgreSQL instance to verify that unauthorized mutations leave no state,
 required indexes exist, transactions roll back, balances cannot be overspent
 concurrently, bounty adjustments apply only their delta, settlement and release
-race safely, and duplicated deliveries remain idempotent.
+race safely, duplicated deliveries remain idempotent, and balance/history reads
+enforce account ownership with bounded pagination.

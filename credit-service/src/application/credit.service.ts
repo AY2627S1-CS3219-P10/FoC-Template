@@ -39,6 +39,10 @@ export class CreditService {
     return this.repository.getBalance(userId);
   }
 
+  getTransactionHistory(userId: string, limit: number, offset: number) {
+    return this.repository.getTransactionHistory(userId, limit, offset);
+  }
+
   reserve(command: ReserveCreditsCommand) {
     return this.repository.reserve(command);
   }
