@@ -117,20 +117,21 @@ export class PrismaCreditRepository implements CreditRepository {
           },
         });
       }
-      if (consumedEvent) {
-        await tx.outboxEvent.create({
-          data: {
-            aggregateType: 'credit-account',
-            aggregateId: userId,
-            eventType: 'credit.account-initialized.v1',
-            payload: {
-              causationEventId: consumedEvent.eventId,
-              userId,
-              availableCredits: initialCredits,
-            },
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-account',
+          aggregateId: userId,
+          eventType: 'credit.account-initialized.v1',
+          payload: {
+            ...(consumedEvent
+              ? { causationEventId: consumedEvent.eventId }
+              : {}),
+            correlationId,
+            userId,
+            availableCredits: initialCredits,
           },
-        });
-      }
+        },
+      });
       return { data: this.toBalance(account), replayed: false };
     }, true);
   }
@@ -278,6 +279,19 @@ export class PrismaCreditRepository implements CreditRepository {
           correlationId: command.correlationId,
         },
       });
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-reservation',
+          aggregateId: command.errandId,
+          eventType: 'credit.reserved.v1',
+          payload: {
+            correlationId: command.correlationId,
+            errandId: command.errandId,
+            requesterId: command.requesterId,
+            amount: command.amount,
+          },
+        },
+      });
 
       return {
         data: {
@@ -419,6 +433,21 @@ export class PrismaCreditRepository implements CreditRepository {
             correlationId: command.correlationId,
           },
         });
+        await tx.outboxEvent.create({
+          data: {
+            aggregateType: 'credit-reservation',
+            aggregateId: command.errandId,
+            eventType: 'credit.reservation-adjusted.v1',
+            payload: {
+              correlationId: command.correlationId,
+              errandId: command.errandId,
+              requesterId: command.requesterId,
+              previousAmount: current.amount,
+              targetAmount: command.targetAmount,
+              delta,
+            },
+          },
+        });
       }
 
       return {
@@ -547,22 +576,23 @@ export class PrismaCreditRepository implements CreditRepository {
         ],
       });
 
-      if (command.consumedEvent) {
-        await tx.outboxEvent.create({
-          data: {
-            aggregateType: 'credit-reservation',
-            aggregateId: command.errandId,
-            eventType: 'credit.transferred.v1',
-            payload: {
-              causationEventId: command.consumedEvent.eventId,
-              errandId: command.errandId,
-              requesterId: current.requesterId,
-              courierId: command.courierId,
-              amount: current.amount,
-            },
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-reservation',
+          aggregateId: command.errandId,
+          eventType: 'credit.transferred.v1',
+          payload: {
+            ...(command.consumedEvent
+              ? { causationEventId: command.consumedEvent.eventId }
+              : {}),
+            correlationId: command.correlationId,
+            errandId: command.errandId,
+            requesterId: current.requesterId,
+            courierId: command.courierId,
+            amount: current.amount,
           },
-        });
-      }
+        },
+      });
 
       const requester =
         command.courierId === current.requesterId
@@ -654,6 +684,19 @@ export class PrismaCreditRepository implements CreditRepository {
           reservedBalanceAfter: account.reservedCredits,
           referenceKey: `errand:${command.errandId}:release`,
           correlationId: command.correlationId,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: 'credit-reservation',
+          aggregateId: command.errandId,
+          eventType: 'credit.released.v1',
+          payload: {
+            correlationId: command.correlationId,
+            errandId: command.errandId,
+            requesterId: current.requesterId,
+            amount: current.amount,
+          },
         },
       });
 

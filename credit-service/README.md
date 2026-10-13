@@ -22,8 +22,9 @@ database. No other service should access that database directly.
 - `UserVerified` and `ErrandCompleted` deliveries are deduplicated by immutable
   event ID and payload hash in the same transaction as their credit mutation.
   RabbitMQ messages are acknowledged only after that transaction commits.
-- Credit domain events are written to a transactional outbox with the account
-  allocation or settlement that caused them.
+- Every successful, non-replayed credit mutation writes its domain event to the
+  transactional outbox in the same database transaction as the balance,
+  reservation, and ledger changes.
 - Every successful balance mutation writes a ledger entry in the transaction.
 - Ledger entries use positive operation magnitudes and record both resulting
   balance buckets. Adjustment direction is represented by `ADJUST_RESERVE` or
@@ -128,6 +129,22 @@ User Service and Order Service must create their source event in their own
 transactional outbox alongside verification or completion. Direct publish after
 commit is not sufficient: a process crash or broker outage in that gap would
 otherwise permanently lose the credit operation.
+
+Credit Service publishes the following events for both HTTP-triggered and
+message-triggered mutations. An idempotent replay returns the existing result
+without creating another outbox row:
+
+| Mutation | Published event |
+| --- | --- |
+| Account initialization | `credit.account-initialized.v1` |
+| Bounty reservation | `credit.reserved.v1` |
+| Non-zero reservation adjustment | `credit.reservation-adjusted.v1` |
+| Settlement | `credit.transferred.v1` |
+| Release | `credit.released.v1` |
+
+Each payload includes the initiating correlation ID and the relevant user,
+errand, and amount fields. Events caused by a consumed message also include its
+ID as `causationEventId`. The outbox row ID becomes the published event ID.
 
 Every response includes an `x-correlation-id` header. A caller may supply that
 header (up to 128 characters), otherwise the service generates a UUID. Errors

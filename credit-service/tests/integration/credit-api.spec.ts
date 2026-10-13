@@ -184,6 +184,21 @@ describe('Credit API with PostgreSQL', () => {
     expect(await prisma.ledgerEntry.findFirstOrThrow()).toMatchObject({
       correlationId: 'initialize-test',
     });
+    await expect(
+      prisma.outboxEvent.findMany({
+        where: { eventType: 'credit.account-initialized.v1' },
+      }),
+    ).resolves.toMatchObject([
+      {
+        aggregateId: userId,
+        payload: expect.objectContaining({
+          correlationId: 'initialize-test',
+          userId,
+          availableCredits: 100,
+        }),
+        published: false,
+      },
+    ]);
   });
 
   it('deduplicates a redelivered UserVerified event atomically', async () => {
@@ -323,10 +338,11 @@ describe('Credit API with PostgreSQL', () => {
 
   it('rejects insufficient credits and rolls the transaction back', async () => {
     const requesterId = await initialize();
+    const errandId = randomUUID();
     const response = await request(app.getHttpServer())
       .post('/v1/credit-reservations')
       .set('authorization', authorization)
-      .send({ errandId: randomUUID(), requesterId, amount: 101 })
+      .send({ errandId, requesterId, amount: 101 })
       .expect(422);
 
     expect(response.body.code).toBe('INSUFFICIENT_CREDITS');
@@ -338,6 +354,9 @@ describe('Credit API with PostgreSQL', () => {
       reservedCredits: 0,
     });
     expect(await prisma.creditReservation.count()).toBe(0);
+    await expect(
+      prisma.outboxEvent.count({ where: { aggregateId: errandId } }),
+    ).resolves.toBe(0);
   });
 
   it('returns 404 for missing accounts and reservations without side effects', async () => {
@@ -466,6 +485,11 @@ describe('Credit API with PostgreSQL', () => {
       reservedCredits: 30,
     });
     expect(await prisma.creditReservation.count()).toBe(1);
+    await expect(
+      prisma.outboxEvent.count({
+        where: { eventType: 'credit.reserved.v1', aggregateId: errandId },
+      }),
+    ).resolves.toBe(1);
   });
 
   it('rejects a duplicate errand reservation with changed data', async () => {
@@ -594,6 +618,32 @@ describe('Credit API with PostgreSQL', () => {
       amount: 45,
       correlationId: 'adjust-decrease-correlation',
     });
+    await expect(
+      prisma.outboxEvent.findMany({
+        where: {
+          eventType: 'credit.reservation-adjusted.v1',
+          aggregateId: errandId,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ).resolves.toMatchObject([
+      {
+        payload: expect.objectContaining({
+          correlationId: 'adjust-increase-correlation',
+          previousAmount: 40,
+          targetAmount: 70,
+          delta: 30,
+        }),
+      },
+      {
+        payload: expect.objectContaining({
+          correlationId: 'adjust-decrease-correlation',
+          previousAmount: 70,
+          targetAmount: 25,
+          delta: -45,
+        }),
+      },
+    ]);
   });
 
   it('settles once and replays a duplicate completion delivery', async () => {
@@ -640,6 +690,11 @@ describe('Credit API with PostgreSQL', () => {
         where: { reservation: { errandId } },
       }),
     ).toBe(3);
+    await expect(
+      prisma.outboxEvent.count({
+        where: { eventType: 'credit.transferred.v1', aggregateId: errandId },
+      }),
+    ).resolves.toBe(1);
   });
 
   it('rejects release after settlement without changing settled state', async () => {
@@ -679,6 +734,11 @@ describe('Credit API with PostgreSQL', () => {
     expect(
       await prisma.ledgerEntry.count({ where: { errandId, type: 'RELEASE' } }),
     ).toBe(0);
+    await expect(
+      prisma.outboxEvent.count({
+        where: { eventType: 'credit.released.v1', aggregateId: errandId },
+      }),
+    ).resolves.toBe(0);
   });
 
   it('survives commit-before-ACK redelivery of ErrandCompleted', async () => {
@@ -799,6 +859,11 @@ describe('Credit API with PostgreSQL', () => {
       prisma.creditReservation.findUniqueOrThrow({ where: { errandId } }),
     ).resolves.toMatchObject({ status: 'RESERVED' });
     await expect(
+      prisma.outboxEvent.count({
+        where: { eventType: 'credit.transferred.v1', aggregateId: errandId },
+      }),
+    ).resolves.toBe(0);
+    await expect(
       prisma.creditAccount.update({
         where: { userId: courierId },
         data: { availableCredits: MAX_CREDIT_BALANCE + 1 },
@@ -914,6 +979,11 @@ describe('Credit API with PostgreSQL', () => {
       availableCredits: 100,
       reservedCredits: 0,
     });
+    await expect(
+      prisma.outboxEvent.count({
+        where: { eventType: 'credit.released.v1', aggregateId: errandId },
+      }),
+    ).resolves.toBe(1);
   });
 
   it('allows only one terminal result when settlement races release', async () => {
