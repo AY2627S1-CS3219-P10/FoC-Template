@@ -11,12 +11,16 @@ import { PrismaOrderRepository } from './infrastructure/order.repository';
 import { ServiceClients } from './infrastructure/service-clients';
 import { RecoveryWorker } from './infrastructure/recovery.worker';
 function validate(env: Record<string, unknown>) {
-  for (const name of ['DATABASE_URL', 'REDIS_URL', 'CREDIT_INTERNAL_API_TOKEN'])
+  for (const name of [
+    'DATABASE_URL',
+    'REDIS_URL',
+    'CREDIT_ORDER_SERVICE_TOKEN',
+  ])
     if (typeof env[name] !== 'string' || !env[name])
       throw new Error(`${name} is required`);
-  if ((env.CREDIT_INTERNAL_API_TOKEN as string).length < 32)
+  if ((env.CREDIT_ORDER_SERVICE_TOKEN as string).trim().length < 32)
     throw new Error(
-      'CREDIT_INTERNAL_API_TOKEN must contain at least 32 characters',
+      'CREDIT_ORDER_SERVICE_TOKEN must contain at least 32 non-whitespace characters',
     );
   const values = {
     PORT: 3004,

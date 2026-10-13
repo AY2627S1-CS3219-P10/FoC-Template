@@ -65,7 +65,7 @@ export interface OrderRepository {
 export interface ErrandServices {
   username(userId: string, token: string): Promise<string | null>;
   isAdministrator(token: string): Promise<boolean>;
-  release(errandId: string): Promise<void>;
+  release(errandId: string, requesterId: string, amount: number): Promise<void>;
   identity(token: string): Promise<string>;
   pickup(
     id: string,
@@ -76,7 +76,6 @@ export interface ErrandServices {
     errandId: string,
     operationId: string,
     requesterId: string,
-    expectedAmount: number,
     amount: number,
   ): Promise<void>;
 }

@@ -23,7 +23,7 @@ services:
       PORT: 3004
       DATABASE_URL: postgresql://foc_order:local_order_password@order-db:5432/foc_order
       REDIS_URL: redis://order-redis:6379
-      CREDIT_INTERNAL_API_TOKEN: ${CREDIT_INTERNAL_API_TOKEN:?CREDIT_INTERNAL_API_TOKEN must be set}
+      CREDIT_ORDER_SERVICE_TOKEN: ${CREDIT_ORDER_SERVICE_TOKEN:?CREDIT_ORDER_SERVICE_TOKEN must be set}
       USER_SERVICE_URL: ${ORDER_USER_SERVICE_URL:-http://host.docker.internal:3001}
       SUPPLIER_SERVICE_URL: ${ORDER_SUPPLIER_SERVICE_URL:-http://host.docker.internal:3002}
       CREDIT_SERVICE_URL: ${ORDER_CREDIT_SERVICE_URL:-http://host.docker.internal:3003}

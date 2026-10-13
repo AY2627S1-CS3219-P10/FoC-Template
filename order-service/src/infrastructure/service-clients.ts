@@ -94,13 +94,13 @@ export class ServiceClients {
       throw error;
     }
   }
-  async release(errandId: string) {
+  async release(errandId: string, requesterId: string, amount: number) {
     try {
       await this.request(
         'CREDIT',
         `v1/credit-reservations/${errandId}/release`,
-        this.config.getOrThrow<string>('CREDIT_INTERNAL_API_TOKEN'),
-        {},
+        this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN'),
+        { requesterId, amount },
       );
     } catch (error) {
       if (
@@ -157,10 +157,7 @@ export class ServiceClients {
     );
   }
   async reserve(errandId: string, requesterId: string, amount: number) {
-    const token = this.config.getOrThrow<string>('CREDIT_INTERNAL_API_TOKEN');
-    await this.request('CREDIT', 'v1/credit-accounts', token, {
-      userId: requesterId,
-    });
+    const token = this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN');
     await this.request('CREDIT', 'v1/credit-reservations', token, {
       errandId,
       requesterId,
@@ -171,14 +168,13 @@ export class ServiceClients {
     errandId: string,
     operationId: string,
     requesterId: string,
-    expectedAmount: number,
     amount: number,
   ) {
     await this.request(
       'CREDIT',
       `v1/credit-reservations/${errandId}/adjustment`,
-      this.config.getOrThrow<string>('CREDIT_INTERNAL_API_TOKEN'),
-      { operationId, requesterId, expectedAmount, amount },
+      this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN'),
+      { requesterId, targetAmount: amount, idempotencyKey: operationId },
     );
   }
 }

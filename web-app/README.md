@@ -131,7 +131,7 @@ with refresh, retry, and unprovisioned-account states. Set the server-only
 `CREDIT_SERVICE_URL` (default `http://127.0.0.1:3003`, without `/v1`). Start the
 service and its database using [its setup guide](../credit-service/README.md).
 Its JWT secret, issuer, and audience must match the User Service configuration.
-The web app needs the matching server-only `CREDIT_INTERNAL_API_TOKEN` to provision
+The web app needs the matching server-only `CREDIT_USER_SERVICE_TOKEN` to provision
 missing accounts. It does not need the JWT signing secret.
 
 The shared credit provider loads after login and when an existing session is

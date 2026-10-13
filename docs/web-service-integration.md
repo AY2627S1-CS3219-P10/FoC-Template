@@ -41,7 +41,7 @@ and calls same-origin `POST /api/credits`, with JSON and
 Origin checks. The adapter resolves the current active, verified user from the
 User Service before reading their balance. Only `ACCOUNT_NOT_FOUND` triggers
 the internal idempotent provisioning API, using the server-only
-`CREDIT_INTERNAL_API_TOKEN`. The browser cannot choose a user ID or starting
+`CREDIT_USER_SERVICE_TOKEN`. The browser cannot choose a user ID or starting
 balance. Existing accounts retain their current available/reserved balances.
 Service failures remain retryable; a failed read never triggers provisioning.
 This synchronous workflow needs no verification event or distributed transaction:

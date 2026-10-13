@@ -140,6 +140,7 @@ export class PrismaOrderRepository implements OrderRepository {
         });
         const op = operationRecord(stored);
         if (op.status !== 'PENDING') return op;
+        let creditOperation = op;
         if (op.kind !== 'CREATE') {
           await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${op.errandId}::uuid FOR UPDATE`;
           const errand = await tx.errand.findUniqueOrThrow({
@@ -157,9 +158,18 @@ export class PrismaOrderRepository implements OrderRepository {
               'Errand state changed during a pending operation.',
               409,
             );
+          // DELETE operations belong to the acting user for authorization and
+          // idempotency, but Credit must validate the original errand owner.
+          if (op.kind === 'DELETE') {
+            creditOperation = {
+              ...op,
+              requesterId: errand.requesterId,
+              previousAmount: errand.offeredCredits,
+            };
+          }
         }
         try {
-          await credits(op);
+          await credits(creditOperation);
         } catch (error) {
           if (!(error instanceof UpstreamFailure)) throw error;
           if (error.retryable) return op;
