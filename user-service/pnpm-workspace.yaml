@@ -12,3 +12,7 @@ allowBuilds:
   protobufjs: false
   ssh2: false
   unrs-resolver: true
+overrides:
+  deepmerge-ts@<8.0.0: 8.0.0
+  fastify@<5.12.5: 5.12.5
+  mysql2@<=3.23.0: 3.23.1
