@@ -135,7 +135,9 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
               <div className="route">
                 <Icon name="pin" />
                 <p>
-                  Floor {location.floor} · {location.locationDescription}
+                  {location.floor === null
+                    ? "Floor not specified"
+                    : `Floor ${location.floor}`} · {location.locationDescription}
                 </p>
               </div>
               <p className="location-hours">

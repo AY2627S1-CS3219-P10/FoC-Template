@@ -6,10 +6,12 @@ migration; image paths remain catalog metadata.
 
 ## Current scope
 
-The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and a
-service-owned migration. The migration creates suppliers and supplier pickup
-locations, then loads the 21 fixed NUS-campus entries from
-`../data/csv/supplier-seed-data.csv`.
+The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and
+service-owned migrations. They create suppliers and pickup locations, then load
+all 74 suppliers and their CSV pickup-location records from
+`../data/csv/supplier-seed-data.csv`. A location may have an unknown floor or
+coordinates when the source does not publish them; the browse API explicitly
+returns those values as `null` rather than fabricating details.
 
 Each location stores a stable UUID for service-to-service references and a
 case-insensitive `supplier@location` string for future user input. For example,

@@ -62,12 +62,11 @@ export class PrismaSupplierCatalogRepository
       },
     });
 
-    return locations.map((location) => ({
-      building: location.building,
-      id: location.id,
-      latitude: location.latitude.toNumber(),
-      longitude: location.longitude.toNumber(),
-    }));
+    return locations.flatMap((location) =>
+      location.latitude === null || location.longitude === null
+        ? []
+        : [{ building: location.building, id: location.id, latitude: location.latitude.toNumber(), longitude: location.longitude.toNumber() }],
+    );
   }
 
   async findCampusLocationById(
@@ -83,7 +82,7 @@ export class PrismaSupplierCatalogRepository
       where: { id: campusLocationId },
     });
 
-    return location
+    return location && location.latitude !== null && location.longitude !== null
       ? {
           building: location.building,
           id: location.id,
@@ -295,9 +294,9 @@ export class PrismaSupplierCatalogRepository
       id: location.id,
       imageUrl: location.imageUrl,
       isOpenOvernight: location.isOpenOvernight,
-      latitude: location.latitude.toNumber(),
+      latitude: location.latitude?.toNumber() ?? null,
       locationDescription: location.locationDescription,
-      longitude: location.longitude.toNumber(),
+      longitude: location.longitude?.toNumber() ?? null,
       opensAt: this.formatTime(location.opensAt),
       supplierAtLocation: location.supplierAtLocation,
     };
