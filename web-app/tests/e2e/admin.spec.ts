@@ -173,6 +173,63 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   ).toBe(true);
 });
 
+test("possible duplicate creation requires confirmation and resets after edits", async ({
+  page,
+}) => {
+  await session(page, admin);
+  const writes: Record<string, unknown>[] = [];
+  await page.route("**/api/admin/suppliers**", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET") {
+      return route.fulfill({
+        json: new URL(request.url()).pathname.endsWith("/campus-locations")
+          ? campusLocations
+          : [supplier],
+      });
+    }
+    const body = request.postDataJSON();
+    writes.push(body);
+    if (body.confirmDistinctOutlet !== true) {
+      return route.fulfill({
+        status: 409,
+        json: {
+          code: "POSSIBLE_SUPPLIER_DUPLICATE",
+          message: "Similar suppliers already exist at this location.",
+        },
+      });
+    }
+    return route.fulfill({ status: 201, json: supplier });
+  });
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Add supplier", exact: true }).click();
+  await page.getByLabel("Supplier name").fill("Another Coffee");
+  await page.getByRole("combobox", { name: "Category" }).selectOption("FOOD_COFFEE");
+  await page.getByRole("combobox", { name: "Building" }).selectOption(campusLocations[0].id);
+  await page.getByLabel("Floor", { exact: true }).fill("1");
+  await page.getByLabel("Location description").fill("Main entrance");
+  await page.getByLabel("Opening time").fill("08:00");
+  await page.getByLabel("Closing time").fill("20:00");
+  await page.getByRole("button", { name: "Create supplier", exact: true }).click();
+  const warning = page.getByRole("alert").filter({ hasText: "same category" });
+  await expect(warning).toBeVisible();
+  await expect(page.getByLabel("Supplier name")).toHaveValue("Another Coffee");
+  await expect(page.getByRole("button", { name: "Create as separate outlet" })).toBeVisible();
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).not.toHaveProperty("confirmDistinctOutlet");
+
+  await page.getByLabel("Floor", { exact: true }).fill("2");
+  await expect(warning).not.toBeVisible();
+  await page.getByRole("button", { name: "Create supplier", exact: true }).click();
+  await expect(warning).toBeVisible();
+  expect(writes[1]).not.toHaveProperty("confirmDistinctOutlet");
+
+  await page.getByRole("button", { name: "Create as separate outlet" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Supplier created" })).toBeVisible();
+  expect(writes).toHaveLength(3);
+  expect(writes[2]).toEqual({ ...writes[1], confirmDistinctOutlet: true });
+});
+
 test("account search, promotion and demotion require confirmation and protect self", async ({
   page,
 }) => {
