@@ -57,6 +57,14 @@ test("API adapter rejects unauthenticated and cross-origin requests", async ({
     data: { email: "", password: "" },
   });
   expect(crossOrigin.status()).toBe(403);
+  const poisonedHost = await request.post("/api/auth/login", {
+    headers: {
+      Host: "attacker.example",
+      Origin: "http://attacker.example",
+    },
+    data: { email: "student@u.nus.edu", password: "Strong!Pass" },
+  });
+  expect(poisonedHost.status()).toBe(403);
   const invalid = await request.post("/api/auth/login", {
     headers: { Origin: baseURL! },
     data: {},
@@ -67,6 +75,14 @@ test("API adapter rejects unauthenticated and cross-origin requests", async ({
     data: {},
   });
   expect(refresh.status()).toBe(401);
+
+  const page = await request.get("/login");
+  expect(page.headers()["content-security-policy"]).toContain(
+    "frame-ancestors 'none'",
+  );
+  expect(page.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(page.headers()["x-frame-options"]).toBe("DENY");
+  expect(page.headers()["x-powered-by"]).toBeUndefined();
 });
 
 test("live services: login, profile, token renewal, supplier catalog, and logout", async ({

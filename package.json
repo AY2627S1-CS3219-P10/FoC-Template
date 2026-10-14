@@ -1,7 +1,7 @@
 {
   "name": "friend-on-campus",
   "private": true,
-  "packageManager": "pnpm@12.5.1",
+  "packageManager": "pnpm@12.11.2",
   "scripts": {
     "web:dev": "pnpm --filter @foc/web-app dev",
     "web:build": "pnpm --filter @foc/web-app build",

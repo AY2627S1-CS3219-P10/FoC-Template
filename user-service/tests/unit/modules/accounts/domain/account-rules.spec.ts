@@ -31,6 +31,13 @@ describe('account domain rules', () => {
         expect(() => Username.create(username)).toThrow(AccountValidationError);
       },
     );
+
+    it('rejects an excessively long username', () => {
+      expectValidationCode(
+        () => Username.create('a'.repeat(51)),
+        'USERNAME_TOO_LONG',
+      );
+    });
   });
 
   describe('NusEmail', () => {
@@ -49,6 +56,13 @@ describe('account domain rules', () => {
       'student..name@u.nus.edu',
     ])('rejects invalid NUS email %p', (email) => {
       expect(() => NusEmail.create(email)).toThrow(AccountValidationError);
+    });
+
+    it('rejects an excessively long NUS email', () => {
+      expectValidationCode(
+        () => NusEmail.create(`${'a'.repeat(250)}@u.nus.edu`),
+        'EMAIL_TOO_LONG',
+      );
     });
   });
 
@@ -77,6 +91,7 @@ describe('account domain rules', () => {
       ['lowercase!', 'PASSWORD_MISSING_UPPERCASE'],
       ['UPPERCASE!', 'PASSWORD_MISSING_LOWERCASE'],
       ['NoSpecial123', 'PASSWORD_MISSING_SPECIAL_CHARACTER'],
+      [`Aa!${'x'.repeat(126)}`, 'PASSWORD_TOO_LONG'],
     ])('rejects an invalid password with code %s', (password, code) => {
       expectValidationCode(() => assertPasswordMeetsPolicy(password), code);
     });

@@ -122,6 +122,8 @@ corepack pnpm start:dev
 Copy `.env.example` to `.env` before running Prisma commands. PostgreSQL is
 exposed on port `5434` by default, avoiding the user service's `5433` port.
 The OpenAPI UI is available at `/api/docs` when the service is running.
+Operational probes are available at `GET /api/health/live` (process liveness)
+and `GET /api/health/ready` (database readiness).
 
 ## Intended internal layout
 

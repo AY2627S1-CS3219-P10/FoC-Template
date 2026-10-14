@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpException,
   HttpStatus,
+  Inject,
   Ip,
   Post,
   Res,
@@ -31,12 +32,17 @@ import { ResendVerificationEmailUseCase } from '../../application/use-cases/rese
 import { RegisterWithEmailVerificationUseCase } from '../../application/use-cases/register-with-email-verification.use-case.js';
 import { VerifyEmailUseCase } from '../../application/use-cases/verify-email.use-case.js';
 import { AccountValidationError } from '../../domain/account-validation.error.js';
+import {
+  PUBLIC_ENDPOINT_RATE_LIMITER,
+  type PublicEndpointRateLimiterPort,
+} from '../../application/ports/public-endpoint-rate-limiter.port.js';
 import { CheckEmailAvailabilityRequest } from './dto/check-email-availability.request.js';
 import { CheckEmailAvailabilityResponse } from './dto/check-email-availability.response.js';
 import { RegisterAccountRequest } from './dto/register-account.request.js';
 import { RegisterAccountResponse } from './dto/register-account.response.js';
 import { ResendVerificationEmailRequest } from './dto/resend-verification-email.request.js';
 import { VerifyEmailRequest } from './dto/verify-email.request.js';
+import { enforcePublicEndpointRateLimit } from './security/enforce-public-endpoint-rate-limit.js';
 
 interface HeaderResponse {
   header(name: string, value: string): unknown;
@@ -50,6 +56,8 @@ export class AccountsController {
     private readonly registerAccountUseCase: RegisterWithEmailVerificationUseCase,
     private readonly resendVerificationEmailUseCase: ResendVerificationEmailUseCase,
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
+    @Inject(PUBLIC_ENDPOINT_RATE_LIMITER)
+    private readonly publicEndpointRateLimiter: PublicEndpointRateLimiterPort,
   ) {}
 
   @Post('check-email')
@@ -93,10 +101,22 @@ export class AccountsController {
   @ApiConflictResponse({
     description: 'Username, email, or phone number is already registered.',
   })
+  @ApiTooManyRequestsResponse({
+    description: 'Registration rate limit exceeded.',
+  })
   async register(
     @Body() request: RegisterAccountRequest,
+    @Ip() clientIdentifier: string,
+    @Res({ passthrough: true }) reply: HeaderResponse,
   ): Promise<RegisterAccountResponse> {
     try {
+      await enforcePublicEndpointRateLimit(
+        this.publicEndpointRateLimiter,
+        reply,
+        'register',
+        clientIdentifier,
+        request.email.trim().toLowerCase(),
+      );
       const account = await this.registerAccountUseCase.execute(request);
 
       return {
@@ -147,8 +167,22 @@ export class AccountsController {
   @ApiBadRequestResponse({
     description: 'Verification code is invalid, expired, or exhausted.',
   })
-  async verifyEmail(@Body() request: VerifyEmailRequest): Promise<void> {
+  @ApiTooManyRequestsResponse({
+    description: 'Verification rate limit exceeded.',
+  })
+  async verifyEmail(
+    @Body() request: VerifyEmailRequest,
+    @Ip() clientIdentifier: string,
+    @Res({ passthrough: true }) reply: HeaderResponse,
+  ): Promise<void> {
     try {
+      await enforcePublicEndpointRateLimit(
+        this.publicEndpointRateLimiter,
+        reply,
+        'verify-email',
+        clientIdentifier,
+        request.email.trim().toLowerCase(),
+      );
       await this.verifyEmailUseCase.execute(request);
     } catch (error: unknown) {
       this.rethrowAsHttpException(error);

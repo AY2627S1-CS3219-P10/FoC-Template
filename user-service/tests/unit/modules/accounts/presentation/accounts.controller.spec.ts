@@ -6,6 +6,7 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AccountAlreadyExistsError } from '../../../../../src/modules/accounts/application/errors/account-already-exists.error.js';
+import { PUBLIC_ENDPOINT_RATE_LIMITER } from '../../../../../src/modules/accounts/application/ports/public-endpoint-rate-limiter.port.js';
 import { EmailAvailabilityRateLimitError } from '../../../../../src/modules/accounts/application/errors/email-availability-rate-limit.error.js';
 import { EmailVerificationError } from '../../../../../src/modules/accounts/application/errors/email-verification.error.js';
 import { VerificationEmailRateLimitError } from '../../../../../src/modules/accounts/application/errors/verification-email-rate-limit.error.js';
@@ -134,6 +135,13 @@ describe('AccountsController', () => {
         {
           provide: VerifyEmailUseCase,
           useValue: verifyEmailUseCase,
+        },
+        {
+          provide: PUBLIC_ENDPOINT_RATE_LIMITER,
+          useValue: {
+            consume: () =>
+              Promise.resolve({ allowed: true, retryAfterSeconds: 0 }),
+          },
         },
       ],
     }).compile();

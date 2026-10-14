@@ -42,6 +42,7 @@ import {
   AdministratorSuspensionsController,
 } from '../../../src/modules/accounts/presentation/http/moderation.controller.js';
 import { AuthenticationController } from '../../../src/modules/accounts/presentation/http/authentication.controller.js';
+import { PUBLIC_ENDPOINT_RATE_LIMITER } from '../../../src/modules/accounts/application/ports/public-endpoint-rate-limiter.port.js';
 import { ProfileController } from '../../../src/modules/accounts/presentation/http/profile.controller.js';
 import { BearerAuthenticationGuard } from '../../../src/modules/accounts/presentation/http/security/bearer-authentication.guard.js';
 import { AdministratorAuthorizationGuard } from '../../../src/modules/accounts/presentation/http/security/administrator-authorization.guard.js';
@@ -104,6 +105,13 @@ describe('reporting and temporary suspension HTTP/database integration', () => {
       providers: [
         BearerAuthenticationGuard,
         AdministratorAuthorizationGuard,
+        {
+          provide: PUBLIC_ENDPOINT_RATE_LIMITER,
+          useValue: {
+            consume: () =>
+              Promise.resolve({ allowed: true, retryAfterSeconds: 0 }),
+          },
+        },
         {
           provide: ReportUserUseCase,
           useValue: new ReportUserUseCase(moderation),

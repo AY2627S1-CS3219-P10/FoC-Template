@@ -1,11 +1,17 @@
 name: friend-on-campus
 
-# Structure-only orchestration manifest. Build/runtime details will be added
-# after the team selects the implementation stack.
 services:
   web-app:
     build:
-      context: ./web-app
+      context: .
+      dockerfile: web-app/Dockerfile
+    environment:
+      USER_SERVICE_URL: http://user-service:3001
+      SUPPLIER_SERVICE_URL: http://supplier-service:3002
+      ORDER_SERVICE_URL: http://order-service:3004
+      CREDIT_SERVICE_URL: http://credit-service:3003
+    ports:
+      - "3000:3000"
 
   user-service:
     build:
