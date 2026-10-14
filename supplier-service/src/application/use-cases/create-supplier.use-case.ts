@@ -8,6 +8,7 @@ import {
   parseCatalogTime,
 } from '../../domain/supplier-input.js';
 import { CampusLocationNotFoundError } from '../errors/campus-location-not-found.error.js';
+import { PossibleSupplierDuplicateError } from '../errors/possible-supplier-duplicate.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
 export interface CreateSupplierInput {
@@ -21,6 +22,7 @@ export interface CreateSupplierInput {
     opensAt: string;
   };
   name: string;
+  confirmDistinctOutlet?: boolean;
 }
 
 export class CreateSupplierUseCase {
@@ -46,7 +48,16 @@ export class CreateSupplierUseCase {
     const opensAt = parseCatalogTime(input.location.opensAt, 'opensAt');
     const closesAt = parseCatalogTime(input.location.closesAt, 'closesAt');
     const imageUrl = normalizeOptionalImageUrl(input.location.imageUrl);
+    const matches = await this.repository.findPossibleDuplicates({
+      building: campusLocation.building,
+      floor: input.location.floor,
+      category: input.category,
+    });
 
+    if (matches.length > 0 && input.confirmDistinctOutlet !== true) {
+      throw new PossibleSupplierDuplicateError(matches);
+    }
+    
     return this.repository.createSupplier({
       category: input.category,
       location: {

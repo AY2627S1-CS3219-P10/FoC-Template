@@ -51,4 +51,22 @@ export interface SupplierManagementRepositoryPort {
   updateSupplierLocation(
     record: UpdateSupplierLocationRecord,
   ): Promise<SupplierLocationCatalogEntry>;
+  findPossibleDuplicates(
+    input: FindSupplierDuplicatesInput,
+  ): Promise<PossibleSupplierDuplicate[]>;
+}
+
+export interface PossibleSupplierDuplicate {
+  supplierId: string;
+  supplierName: string;
+  locationId: string;
+  building: string;
+  floor: number | null;
+}
+
+export interface FindSupplierDuplicatesInput {
+  building: string;
+  floor: number;
+  category: SupplierCategory;
+  excludeLocationId?: string;
 }
