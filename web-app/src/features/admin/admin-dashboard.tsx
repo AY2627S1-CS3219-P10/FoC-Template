@@ -396,7 +396,7 @@ function SupplierEditor({
       </h2>
       <p>
         {editor.kind === "create"
-          ? "Create a supplier with its first pickup location."
+          ? "Add a supplier or a new outlet for an existing supplier. Use the existing supplier name when adding another building."
           : "Update the details below."}
       </p>
       <form

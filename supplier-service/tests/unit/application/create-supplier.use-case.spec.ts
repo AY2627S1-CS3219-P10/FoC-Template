@@ -1,5 +1,6 @@
 import type {
   CreateSupplierRecord,
+  PossibleSupplierDuplicate,
   SupplierManagementRepositoryPort,
   UpdateSupplierLocationRecord,
   UpdateSupplierRecord,
@@ -31,6 +32,11 @@ const INPUT = {
 };
 
 class StubSupplierManagementRepository implements SupplierManagementRepositoryPort {
+  duplicates: PossibleSupplierDuplicate[] = [];
+  findPossibleDuplicates(): Promise<PossibleSupplierDuplicate[]> {
+    return Promise.resolve(this.duplicates);
+  }
+
   readonly records: CreateSupplierRecord[] = [];
 
   createSupplier(record: CreateSupplierRecord): Promise<SupplierCatalogEntry> {
@@ -68,6 +74,53 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
 }
 
 describe('CreateSupplierUseCase', () => {
+  it.each([false, true])(
+    'blocks the same supplier outlet even with confirmation=%s',
+    async (confirmDistinctOutlet) => {
+      const repository = new StubSupplierManagementRepository();
+      repository.duplicates = [
+        {
+          supplierId: '30000000-0000-4000-8000-000000000001',
+          supplierName: 'STARBUCKS',
+          locationId: CAMPUS_LOCATION.id,
+          building: 'UTown',
+          floor: 1,
+        },
+      ];
+      await expect(
+        new CreateSupplierUseCase(repository).execute({
+          ...INPUT,
+          confirmDistinctOutlet,
+        }),
+      ).rejects.toMatchObject({
+        code: 'SUPPLIER_ALREADY_EXISTS',
+        field: 'supplierAtLocation',
+      });
+      expect(repository.records).toHaveLength(0);
+    },
+  );
+
+  it('requires confirmation only for a different supplier at the same category and floor', async () => {
+    const repository = new StubSupplierManagementRepository();
+    repository.duplicates = [
+      {
+        supplierId: '30000000-0000-4000-8000-000000000002',
+        supplierName: 'Another Coffee',
+        locationId: CAMPUS_LOCATION.id,
+        building: 'UTown',
+        floor: 1,
+      },
+    ];
+    const useCase = new CreateSupplierUseCase(repository);
+    await expect(useCase.execute(INPUT)).rejects.toMatchObject({
+      code: 'POSSIBLE_SUPPLIER_DUPLICATE',
+    });
+    expect(repository.records).toHaveLength(0);
+    await expect(
+      useCase.execute({ ...INPUT, confirmDistinctOutlet: true }),
+    ).resolves.toMatchObject({ name: 'Starbucks' });
+  });
+
   it('normalizes and creates a supplier with its first location', async () => {
     const repository = new StubSupplierManagementRepository();
     const useCase = new CreateSupplierUseCase(repository);

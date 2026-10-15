@@ -27,7 +27,19 @@ Administrators may create a new supplier and its first pickup location with
 the request identifies a location from `GET /api/suppliers/campus-locations`,
 and the service resolves its building and coordinates. Admins therefore do not
 enter latitude or longitude. The service also derives the `supplier@location`
-label and overnight-hours flag. Duplicate supplier names return HTTP 409.
+label and overnight-hours flag. A case-insensitive existing supplier name adds
+an outlet to that supplier instead of creating a second supplier. Its category
+must match. The same supplier at the same building returns HTTP 409, even if
+the floor, description or hours differ, or the admin confirms a possible
+duplicate. The existing unique case-insensitive `supplier@location` label
+enforces this during creation and location edits. Creation runs in a
+serializable transaction with bounded retries for concurrent writes.
+
+Different suppliers in the same category, building and floor trigger a
+possible-duplicate warning. An admin may set `confirmDistinctOutlet: true`
+only when this is a separate outlet; that flag never bypasses the exact outlet
+constraint. This warning currently applies to creation. Supplier names must
+use consistent spelling; aliases and misspellings are not automatically merged.
 
 Administrators may update a supplier's name and/or category with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
@@ -47,8 +59,9 @@ Administrators may replace any subset of a pickup location's details with
 location row and UUID are retained for historical errand references, while the
 old field values are overwritten. Moving to another building also replaces the
 derived `supplier@location` label, and changing either business-hours field
-recalculates the overnight-hours flag. Reactivation and add-location operations
-are not implemented yet.
+recalculates the overnight-hours flag. Reactivation is not implemented;
+additional outlets are added through the create endpoint using the existing
+supplier name.
 
 Example request:
 

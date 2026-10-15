@@ -7,7 +7,7 @@ export class SupplierAlreadyExistsError extends Error {
     super(
       field === 'name'
         ? 'A supplier with this name already exists.'
-        : 'A supplier location with this display name already exists.',
+        : 'This supplier already has an outlet in this building. Edit the existing outlet instead.',
     );
     this.name = 'SupplierAlreadyExistsError';
   }

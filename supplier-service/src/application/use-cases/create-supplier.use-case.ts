@@ -9,6 +9,7 @@ import {
 } from '../../domain/supplier-input.js';
 import { CampusLocationNotFoundError } from '../errors/campus-location-not-found.error.js';
 import { PossibleSupplierDuplicateError } from '../errors/possible-supplier-duplicate.error.js';
+import { SupplierAlreadyExistsError } from '../errors/supplier-already-exists.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
 export interface CreateSupplierInput {
@@ -54,10 +55,19 @@ export class CreateSupplierUseCase {
       category: input.category,
     });
 
+    if (
+      matches.some(
+        (match) =>
+          match.supplierName.trim().toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      throw new SupplierAlreadyExistsError('supplierAtLocation');
+    }
+
     if (matches.length > 0 && input.confirmDistinctOutlet !== true) {
       throw new PossibleSupplierDuplicateError(matches);
     }
-    
+
     return this.repository.createSupplier({
       category: input.category,
       location: {
