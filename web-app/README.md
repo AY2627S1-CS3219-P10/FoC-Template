@@ -8,6 +8,15 @@ catalog is included. Order creation and acceptance are not implemented.
 
 ## Run locally
 
+Supplier browsing and administration normally display one card per supplier.
+Only when the same supplier has outlets on different known floors in the same
+building are those outlets displayed as separate cards with floor labels.
+Outlets in different buildings remain grouped without added floor suffixes.
+Duplicate supplier/building/floor combinations remain blocked.
+Location edits affect only the selected outlet. Supplier name/category edits
+and supplier deletion still apply to all its outlets; those actions are
+explicitly labelled on cards for suppliers with multiple outlets.
+
 On Windows, start Docker Desktop and launch all databases and application services
 from the repository root:
 

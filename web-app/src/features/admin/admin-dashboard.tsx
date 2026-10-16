@@ -5,6 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import {
+  outletAddress,
+  supplierCards,
+} from "@/features/suppliers/outlet-display";
+import {
   type CampusLocation,
   categoryLabels,
   type PickupLocation,
@@ -168,8 +172,8 @@ function SupplierManagement() {
         }}
       />
     );
-  const filtered = suppliers.filter((s) =>
-    `${s.name} ${s.locations.map((l) => l.building).join(" ")}`
+  const filtered = supplierCards(suppliers).filter(({ title, locations }) =>
+    `${title} ${locations.map(outletAddress).join(" ")}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -241,14 +245,14 @@ function SupplierManagement() {
         <p>No suppliers found.</p>
       ) : (
         <div className="admin-list">
-          {filtered.map((supplier) => (
-            <article className="admin-card" key={supplier.id}>
+          {filtered.map(({ id, supplier, title, locations }) => (
+            <article className="admin-card" key={id}>
               <div className="admin-heading">
                 <div>
                   <span className="eyebrow">
                     {categoryLabels[supplier.category]}
                   </span>
-                  <h3>{supplier.name}</h3>
+                  <h3>{title}</h3>
                 </div>
                 <div className="admin-actions">
                   <button
@@ -256,7 +260,9 @@ function SupplierManagement() {
                     disabled={busy}
                     onClick={() => setEditor({ kind: "supplier", supplier })}
                   >
-                    Edit supplier
+                    {locations.length < supplier.locations.length
+                      ? "Edit supplier (all outlets)"
+                      : "Edit supplier"}
                   </button>
                   <button
                     className="button admin-danger"
@@ -267,16 +273,16 @@ function SupplierManagement() {
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
-                    Delete
+                    {locations.length < supplier.locations.length
+                      ? "Delete supplier (all outlets)"
+                      : "Delete"}
                   </button>
                 </div>
               </div>
-              {supplier.locations.map((location) => (
+              {locations.map((location) => (
                 <div className="admin-location" key={location.id}>
                   <div>
-                    <strong>
-                      {location.building} · Floor {location.floor}
-                    </strong>
+                    <strong>{outletAddress(location)}</strong>
                     <p>{location.locationDescription}</p>
                     <p>
                       {location.opensAt}–{location.closesAt}

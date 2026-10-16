@@ -128,6 +128,26 @@ deployment configuration and must never be committed.
 
 ## Local database commands
 
+### Separate independently operated shops
+
+Independent businesses should have distinct supplier names and records. A
+shared brand can continue to have multiple outlets. If independent shops were
+previously grouped under one supplier, preview their separation with:
+
+```sh
+node scripts/separate-supplier-outlets.ts --supplier-id SUPPLIER_UUID \
+  --outlet 'LOCATION_UUID_4=CLB Printing — Level 4' \
+  --outlet 'LOCATION_UUID_5=CLB Printing — Level 5'
+```
+
+Replace the placeholders with the existing UUIDs. The plan must list every
+outlet of that supplier exactly once. Add `--apply` to commit the separation
+atomically. This preserves all outlet UUIDs, hours, floor details and historical
+errand references. Existing errand name snapshots are not rewritten. New
+supplier records automatically appear as separate cards in both catalogs.
+
+### Start the local database
+
 Run these commands from `supplier-service/`:
 
 ```text
