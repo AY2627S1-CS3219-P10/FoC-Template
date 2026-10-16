@@ -606,7 +606,7 @@ function SupplierEditor({
               the description above. Changing any field will request a fresh
               match check.
             </p>
-            <label>
+            <label className="admin-confirm-checkbox">
               <input
                 type="checkbox"
                 checked={confirmedSeparate}
@@ -616,8 +616,10 @@ function SupplierEditor({
                   setConfirmedSeparate(event.target.checked);
                 }}
               />
-              I confirm this is a different physical pickup point, described
-              clearly above.
+              <span>
+                I confirm this is a different physical pickup point, described
+                clearly above.
+              </span>
             </label>
           </section>
         )}
