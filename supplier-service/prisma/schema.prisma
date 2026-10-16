@@ -36,7 +36,7 @@ model SupplierLocation {
   supplierAtLocation  String   @map("supplier_at_location") @db.Citext
   building            String   @db.Citext
   floor               Int?
-  locationDescription String   @map("location_description") @db.VarChar(500)
+  locationDescription String   @map("location_description") @db.Citext
   latitude            Decimal? @db.Decimal(11, 8)
   longitude           Decimal? @db.Decimal(11, 8)
   opensAt             DateTime @map("opens_at") @db.Time(0)
@@ -49,7 +49,7 @@ model SupplierLocation {
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
-  @@unique([supplierId, building, floor])
+  @@unique([supplierId, building, floor, locationDescription], map: "supplier_locations_pickup_point_key")
   @@index([building, isActive])
   @@index([supplierId, isActive])
   @@map("supplier_locations")

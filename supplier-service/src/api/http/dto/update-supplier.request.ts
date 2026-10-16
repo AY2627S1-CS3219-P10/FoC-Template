@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -10,6 +11,12 @@ import {
 import { SUPPLIER_CATEGORIES } from '../../../domain/supplier-input.js';
 
 export class UpdateSupplierRequest {
+  @ApiPropertyOptional({
+    description: 'Confirm this is distinct from the returned location matches.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  confirmDistinctOutlet?: boolean;
   @ApiPropertyOptional({ example: 'Starbucks Coffee' })
   @IsOptional()
   @IsString()

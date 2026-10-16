@@ -1,6 +1,7 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { Authentication } from "./contracts";
+import { supplierMatches, type SupplierMatch } from "./supplier-matches";
 
 export const ACCESS_COOKIE = "foc_access";
 export const REFRESH_COOKIE = "foc_refresh";
@@ -11,6 +12,7 @@ export class BackendError extends Error {
     message: string,
     public code?: string,
     public retryAfter?: string,
+    public matches: SupplierMatch[] = [],
   ) {
     super(message);
   }
@@ -19,7 +21,12 @@ export class BackendError extends Error {
 export async function backend<T>(
   service: "user" | "supplier" | "credit" | "order",
   path: string,
-  options: { method?: string; body?: unknown; token?: string; idempotencyKey?: string } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    token?: string;
+    idempotencyKey?: string;
+  } = {},
 ): Promise<T> {
   const origin =
     service === "user"
@@ -35,7 +42,9 @@ export async function backend<T>(
     response = await fetch(`${origin.replace(/\/$/, "")}/${prefix}/${path}`, {
       method: options.method || "GET",
       headers: {
-        ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+        ...(options.idempotencyKey
+          ? { "Idempotency-Key": options.idempotencyKey }
+          : {}),
         ...(options.body !== undefined
           ? { "Content-Type": "application/json" }
           : {}),
@@ -70,6 +79,11 @@ export async function backend<T>(
       message,
       typeof data.code === "string" ? data.code : undefined,
       response.headers.get("retry-after") ?? undefined,
+      service === "supplier" &&
+        response.status === 409 &&
+        data.code === "POSSIBLE_SUPPLIER_DUPLICATE"
+        ? supplierMatches(data.matches)
+        : [],
     );
   }
   if (response.status === 204) return undefined as T;
@@ -93,7 +107,11 @@ export function errorResponse(error: unknown) {
       ? error
       : new BackendError(500, "Something went wrong. Please try again.");
   const response = json(
-    { message: failure.message, code: failure.code },
+    {
+      message: failure.message,
+      code: failure.code,
+      ...(failure.matches.length ? { matches: failure.matches } : {}),
+    },
     failure.status,
   );
   if (failure.retryAfter && /^\d+$/.test(failure.retryAfter))

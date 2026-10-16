@@ -73,9 +73,8 @@ export class CreateSupplierRequest {
   location!: CreateSupplierLocationRequest;
 
   @ApiPropertyOptional({
-    deprecated: true,
     description:
-      'Legacy field, ignored. Duplicate location checks cannot be overridden.',
+      'Explicitly confirm a different pickup point after reviewing existing matches. A distinct location description is required.',
   })
   @IsOptional()
   @IsBoolean()

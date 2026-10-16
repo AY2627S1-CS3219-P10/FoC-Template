@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
-import { authenticatedRequest } from "@/services/api";
+import { ApiError, authenticatedRequest } from "@/services/api";
+import type { SupplierMatch } from "@/services/supplier-matches";
 import {
   outletAddress,
   supplierCards,
@@ -160,8 +161,36 @@ function SupplierManagement() {
   if (editor)
     return (
       <SupplierEditor
+        key={
+          editor.kind === "create"
+            ? "create"
+            : editor.kind === "location"
+              ? editor.location.id
+              : editor.supplier.id
+        }
         campusLocations={campusLocations}
         editor={editor}
+        onUseExisting={(match) => {
+          setEditor(null);
+          setSearch(match.supplierName);
+          setNotice(
+            `Using existing outlet: ${match.supplierName} · ${match.building} · ${match.locationDescription}. No duplicate was created.`,
+          );
+        }}
+        onEditExisting={(match) => {
+          const owner = suppliers.find(
+            (candidate) => candidate.id === match.supplierId,
+          );
+          const pickup = owner?.locations.find(
+            (candidate) => candidate.id === match.locationId,
+          );
+          if (owner && pickup)
+            setEditor({ kind: "location", supplier: owner, location: pickup });
+          else
+            setError(
+              "This outlet has changed. Return to the list and refresh before editing it.",
+            );
+        }}
         onCancel={() => setEditor(null)}
         onSaved={async () => {
           setEditor(null);
@@ -312,14 +341,20 @@ function SupplierEditor({
   editor,
   onCancel,
   onSaved,
+  onUseExisting,
+  onEditExisting,
 }: {
   campusLocations: CampusLocation[];
   editor: Editor;
   onCancel: () => void;
   onSaved: () => Promise<void>;
+  onUseExisting: (match: SupplierMatch) => void;
+  onEditExisting: (match: SupplierMatch) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [matches, setMatches] = useState<SupplierMatch[]>([]);
+  const [confirmedSeparate, setConfirmedSeparate] = useState(false);
   const supplier = editor.kind === "create" ? undefined : editor.supplier;
   const location = editor.kind === "location" ? editor.location : undefined;
   const selectedCampusLocationId = location
@@ -330,12 +365,21 @@ function SupplierEditor({
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const confirmDistinctOutlet =
+      matches.length > 0 &&
+      confirmedSeparate &&
+      submitter instanceof HTMLButtonElement &&
+      submitter.name === "confirmSeparate";
 
     setBusy(true);
     setError("");
     const data = new FormData(event.currentTarget);
     const text = (name: string) => String(data.get(name) ?? "").trim();
     const supplierInput = { name: text("name"), category: text("category") };
+    const confirmation = confirmDistinctOutlet
+      ? { confirmDistinctOutlet: true }
+      : {};
     const locationInput = {
       campusLocationId: text("campusLocationId"),
       floor: Number(text("floor")),
@@ -352,24 +396,32 @@ function SupplierEditor({
           {
             ...supplierInput,
             location: locationInput,
+            ...confirmation,
           },
           "POST",
         );
       else if (editor.kind === "supplier")
         await authenticatedRequest(
           `admin/suppliers/${editor.supplier.id}`,
-          supplierInput,
+          { ...supplierInput, ...confirmation },
           "PATCH",
         );
       else
         await authenticatedRequest(
           `admin/suppliers/${editor.supplier.id}/locations/${editor.location.id}`,
-          locationInput,
+          { ...locationInput, ...confirmation },
           "PATCH",
         );
       await onSaved();
     } catch (failure) {
-      setError(message(failure));
+      if (
+        failure instanceof ApiError &&
+        failure.code === "POSSIBLE_SUPPLIER_DUPLICATE" &&
+        failure.matches.length
+      ) {
+        setMatches(failure.matches);
+        setConfirmedSeparate(false);
+      } else setError(message(failure));
     } finally {
       setBusy(false);
     }
@@ -393,6 +445,8 @@ function SupplierEditor({
         onSubmit={submit}
         onChange={() => {
           setError("");
+          setMatches([]);
+          setConfirmedSeparate(false);
         }}
       >
         <fieldset disabled={busy}>
@@ -459,12 +513,13 @@ function SupplierEditor({
                   />
                 </label>
                 <label className="admin-span">
-                  Location description
+                  Location description (exact pickup point)
                   <textarea
                     name="locationDescription"
                     required
                     maxLength={500}
                     defaultValue={location?.locationDescription}
+                    placeholder="e.g. Beside the lift lobby, opposite the study area"
                   />
                 </label>
                 <label>
@@ -506,18 +561,85 @@ function SupplierEditor({
             </>
           )}
         </fieldset>
+        {matches.length > 0 && (
+          <section
+            className="admin-confirm"
+            aria-label="Review matching outlets"
+            role="region"
+          >
+            <h3>We found existing outlets on this floor</h3>
+            <p>Compare the pickup descriptions before adding another entry.</p>
+            {matches.map((match) => (
+              <article className="admin-location" key={match.locationId}>
+                <div>
+                  <strong>{match.supplierName}</strong>
+                  <p>
+                    {match.building} ·{" "}
+                    {match.floor === null
+                      ? "Floor not specified"
+                      : `Floor ${match.floor}`}
+                  </p>
+                  <p>{match.locationDescription}</p>
+                </div>
+                <div className="admin-actions">
+                  <button
+                    type="button"
+                    className="button button-outline"
+                    disabled={busy}
+                    onClick={() => onUseExisting(match)}
+                  >
+                    Use existing outlet
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-outline"
+                    disabled={busy}
+                    onClick={() => onEditExisting(match)}
+                  >
+                    Edit existing outlet
+                  </button>
+                </div>
+              </article>
+            ))}
+            <p>
+              For a separate pickup point, give its exact physical location in
+              the description above. Changing any field will request a fresh
+              match check.
+            </p>
+            <label>
+              <input
+                type="checkbox"
+                checked={confirmedSeparate}
+                disabled={busy}
+                onChange={(event) => {
+                  event.stopPropagation();
+                  setConfirmedSeparate(event.target.checked);
+                }}
+              />
+              I confirm this is a different physical pickup point, described
+              clearly above.
+            </label>
+          </section>
+        )}
         {error && (
           <p role="alert" className="admin-error">
             {error}
           </p>
         )}
         <div className="admin-actions">
-          <button type="submit" className="button button-dark" disabled={busy}>
+          <button
+            type="submit"
+            name={matches.length ? "confirmSeparate" : "save"}
+            className="button button-dark"
+            disabled={busy || (matches.length > 0 && !confirmedSeparate)}
+          >
             {busy
               ? "Saving…"
-              : editor.kind === "create"
-                ? "Create supplier"
-                : "Save changes"}
+              : matches.length > 0
+                ? "Confirm separate pickup point"
+                : editor.kind === "create"
+                  ? "Create supplier"
+                  : "Save changes"}
           </button>
           <button
             type="button"

@@ -17,6 +17,7 @@ import type {
 } from '../../domain/supplier-catalog.js';
 import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
+import { PossibleSupplierDuplicateError } from '../../application/errors/possible-supplier-duplicate.error.js';
 
 type SupplierWithLocations = Prisma.SupplierGetPayload<{
   include: { locations: true };
@@ -141,6 +142,12 @@ export class PrismaSupplierCatalogRepository
               record.category,
               record.location.building,
               record.location.floor,
+              undefined,
+              undefined,
+              {
+                confirmed: record.confirmDistinctOutlet,
+                description: record.location.locationDescription,
+              },
             );
             // The case-insensitive name identifies the brand; building and floor identify an outlet.
             const owner = await transaction.supplier.upsert({
@@ -223,6 +230,7 @@ export class PrismaSupplierCatalogRepository
         supplierId: true,
         building: true,
         floor: true,
+        locationDescription: true,
         supplier: { select: { name: true } },
       },
     });
@@ -232,6 +240,7 @@ export class PrismaSupplierCatalogRepository
       locationId: location.id,
       building: location.building,
       floor: location.floor,
+      locationDescription: location.locationDescription,
     }));
   }
 
@@ -266,7 +275,12 @@ export class PrismaSupplierCatalogRepository
           select: {
             category: true,
             locations: {
-              select: { building: true, id: true, floor: true },
+              select: {
+                building: true,
+                id: true,
+                floor: true,
+                locationDescription: true,
+              },
             },
           },
           where: { id: record.id },
@@ -280,16 +294,33 @@ export class PrismaSupplierCatalogRepository
           record.category !== undefined &&
           record.category !== existingSupplier.category
         ) {
+          const categoryMatches: PossibleSupplierDuplicate[] = [];
           for (const location of existingSupplier.locations) {
-            await this.assertLocationAvailable(
-              transaction,
-              record.category,
-              location.building,
-              location.floor,
-              location.id,
-              record.id,
-            );
+            try {
+              await this.assertLocationAvailable(
+                transaction,
+                record.category,
+                location.building,
+                location.floor,
+                location.id,
+                record.id,
+                {
+                  confirmed: record.confirmDistinctOutlet,
+                  description: location.locationDescription,
+                },
+              );
+            } catch (error) {
+              if (error instanceof PossibleSupplierDuplicateError)
+                categoryMatches.push(...error.matches);
+              else throw error;
+            }
           }
+          if (categoryMatches.length)
+            throw new PossibleSupplierDuplicateError([
+              ...new Map(
+                categoryMatches.map((match) => [match.locationId, match]),
+              ).values(),
+            ]);
         }
         const supplier = await transaction.supplier.update({
           data: {
@@ -363,7 +394,9 @@ export class PrismaSupplierCatalogRepository
         const floor = record.floor ?? existingLocation.floor;
         if (
           building.toLowerCase() !== existingLocation.building.toLowerCase() ||
-          floor !== existingLocation.floor
+          floor !== existingLocation.floor ||
+          (record.locationDescription !== undefined &&
+            record.locationDescription !== existingLocation.locationDescription)
         ) {
           await this.assertLocationAvailable(
             transaction,
@@ -371,6 +404,13 @@ export class PrismaSupplierCatalogRepository
             building,
             floor,
             record.locationId,
+            undefined,
+            {
+              confirmed: record.confirmDistinctOutlet,
+              description:
+                record.locationDescription ??
+                existingLocation.locationDescription,
+            },
           );
         }
         const location = await transaction.supplierLocation.update({
@@ -435,8 +475,9 @@ export class PrismaSupplierCatalogRepository
     floor: number | null,
     excludeLocationId?: string,
     excludeSupplierId?: string,
+    confirmation?: { confirmed?: boolean; description: string },
   ): Promise<void> {
-    const existing = await transaction.supplierLocation.findFirst({
+    const existing = await transaction.supplierLocation.findMany({
       where: {
         building: { equals: building, mode: 'insensitive' },
         floor,
@@ -447,9 +488,36 @@ export class PrismaSupplierCatalogRepository
           ? { supplierId: { not: excludeSupplierId } }
           : {}),
       },
-      select: { id: true },
+      select: {
+        id: true,
+        supplierId: true,
+        building: true,
+        floor: true,
+        locationDescription: true,
+        supplier: { select: { name: true } },
+      },
     });
-    if (existing) throw new SupplierAlreadyExistsError('location');
+    const matches = existing.map((location) => ({
+      supplierId: location.supplierId,
+      supplierName: location.supplier.name,
+      locationId: location.id,
+      building: location.building,
+      floor: location.floor,
+      locationDescription: location.locationDescription,
+    }));
+    if (matches.length && confirmation?.confirmed !== true)
+      throw new PossibleSupplierDuplicateError(matches);
+    const key = (text: string): string =>
+      text.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (
+      matches.some(
+        (match) =>
+          key(match.locationDescription) ===
+          key(confirmation?.description ?? ''),
+      )
+    ) {
+      throw new SupplierAlreadyExistsError('location');
+    }
   }
 
   private mapSupplier(supplier: SupplierWithLocations): SupplierCatalogEntry {

@@ -6,6 +6,7 @@ import type {
 import type { SupplierCategory } from '../../domain/supplier-input.js';
 
 export interface CreateSupplierRecord {
+  confirmDistinctOutlet?: boolean;
   category: SupplierCategory;
   location: {
     building: string;
@@ -23,12 +24,14 @@ export interface CreateSupplierRecord {
 }
 
 export interface UpdateSupplierRecord {
+  confirmDistinctOutlet?: boolean;
   category?: SupplierCategory;
   id: string;
   name?: string;
 }
 
 export interface UpdateSupplierLocationRecord {
+  confirmDistinctOutlet?: boolean;
   building?: string;
   closesAt?: Date;
   floor?: number;
@@ -57,6 +60,7 @@ export interface SupplierManagementRepositoryPort {
 }
 
 export interface PossibleSupplierDuplicate {
+  locationDescription: string;
   supplierId: string;
   supplierName: string;
   locationId: string;

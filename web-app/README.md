@@ -12,7 +12,10 @@ Supplier browsing and administration normally display one card per supplier.
 Only when the same supplier has outlets on different known floors in the same
 building are those outlets displayed as separate cards with floor labels.
 Outlets in different buildings remain grouped without added floor suffixes.
-Duplicate supplier/building/floor combinations remain blocked.
+Matching category/building/floor combinations show existing outlets with their
+descriptions. Admins can use/edit a match or explicitly confirm a separate
+physical pickup point with a different description. Exact matching descriptions
+remain blocked. Editing the form clears the match confirmation.
 Location edits affect only the selected outlet. Supplier name/category edits
 and supplier deletion still apply to all its outlets; those actions are
 explicitly labelled on cards for suppliers with multiple outlets.

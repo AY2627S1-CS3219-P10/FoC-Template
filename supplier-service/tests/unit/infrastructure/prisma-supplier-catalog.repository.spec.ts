@@ -47,7 +47,7 @@ describe('PrismaSupplierCatalogRepository', () => {
         locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks@UTown'),
       ];
       const transaction = {
-        supplierLocation: { findFirst: () => Promise.resolve(null) },
+        supplierLocation: { findMany: () => Promise.resolve([]) },
         supplier: {
           upsert: (args: unknown) => {
             upsertArguments = args;
@@ -372,8 +372,15 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplierLocation: { findFirst, update },
+      // Matching uses a separate query from loading the outlet being edited.
       $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
-        callback({ supplierLocation: { findFirst, update } }),
+        callback({
+          supplierLocation: {
+            findFirst,
+            findMany: () => Promise.resolve([]),
+            update,
+          },
+        }),
     } as unknown as Pick<
       PrismaClient,
       '$transaction' | 'supplier' | 'supplierLocation'

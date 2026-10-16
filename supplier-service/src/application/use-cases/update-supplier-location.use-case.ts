@@ -14,6 +14,7 @@ import { CampusLocationNotFoundError } from '../errors/campus-location-not-found
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
 export interface UpdateSupplierLocationInput {
+  confirmDistinctOutlet?: boolean;
   campusLocationId?: string;
   closesAt?: string;
   floor?: number;
@@ -69,6 +70,9 @@ export class UpdateSupplierLocationUseCase {
         : normalizeOptionalImageUrl(input.imageUrl ?? undefined);
 
     return this.repository.updateSupplierLocation({
+      ...(input.confirmDistinctOutlet === true
+        ? { confirmDistinctOutlet: true }
+        : {}),
       building: campusLocation?.building,
       closesAt,
       floor: input.floor,

@@ -85,6 +85,7 @@ describe('CreateSupplierUseCase', () => {
           locationId: CAMPUS_LOCATION.id,
           building: 'UTown',
           floor: 1,
+          locationDescription: 'Near the main entrance',
         },
       ];
       await expect(
@@ -93,14 +94,15 @@ describe('CreateSupplierUseCase', () => {
           confirmDistinctOutlet,
         }),
       ).rejects.toMatchObject({
-        code: 'SUPPLIER_ALREADY_EXISTS',
-        field: 'supplierAtLocation',
+        code: confirmDistinctOutlet
+          ? 'SUPPLIER_ALREADY_EXISTS'
+          : 'POSSIBLE_SUPPLIER_DUPLICATE',
       });
       expect(repository.records).toHaveLength(0);
     },
   );
 
-  it('blocks different names at the same category, building and floor even with legacy confirmation', async () => {
+  it('shows matches and allows a confirmed different pickup description', async () => {
     const repository = new StubSupplierManagementRepository();
     repository.duplicates = [
       {
@@ -109,21 +111,20 @@ describe('CreateSupplierUseCase', () => {
         locationId: CAMPUS_LOCATION.id,
         building: 'UTown',
         floor: 1,
+        locationDescription: 'Beside the lift lobby',
       },
     ];
     const useCase = new CreateSupplierUseCase(repository);
     await expect(useCase.execute(INPUT)).rejects.toMatchObject({
-      code: 'SUPPLIER_ALREADY_EXISTS',
-      field: 'location',
+      code: 'POSSIBLE_SUPPLIER_DUPLICATE',
     });
     expect(repository.records).toHaveLength(0);
     await expect(
       useCase.execute({ ...INPUT, confirmDistinctOutlet: true }),
-    ).rejects.toMatchObject({
-      code: 'SUPPLIER_ALREADY_EXISTS',
-      field: 'location',
+    ).resolves.toMatchObject({ name: 'Starbucks' });
+    expect(repository.records[0]).toMatchObject({
+      confirmDistinctOutlet: true,
     });
-    expect(repository.records).toHaveLength(0);
   });
 
   it('normalizes and creates a supplier with its first location', async () => {

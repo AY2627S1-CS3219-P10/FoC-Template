@@ -29,23 +29,24 @@ and the service resolves its building and coordinates. Admins therefore do not
 enter latitude or longitude. The service also derives the `supplier@location`
 label and overnight-hours flag. A case-insensitive existing supplier name adds
 an outlet to that supplier instead of creating a second supplier. Its category
-must match. The same supplier at the same building and floor returns HTTP 409,
-even if the description or hours differ, or the admin confirms a possible
-duplicate. The same supplier on different floors is allowed. A unique
-constraint on supplier, case-insensitive building and floor enforces this
-during creation and location edits; unknown floors also compare equal.
+must match. Matching category, building and floor returns HTTP 409 with
+`POSSIBLE_SUPPLIER_DUPLICATE` and public match details, including names and
+location descriptions. The admin can use an existing outlet, edit it, or
+explicitly confirm a different physical pickup point. Setting
+`confirmDistinctOutlet: true` permits creation only with a distinguishing
+description; matching descriptions (case/whitespace insensitive) remain blocked.
+The same supplier can have multiple pickup points on the same floor. A unique
+constraint on supplier, case-insensitive building, floor and description
+also protects exact duplicates; unknown floors compare equal.
 Display labels are no longer unique; outlet UUIDs remain the identifiers.
 Creation runs in a
 serializable transaction with bounded retries for concurrent writes.
 
-Different supplier names in the same category, building and floor are also
-blocked with HTTP 409. Names, descriptions and hours cannot bypass this rule;
-the legacy `confirmDistinctOutlet` field is ignored. The repository rechecks
-availability inside serializable transactions for creates, location moves and
-category changes, with retries for concurrent writes. Existing conflicting
-records are not removed. Different floors or different categories remain
-allowed. This deliberately permits only one active outlet per service category
-per building and floor, even if two businesses are independently operated.
+The repository rechecks matches inside serializable transactions for creates,
+location changes and category changes, with retries for concurrent writes.
+Edits can use the same confirmation field after reviewing matches. Confirmation
+is cleared in the client whenever form details change. No name-similarity
+threshold is used. Existing entries and errand location IDs are preserved.
 
 Administrators may update a supplier's name and/or category with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
