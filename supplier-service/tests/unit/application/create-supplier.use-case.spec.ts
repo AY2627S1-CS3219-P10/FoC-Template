@@ -100,7 +100,7 @@ describe('CreateSupplierUseCase', () => {
     },
   );
 
-  it('requires confirmation only for a different supplier at the same category and floor', async () => {
+  it('blocks different names at the same category, building and floor even with legacy confirmation', async () => {
     const repository = new StubSupplierManagementRepository();
     repository.duplicates = [
       {
@@ -113,12 +113,17 @@ describe('CreateSupplierUseCase', () => {
     ];
     const useCase = new CreateSupplierUseCase(repository);
     await expect(useCase.execute(INPUT)).rejects.toMatchObject({
-      code: 'POSSIBLE_SUPPLIER_DUPLICATE',
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'location',
     });
     expect(repository.records).toHaveLength(0);
     await expect(
       useCase.execute({ ...INPUT, confirmDistinctOutlet: true }),
-    ).resolves.toMatchObject({ name: 'Starbucks' });
+    ).rejects.toMatchObject({
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'location',
+    });
+    expect(repository.records).toHaveLength(0);
   });
 
   it('normalizes and creates a supplier with its first location', async () => {

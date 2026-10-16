@@ -38,11 +38,14 @@ Display labels are no longer unique; outlet UUIDs remain the identifiers.
 Creation runs in a
 serializable transaction with bounded retries for concurrent writes.
 
-Different suppliers in the same category, building and floor trigger a
-possible-duplicate warning. An admin may set `confirmDistinctOutlet: true`
-only when this is a separate outlet; that flag never bypasses the exact outlet
-constraint. This warning currently applies to creation. Supplier names must
-use consistent spelling; aliases and misspellings are not automatically merged.
+Different supplier names in the same category, building and floor are also
+blocked with HTTP 409. Names, descriptions and hours cannot bypass this rule;
+the legacy `confirmDistinctOutlet` field is ignored. The repository rechecks
+availability inside serializable transactions for creates, location moves and
+category changes, with retries for concurrent writes. Existing conflicting
+records are not removed. Different floors or different categories remain
+allowed. This deliberately permits only one active outlet per service category
+per building and floor, even if two businesses are independently operated.
 
 Administrators may update a supplier's name and/or category with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every

@@ -39,6 +39,12 @@ integration('outlet identity against PostgreSQL', () => {
     await pool?.end();
   });
 
+  beforeEach(async () => {
+    // This suite owns a disposable database; keep each scenario independent of seeds.
+    await prisma.supplierLocation.deleteMany();
+    await prisma.supplier.deleteMany();
+  });
+
   it('adds new buildings and floors to one brand and blocks repeated building-floor pairs', async () => {
     const name = 'Outlet identity test Starbucks';
     const utown = await repository.createSupplier(record(name, 'UTown'));
@@ -58,7 +64,7 @@ integration('outlet identity against PostgreSQL', () => {
     duplicate.location.locationDescription = 'A different description';
     await expect(repository.createSupplier(duplicate)).rejects.toMatchObject({
       code: 'SUPPLIER_ALREADY_EXISTS',
-      field: 'supplierAtLocation',
+      field: 'location',
     });
     const anotherFloor = record(name, 'UTown');
     anotherFloor.location.floor = 4;
@@ -152,6 +158,58 @@ integration('outlet identity against PostgreSQL', () => {
     expect(
       await prisma.supplierLocation.count({ where: { supplierId: first.id } }),
     ).toBe(2);
+  });
+
+  it('blocks different supplier names in the same category, building and floor', async () => {
+    await repository.createSupplier(record('CLB Printing', 'Central Library'));
+    await expect(
+      repository.createSupplier(record('Printing at CLB', 'central library')),
+    ).rejects.toMatchObject({
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'location',
+    });
+    const level2 = record('Printing at CLB', 'Central Library');
+    level2.location.floor = 2;
+    await expect(repository.createSupplier(level2)).resolves.toBeDefined();
+    const otherService = record('Other service', 'Central Library');
+    otherService.category = 'SHOPPING';
+    const other = await repository.createSupplier(otherService);
+    await expect(
+      repository.updateSupplier({ id: other.id, category: 'FOOD_COFFEE' }),
+    ).rejects.toMatchObject({
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'location',
+    });
+    const elsewhere = await repository.createSupplier(
+      record('Elsewhere', 'Science'),
+    );
+    await expect(
+      repository.updateSupplierLocation({
+        supplierId: elsewhere.id,
+        locationId: elsewhere.locations[0]!.id,
+        building: 'Central Library',
+      }),
+    ).rejects.toMatchObject({
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'location',
+    });
+  });
+
+  it('blocks one of two concurrent differently named suppliers for the same service and place', async () => {
+    const results = await Promise.allSettled([
+      repository.createSupplier(record('First Printing', 'CLB')),
+      repository.createSupplier(record('Second Printing', 'CLB')),
+    ]);
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    expect(
+      results.find((result) => result.status === 'rejected'),
+    ).toMatchObject({
+      reason: { code: 'SUPPLIER_ALREADY_EXISTS', field: 'location' },
+    });
+    expect(await prisma.supplierLocation.count()).toBe(1);
+    expect(await prisma.supplier.count()).toBe(1);
   });
 });
 

@@ -8,7 +8,6 @@ import {
   parseCatalogTime,
 } from '../../domain/supplier-input.js';
 import { CampusLocationNotFoundError } from '../errors/campus-location-not-found.error.js';
-import { PossibleSupplierDuplicateError } from '../errors/possible-supplier-duplicate.error.js';
 import { SupplierAlreadyExistsError } from '../errors/supplier-already-exists.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
@@ -64,8 +63,8 @@ export class CreateSupplierUseCase {
       throw new SupplierAlreadyExistsError('supplierAtLocation');
     }
 
-    if (matches.length > 0 && input.confirmDistinctOutlet !== true) {
-      throw new PossibleSupplierDuplicateError(matches);
+    if (matches.length > 0) {
+      throw new SupplierAlreadyExistsError('location');
     }
 
     return this.repository.createSupplier({

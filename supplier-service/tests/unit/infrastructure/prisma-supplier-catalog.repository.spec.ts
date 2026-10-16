@@ -47,6 +47,7 @@ describe('PrismaSupplierCatalogRepository', () => {
         locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks@UTown'),
       ];
       const transaction = {
+        supplierLocation: { findFirst: () => Promise.resolve(null) },
         supplier: {
           upsert: (args: unknown) => {
             upsertArguments = args;
@@ -310,6 +311,8 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplier: { findUnique, update },
+      $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({ supplier: { findUnique, update } }),
     } as unknown as Pick<
       PrismaClient,
       '$transaction' | 'supplier' | 'supplierLocation'
@@ -353,10 +356,11 @@ describe('PrismaSupplierCatalogRepository', () => {
     let findFirstArguments: unknown;
     let updateArguments: unknown;
     const findFirst = (args: unknown): Promise<unknown> => {
+      if ((args as { select?: unknown }).select) return Promise.resolve(null);
       findFirstArguments = args;
       return Promise.resolve({
         ...locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks@UTown'),
-        supplier: { name: 'Starbucks' },
+        supplier: { name: 'Starbucks', category: 'FOOD_COFFEE' },
       });
     };
     const update = (args: unknown): Promise<unknown> => {
@@ -368,6 +372,8 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplierLocation: { findFirst, update },
+      $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({ supplierLocation: { findFirst, update } }),
     } as unknown as Pick<
       PrismaClient,
       '$transaction' | 'supplier' | 'supplierLocation'
@@ -389,7 +395,7 @@ describe('PrismaSupplierCatalogRepository', () => {
       supplierAtLocation: 'Starbucks@Science',
     });
     expect(findFirstArguments).toEqual({
-      include: { supplier: { select: { name: true } } },
+      include: { supplier: { select: { name: true, category: true } } },
       where: {
         id: UTOWN_LOCATION_ID,
         supplierId: SUPPLIER_ID,

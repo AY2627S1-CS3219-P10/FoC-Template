@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
-import { ApiError, authenticatedRequest } from "@/services/api";
+import { authenticatedRequest } from "@/services/api";
 import {
   outletAddress,
   supplierCards,
@@ -320,7 +320,6 @@ function SupplierEditor({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [duplicateWarning, setDuplicateWarning] = useState(false);
   const supplier = editor.kind === "create" ? undefined : editor.supplier;
   const location = editor.kind === "location" ? editor.location : undefined;
   const selectedCampusLocationId = location
@@ -332,12 +331,6 @@ function SupplierEditor({
     event.preventDefault();
     if (busy) return;
 
-    const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const confirmDistinctOutlet =
-      duplicateWarning &&
-      submitter instanceof HTMLButtonElement &&
-      submitter.name === "confirmDistinctOutlet" &&
-      submitter.value === "true";
     setBusy(true);
     setError("");
     const data = new FormData(event.currentTarget);
@@ -359,7 +352,6 @@ function SupplierEditor({
           {
             ...supplierInput,
             location: locationInput,
-            ...(confirmDistinctOutlet ? { confirmDistinctOutlet: true } : {}),
           },
           "POST",
         );
@@ -377,16 +369,7 @@ function SupplierEditor({
         );
       await onSaved();
     } catch (failure) {
-      if (
-        editor.kind === "create" &&
-        failure instanceof ApiError &&
-        failure.code === "POSSIBLE_SUPPLIER_DUPLICATE"
-      ) {
-        setDuplicateWarning(true);
-        setError("");
-      } else {
-        setError(message(failure));
-      }
+      setError(message(failure));
     } finally {
       setBusy(false);
     }
@@ -409,7 +392,6 @@ function SupplierEditor({
         className="admin-form"
         onSubmit={submit}
         onChange={() => {
-          setDuplicateWarning(false);
           setError("");
         }}
       >
@@ -524,33 +506,18 @@ function SupplierEditor({
             </>
           )}
         </fieldset>
-        {duplicateWarning && (
-          <p role="alert" className="admin-error">
-            A supplier in the same category already exists in this building on
-            this floor. Only continue if this is a separate outlet.
-          </p>
-        )}
-
         {error && (
           <p role="alert" className="admin-error">
             {error}
           </p>
         )}
         <div className="admin-actions">
-          <button
-            type="submit"
-            name="confirmDistinctOutlet"
-            value={duplicateWarning ? "true" : "false"}
-            className="button button-dark"
-            disabled={busy}
-          >
+          <button type="submit" className="button button-dark" disabled={busy}>
             {busy
               ? "Saving…"
-              : duplicateWarning
-                ? "Create as separate outlet"
-                : editor.kind === "create"
-                  ? "Create supplier"
-                  : "Save changes"}
+              : editor.kind === "create"
+                ? "Create supplier"
+                : "Save changes"}
           </button>
           <button
             type="button"

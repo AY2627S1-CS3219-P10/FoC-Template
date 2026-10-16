@@ -73,7 +73,9 @@ export class CreateSupplierRequest {
   location!: CreateSupplierLocationRequest;
 
   @ApiPropertyOptional({
-  description: 'Confirm this is a distinct outlet despite possible matches',
+    deprecated: true,
+    description:
+      'Legacy field, ignored. Duplicate location checks cannot be overridden.',
   })
   @IsOptional()
   @IsBoolean()
