@@ -33,8 +33,8 @@ model Supplier {
 model SupplierLocation {
   id                  String   @id @default(uuid()) @db.Uuid
   supplierId          String   @map("supplier_id") @db.Uuid
-  supplierAtLocation  String   @unique @map("supplier_at_location") @db.Citext
-  building            String   @db.VarChar(160)
+  supplierAtLocation  String   @map("supplier_at_location") @db.Citext
+  building            String   @db.Citext
   floor               Int?
   locationDescription String   @map("location_description") @db.VarChar(500)
   latitude            Decimal? @db.Decimal(11, 8)
@@ -49,7 +49,7 @@ model SupplierLocation {
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
-  @@unique([supplierId, building, floor, locationDescription])
+  @@unique([supplierId, building, floor])
   @@index([building, isActive])
   @@index([supplierId, isActive])
   @@map("supplier_locations")

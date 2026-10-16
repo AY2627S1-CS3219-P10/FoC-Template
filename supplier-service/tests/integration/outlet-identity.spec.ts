@@ -39,7 +39,7 @@ integration('outlet identity against PostgreSQL', () => {
     await pool?.end();
   });
 
-  it('adds new buildings to one brand and blocks repeat outlets despite changed floor or case', async () => {
+  it('adds new buildings and floors to one brand and blocks repeated building-floor pairs', async () => {
     const name = 'Outlet identity test Starbucks';
     const utown = await repository.createSupplier(record(name, 'UTown'));
     const science = await repository.createSupplier(
@@ -55,12 +55,23 @@ integration('outlet identity against PostgreSQL', () => {
     ).toEqual(['Engineering', 'Science', 'UTown']);
 
     const duplicate = record(name.toUpperCase(), 'UTown');
-    duplicate.location.floor = 4;
     duplicate.location.locationDescription = 'A different description';
     await expect(repository.createSupplier(duplicate)).rejects.toMatchObject({
       code: 'SUPPLIER_ALREADY_EXISTS',
       field: 'supplierAtLocation',
     });
+    const anotherFloor = record(name, 'UTown');
+    anotherFloor.location.floor = 4;
+    await expect(
+      repository.createSupplier(anotherFloor),
+    ).resolves.toMatchObject({ id: utown.id });
+    await expect(repository.createSupplier(anotherFloor)).rejects.toMatchObject(
+      { code: 'SUPPLIER_ALREADY_EXISTS' },
+    );
+    const sameFloorDifferentCase = record(name, 'utown');
+    await expect(
+      repository.createSupplier(sameFloorDifferentCase),
+    ).rejects.toMatchObject({ code: 'SUPPLIER_ALREADY_EXISTS' });
     await expect(
       repository.updateSupplierLocation({
         supplierId: utown.id,
@@ -68,6 +79,24 @@ integration('outlet identity against PostgreSQL', () => {
           (location) => location.building === 'Science',
         )!.id,
         building: 'UTown',
+      }),
+    ).rejects.toMatchObject({ code: 'SUPPLIER_ALREADY_EXISTS' });
+    const scienceLocationId = science.locations.find(
+      (location) => location.building === 'Science',
+    )!.id;
+    await expect(
+      repository.updateSupplierLocation({
+        supplierId: utown.id,
+        locationId: scienceLocationId,
+        building: 'UTown',
+        floor: 5,
+      }),
+    ).resolves.toMatchObject({ building: 'UTown', floor: 5 });
+    await expect(
+      repository.updateSupplierLocation({
+        supplierId: utown.id,
+        locationId: scienceLocationId,
+        floor: 4,
       }),
     ).rejects.toMatchObject({ code: 'SUPPLIER_ALREADY_EXISTS' });
     const mismatch = record(name, 'COM1');
@@ -104,6 +133,24 @@ integration('outlet identity against PostgreSQL', () => {
     expect(science.id).toBe(utown.id);
     expect(
       await prisma.supplierLocation.count({ where: { supplierId: utown.id } }),
+    ).toBe(2);
+  });
+
+  it('allows concurrent outlets on different floors in the same building', async () => {
+    const name = 'CLB printing floor test';
+    const level4 = record(name, 'Central Library');
+    level4.category = 'PRINTING';
+    level4.location.floor = 4;
+    const level5 = record(name, 'Central Library');
+    level5.category = 'PRINTING';
+    level5.location.floor = 5;
+    const [first, second] = await Promise.all([
+      repository.createSupplier(level4),
+      repository.createSupplier(level5),
+    ]);
+    expect(first.id).toBe(second.id);
+    expect(
+      await prisma.supplierLocation.count({ where: { supplierId: first.id } }),
     ).toBe(2);
   });
 });

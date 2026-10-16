@@ -119,7 +119,7 @@ export class PrismaSupplierCatalogRepository
       try {
         const supplier = await this.prisma.$transaction(
           async (transaction) => {
-            // The case-insensitive name identifies the brand; each building is an outlet.
+            // The case-insensitive name identifies the brand; building and floor identify an outlet.
             const owner = await transaction.supplier.upsert({
               where: { name: record.name },
               create: { name: record.name, category: record.category },
@@ -280,9 +280,7 @@ export class PrismaSupplierCatalogRepository
         const target = uniqueConstraintTarget(error);
 
         throw new SupplierAlreadyExistsError(
-          target.includes('supplier_at_location')
-            ? 'supplierAtLocation'
-            : 'name',
+          target.includes('name') ? 'name' : 'supplierAtLocation',
         );
       }
 

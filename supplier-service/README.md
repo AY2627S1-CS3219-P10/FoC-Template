@@ -14,7 +14,7 @@ coordinates when the source does not publish them; the browse API explicitly
 returns those values as `null` rather than fabricating details.
 
 Each location stores a stable UUID for service-to-service references and a
-case-insensitive `supplier@location` string for future user input. For example,
+case-insensitive `supplier@location` display string. For example,
 `NUS Co-op@Central Library`. The label is intentionally a catalog attribute,
 not an order-service foreign key or a user-entered free-text source of truth.
 
@@ -29,10 +29,13 @@ and the service resolves its building and coordinates. Admins therefore do not
 enter latitude or longitude. The service also derives the `supplier@location`
 label and overnight-hours flag. A case-insensitive existing supplier name adds
 an outlet to that supplier instead of creating a second supplier. Its category
-must match. The same supplier at the same building returns HTTP 409, even if
-the floor, description or hours differ, or the admin confirms a possible
-duplicate. The existing unique case-insensitive `supplier@location` label
-enforces this during creation and location edits. Creation runs in a
+must match. The same supplier at the same building and floor returns HTTP 409,
+even if the description or hours differ, or the admin confirms a possible
+duplicate. The same supplier on different floors is allowed. A unique
+constraint on supplier, case-insensitive building and floor enforces this
+during creation and location edits; unknown floors also compare equal.
+Display labels are no longer unique; outlet UUIDs remain the identifiers.
+Creation runs in a
 serializable transaction with bounded retries for concurrent writes.
 
 Different suppliers in the same category, building and floor trigger a
