@@ -54,7 +54,7 @@ export function CreateErrand({ onCreated }: { onCreated: () => void }) {
     {loadError ? <div><p role="alert">{loadError}</p><button className="button button-light" onClick={() => { setLoading(true); setAttempt((value) => value + 1); }}>Retry pickup locations</button></div> : loading ? <p role="status">Loading pickup locations…</p> : !locations.length ? <p>No pickup locations are available for new errands.</p> : null}
     <form ref={formRef} className="account-form" onSubmit={send}>
       <fieldset disabled={busy || !!submission || loading || !!loadError || !locations.length}>
-        <label>Pickup location<select name="pickupLocationId" required defaultValue=""><option value="" disabled>Select a pickup location</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.supplierAtLocation}</option>)}</select></label>
+        <label>Pickup location<select name="pickupLocationId" required defaultValue=""><option value="" disabled>Select a pickup location</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.supplierAtLocation} · {location.floor === null ? "Floor unknown" : `Floor ${location.floor}`}</option>)}</select></label>
         <label>Errand description<textarea name="description" required maxLength={1000} rows={3} /></label>
         <label>Delivery destination<input name="deliveryDestination" required maxLength={250} /></label>
         <label>Pickup or delivery instructions<textarea name="instructions" required maxLength={1000} rows={2} /></label>

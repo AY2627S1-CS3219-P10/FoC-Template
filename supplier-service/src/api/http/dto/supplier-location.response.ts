@@ -10,17 +10,17 @@ export class SupplierLocationResponse {
   @ApiProperty({ example: 'Central Library' })
   building!: string;
 
-  @ApiProperty({ example: 1 })
-  floor!: number;
+  @ApiProperty({ example: 1, nullable: true })
+  floor!: number | null;
 
   @ApiProperty({ example: 'Inside the library on the right side' })
   locationDescription!: string;
 
-  @ApiProperty({ example: 1.2967866 })
-  latitude!: number;
+  @ApiProperty({ example: 1.2967866, nullable: true })
+  latitude!: number | null;
 
-  @ApiProperty({ example: 103.7732677 })
-  longitude!: number;
+  @ApiProperty({ example: 103.7732677, nullable: true })
+  longitude!: number | null;
 
   @ApiProperty({ example: '09:00' })
   opensAt!: string;

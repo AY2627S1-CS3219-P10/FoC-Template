@@ -45,6 +45,7 @@ import { SupplierLocationResponse } from './dto/supplier-location.response.js';
 import { SupplierResponse } from './dto/supplier.response.js';
 import { UpdateSupplierLocationRequest } from './dto/update-supplier-location.request.js';
 import { UpdateSupplierRequest } from './dto/update-supplier.request.js';
+import { PossibleSupplierDuplicateError } from '../../application/errors/possible-supplier-duplicate.error.js';
 
 @ApiTags('admin suppliers')
 @ApiBearerAuth('access-token')
@@ -210,6 +211,15 @@ export class AdminSuppliersController {
         field: error.field,
         message: error.message,
         statusCode: 404,
+      });
+    }
+
+    if (error instanceof PossibleSupplierDuplicateError) {
+      throw new ConflictException({
+        code: error.code,
+        message: error.message,
+        matches: error.matches,
+        statusCode: 409,
       });
     }
 
