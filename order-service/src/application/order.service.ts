@@ -4,7 +4,9 @@ import { ORDER_REPOSITORY, SERVICE_CLIENTS } from './ports';
 import type { OrderRepository, ErrandServices, OperationRecord } from './ports';
 import type { ErrandSort } from './ports';
 import { assertEditFields, normalized, OrderError } from '../domain/errand';
-import type { CreateErrand, EditErrand } from '../domain/errand';
+import type { CreateErrand, EditErrand, ErrandRecord } from '../domain/errand';
+import { transition } from '../domain/lifecycle';
+import type { ErrandStatus } from '../domain/lifecycle';
 
 function digest(value: object) {
   return createHash('sha256')
@@ -141,12 +143,46 @@ export class OrderService {
       sort,
     );
   }
+  /** FR5/FR6: claim an OPEN errand; exactly one concurrent courier wins. */
+  async accept(id: string, courierId: string, token: string) {
+    // Q-005 (one active errand) and Q-012 (courier credit account) are parked; their
+    // checks go here, before the conditional UPDATE.
+    const row = transition('OPEN', 'accept', 'COURIER');
+    if (!(await this.repository.transition(id, row, courierId))) {
+      const errand = await this.repository.find(id);
+      // A repeated accept by the winner returns the current state (idempotent).
+      if (errand?.courierId !== courierId) this.rejectAccept(errand, courierId);
+    }
+    return this.find(id, courierId, token);
+  }
+  /** Explains a failed conditional UPDATE from a fresh read: 404, 403 or 409. */
+  private rejectAccept(errand: ErrandRecord | null, courierId: string): never {
+    if (!errand || errand.deletedAt)
+      throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
+    transition(
+      errand.status as ErrandStatus,
+      'accept',
+      errand.requesterId === courierId ? 'REQUESTER' : 'COURIER',
+    );
+    if (errand.pendingOperationId)
+      throw new OrderError(
+        'ERRAND_OPERATION_PENDING',
+        'Another change is still being processed.',
+        409,
+      );
+    throw new OrderError(
+      'ERRAND_STATE_CHANGED',
+      'The errand changed while accepting it. Reload and try again.',
+      409,
+    );
+  }
   async find(id: string, requesterId: string, token?: string) {
     const errand = await this.repository.find(id);
     if (
       !errand ||
       errand.deletedAt ||
       (errand.requesterId !== requesterId &&
+        errand.courierId !== requesterId &&
         !(token && (await this.clients.isAdministrator(token))) &&
         (errand.status !== 'OPEN' || errand.courierId !== null))
     )

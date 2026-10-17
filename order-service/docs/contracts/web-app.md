@@ -52,3 +52,13 @@ Errand { id, requesterId, requesterUsername?, courierId | null, status, pickupLo
 5. Changing what DELETE does (C7) keeps the same route and response but is still a
    behaviour change visible to the user — get the user's go-ahead.
 6. Regression check (run only, never edit): web-app Playwright `tests/e2e/errands.spec.ts`.
+
+## Additive routes (no web-app UI yet)
+| Route | Actor | Success | Errors |
+|---|---|---|---|
+| `POST /api/errands/:id/accept` | any user except the requester | 200 `Errand` (ACCEPTED, `courierId`, `acceptedAt`); repeat by the same courier returns the current state | 401; 403 `ERRAND_ACTION_FORBIDDEN` (own errand); 404 `ERRAND_NOT_FOUND`; 409 `ERRAND_INVALID_TRANSITION` (taken / not OPEN), `ERRAND_OPERATION_PENDING` |
+
+`Errand` also carries optional `acceptedAt`, `pickedUpAt`, `deliveredAt`, `disputedAt`,
+`completedAt`, `cancelledAt`, `completionMethod` (null until set). The assigned courier
+can `GET /api/errands/:id`.
+

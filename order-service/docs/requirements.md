@@ -68,21 +68,21 @@ selectable) through `ServiceClients.pickup`.
 ### FR5 — Accept (priority 1, sprint 3)
 | ID | Requirement (D1) | Status | Notes |
 |---|---|---|---|
-| FR5.1 | Authenticated courier accepts OPEN, unassigned errand | todo | S4 |
-| FR5.1.1 | Reject if not OPEN or already assigned | todo | S4 |
-| FR5.1.2 | Reject if courier is the requester | todo | S4 |
-| FR5.2 | Record assignment, status ACCEPTED | todo | S4 |
-| FR5.2.1 | Removed from open list; both parties see it | todo | S4 — `OrderService.find` must also let the assigned courier read it |
-| FR5.2.2 | Courier id visible to requester | todo | S4 (`courierId` already in the response shape) |
+| FR5.1 | Authenticated courier accepts OPEN, unassigned errand | done | `POST /api/errands/:id/accept` → `OrderService.accept` → `PrismaOrderRepository.transition`; test "S4: a courier accepts an OPEN errand…" |
+| FR5.1.1 | Reject if not OPEN or already assigned | done | conditional UPDATE guard; test "S4: rejects self-accept, unknown, deleted, taken and pending errands…" (409) |
+| FR5.1.2 | Reject if courier is the requester | done | `requester_id <> courier` guard + `transition()` → 403 `ERRAND_ACTION_FORBIDDEN`; same test |
+| FR5.2 | Record assignment, status ACCEPTED | done | sets `courier_id`, `accepted_at`, `version+1` and an `errand_history` row in one statement |
+| FR5.2.1 | Removed from open list; both parties see it | done | `listOpen` filter; `OrderService.find` lets the assigned courier read; test "S4: a courier accepts…" |
+| FR5.2.2 | Courier id visible to requester | done | `courierId` in `ErrandResponse`; same test |
 
 ### FR6 — Concurrent acceptance (priority 1–2, sprint 3)
 | ID | Requirement (D1) | Status | Notes |
 |---|---|---|---|
-| FR6.1 | At most one acceptance succeeds | todo | S4, conditional UPDATE |
-| FR6.1.1 | Exactly one courier, OPEN → ACCEPTED in one state change | todo | S4 |
-| FR6.2 | Reject every losing attempt | todo | S4 |
-| FR6.2.1 | Losers modify nothing, incl. credits | todo | S4 race test |
-| FR6.2.2 | Later reads return the winner | todo | S4 race test |
+| FR6.1 | At most one acceptance succeeds | done | single conditional UPDATE; test "S4 race (FR6): 20 parallel accepts…" (3 rounds) |
+| FR6.1.1 | Exactly one courier, OPEN → ACCEPTED in one state change | done | same test: `version` 1, one history row |
+| FR6.2 | Reject every losing attempt | done | same test: 19 × 409 |
+| FR6.2.1 | Losers modify nothing, incl. credits | done | same test: credit balances unchanged, one history row |
+| FR6.2.2 | Later reads return the winner | done | same test: requester GET returns the winner's `courierId` |
 
 ### FR7 — Courier lifecycle (priority 1, sprint 3)
 | ID | Requirement (D1) | Status | Notes |

@@ -28,6 +28,19 @@ import { HttpExceptionFilter as CreditFilter } from '../../../credit-service/src
 const requesterId = '10000000-0000-4000-8000-000000000001';
 const otherId = '10000000-0000-4000-8000-000000000002';
 const pickupId = '20000000-0000-4000-8000-000000000001';
+const courierId = '10000000-0000-4000-8000-000000000003';
+/** Fake user-service sessions: `Bearer courier-7` is a distinct courier per number. */
+function userFor(authorization: unknown) {
+  const numbered = String(authorization).match(/^Bearer courier-(\d{1,4})$/);
+  if (numbered)
+    return `30000000-0000-4000-8000-${numbered[1].padStart(12, '0')}`;
+  return {
+    'Bearer requester': requesterId,
+    'Bearer other': otherId,
+    'Bearer admin': otherId,
+    'Bearer courier': courierId,
+  }[String(authorization)];
+}
 const input = {
   pickupLocationId: pickupId,
   description: 'Pick up coffee',
@@ -160,21 +173,14 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         return;
       }
       if (req.url === '/api/accounts/me') {
-        if (
-          !accountActive ||
-          !['Bearer requester', 'Bearer other', 'Bearer admin'].includes(
-            String(req.headers.authorization),
-          )
-        ) {
+        const id = userFor(req.headers.authorization);
+        if (!accountActive || !id) {
           res.writeHead(401).end('{}');
           return;
         }
         res.end(
           JSON.stringify({
-            id:
-              req.headers.authorization === 'Bearer requester'
-                ? requesterId
-                : otherId,
+            id,
             status: 'ACTIVE',
             isAdmin: req.headers.authorization === 'Bearer admin',
             emailVerifiedAt: new Date().toISOString(),
@@ -298,6 +304,125 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       url: `/api/errands/${id}`,
       headers: { authorization: `Bearer ${token}`, 'idempotency-key': key },
     });
+  const accept = (id: string, token = 'courier') =>
+    app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/accept`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+  const read = (id: string, token: string) =>
+    app.inject({
+      method: 'GET',
+      url: `/api/errands/${id}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+  const balances = () =>
+    creditPrisma.creditAccount.findMany({
+      orderBy: { userId: 'asc' },
+      select: { userId: true, availableCredits: true, reservedCredits: true },
+    });
+  it('S4: a courier accepts an OPEN errand; both parties see it, strangers and the open list do not', async () => {
+    const id = (await create()).json().errand.id;
+    const response = await accept(id);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id,
+      status: 'ACCEPTED',
+      courierId,
+      version: 1,
+      acceptedAt: expect.any(String),
+    });
+    expect((await read(id, 'courier')).json()).toMatchObject({ courierId });
+    expect((await read(id, 'requester')).json()).toMatchObject({ courierId });
+    expect((await read(id, 'other')).statusCode).toBe(404);
+    expect(
+      (
+        await app.inject({ method: 'GET', url: '/api/errands', headers: auth })
+      ).json(),
+    ).toEqual([]);
+    // The winner repeating the request gets the current state, not a second change.
+    expect((await accept(id)).json()).toMatchObject({ version: 1 });
+    expect(
+      await prisma.errandHistory.findMany({ where: { errandId: id } }),
+    ).toEqual([
+      expect.objectContaining({
+        fromStatus: 'OPEN',
+        toStatus: 'ACCEPTED',
+        action: 'accept',
+        actorRole: 'COURIER',
+        actorId: courierId,
+      }),
+    ]);
+  });
+  it('S4: rejects self-accept, unknown, deleted, taken and pending errands without changing them', async () => {
+    const id = (await create()).json().errand.id;
+    expect(
+      (await app.inject({ method: 'POST', url: `/api/errands/${id}/accept` }))
+        .statusCode,
+    ).toBe(401);
+    expect((await accept(id, 'requester')).json()).toMatchObject({
+      code: 'ERRAND_ACTION_FORBIDDEN',
+    });
+    expect((await accept(id, 'requester')).statusCode).toBe(403);
+    expect((await accept(randomUUID())).statusCode).toBe(404);
+    loseAck = 'adjust';
+    expect(
+      (await edit(id, { expectedVersion: 0, offeredCredits: 30 })).statusCode,
+    ).toBe(202);
+    expect((await accept(id)).json()).toMatchObject({
+      code: 'ERRAND_OPERATION_PENDING',
+    });
+    expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+      status: 'OPEN',
+      courierId: null,
+    });
+    const taken = (await create()).json().errand.id;
+    expect((await accept(taken)).statusCode).toBe(200);
+    const lost = await accept(taken, 'courier-1');
+    expect(lost.statusCode).toBe(409);
+    expect(lost.json()).toMatchObject({ code: 'ERRAND_INVALID_TRANSITION' });
+    const deleted = (await create()).json().errand.id;
+    expect((await remove(deleted)).statusCode).toBe(200);
+    expect((await accept(deleted)).statusCode).toBe(404);
+    expect(await prisma.errandHistory.count()).toBe(1);
+  });
+  it('S4 race (FR6): 20 parallel accepts give one winner, version +1 once, losers change nothing', async () => {
+    for (let round = 0; round < 3; round++) {
+      const id = (await create()).json().errand.id;
+      const before = await balances();
+      const results = await Promise.all(
+        Array.from({ length: 20 }, (_, n) => accept(id, `courier-${n + 1}`)),
+      );
+      const winners = results.filter((result) => result.statusCode === 200);
+      expect(winners).toHaveLength(1);
+      expect(
+        results.filter((result) => result.statusCode === 409),
+      ).toHaveLength(19);
+      const winner = winners[0].json<{ courierId: string }>().courierId;
+      expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+        status: 'ACCEPTED',
+        courierId: winner,
+        version: 1,
+      });
+      expect((await read(id, 'requester')).json()).toMatchObject({
+        courierId: winner,
+      });
+      expect(
+        await prisma.errandHistory.count({ where: { errandId: id } }),
+      ).toBe(1);
+      expect(await balances()).toEqual(before);
+    }
+  });
+  it('S4 race: the same courier accepting twice in parallel gets the same errand twice', async () => {
+    const id = (await create()).json().errand.id;
+    const results = await Promise.all([accept(id), accept(id)]);
+    expect(results.map((result) => result.statusCode)).toEqual([200, 200]);
+    expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+      courierId,
+      version: 1,
+    });
+    expect(await prisma.errandHistory.count()).toBe(1);
+  });
   it('owners delete requests, release credits exactly once and hide deleted records', async () => {
     const id = (await create()).json().errand.id;
     const key = randomUUID();

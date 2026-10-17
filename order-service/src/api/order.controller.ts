@@ -6,6 +6,7 @@ import {
   Get,
   Header,
   Headers,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -22,7 +23,9 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -149,6 +152,28 @@ export class OrderController {
     const result = await this.service.edit(request.userId, id, key, body);
     reply.status(result.status === 'SUCCEEDED' ? 200 : 202);
     return result;
+  }
+  @Post(':id/accept')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Accept an OPEN, unassigned errand as its courier; one winner under concurrency',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({
+    description: 'Requesters cannot accept their own errand',
+  })
+  @ApiNotFoundResponse({ description: 'Missing or deleted errand' })
+  @ApiConflictResponse({
+    description:
+      'Already accepted by someone else, not OPEN, or a change is pending',
+  })
+  accept(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.accept(id, request.userId, request.accessToken);
   }
   @Delete(':id')
   @Header('Cache-Control', 'no-store')

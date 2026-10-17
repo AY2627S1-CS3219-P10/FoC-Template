@@ -4,6 +4,7 @@ import type { OrderRepository, OperationRecord } from '../application/ports';
 import type { ErrandSort } from '../application/ports';
 import { assertEditable, OrderError } from '../domain/errand';
 import type { EditErrand, ErrandDetails } from '../domain/errand';
+import type { LifecycleTimestamp, Transition } from '../domain/lifecycle';
 import { Prisma, type ErrandOperation } from '../generated/prisma/client';
 import { PrismaService } from './prisma.service';
 import { UpstreamFailure } from './service-clients';
@@ -30,6 +31,23 @@ function sortOrder(sort: ErrandSort): Prisma.ErrandOrderByWithRelationInput[] {
       { id: 'desc' },
     ];
   return [{ createdAt: 'desc' }, { id: 'desc' }];
+}
+const STAMP_COLUMNS: Record<LifecycleTimestamp, string> = {
+  acceptedAt: 'accepted_at',
+  pickedUpAt: 'picked_up_at',
+  deliveredAt: 'delivered_at',
+  disputedAt: 'disputed_at',
+  completedAt: 'completed_at',
+};
+/** Which user may apply a row: accept claims an unassigned errand for a non-requester. */
+function actorGuard(row: Transition, actorId: string | null) {
+  if (row.action === 'accept')
+    return Prisma.sql`"courier_id" IS NULL AND "requester_id" <> ${actorId}::uuid`;
+  if (row.actor === 'COURIER')
+    return Prisma.sql`"courier_id" = ${actorId}::uuid`;
+  if (row.actor === 'REQUESTER')
+    return Prisma.sql`"requester_id" = ${actorId}::uuid`;
+  return Prisma.sql`TRUE`;
 }
 @Injectable()
 export class PrismaOrderRepository implements OrderRepository {
@@ -263,6 +281,34 @@ export class PrismaOrderRepository implements OrderRepository {
   }
   find(id: string) {
     return this.prisma.errand.findUnique({ where: { id } });
+  }
+  async transition(id: string, row: Transition, actorId: string | null) {
+    // One statement: concurrent callers serialise on the row lock and every loser
+    // re-evaluates the WHERE clause against the winner's committed row (FR6).
+    const changed = await this.prisma.$queryRaw<{ id: string }[]>`
+      WITH changed AS (
+        UPDATE "errands"
+        SET "status" = ${row.to}::"ErrandStatus",
+            ${Prisma.raw(`"${STAMP_COLUMNS[row.stamp]}"`)} = CURRENT_TIMESTAMP,
+            "version" = "version" + 1,
+            "updated_at" = CURRENT_TIMESTAMP
+            ${row.action === 'accept' ? Prisma.sql`, "courier_id" = ${actorId}::uuid` : Prisma.empty}
+            ${row.completionMethod ? Prisma.sql`, "completion_method" = ${row.completionMethod}::"CompletionMethod"` : Prisma.empty}
+        WHERE "id" = ${id}::uuid
+          AND "status" = ${row.from}::"ErrandStatus"
+          AND "deleted_at" IS NULL
+          AND "pending_operation_id" IS NULL
+          AND ${actorGuard(row, actorId)}
+        RETURNING "id"
+      ), logged AS (
+        INSERT INTO "errand_history"
+          ("errand_id", "from_status", "to_status", "action", "actor_role", "actor_id", "correlation_id")
+        SELECT "id", ${row.from}::"ErrandStatus", ${row.to}::"ErrandStatus", ${row.action},
+               ${row.actor}::"ActorRole", ${actorId}::uuid, ${currentCorrelationId() ?? null}
+        FROM changed
+      )
+      SELECT "id" FROM changed`;
+    return changed.length === 1;
   }
   listManaged(
     requesterId: string | null,

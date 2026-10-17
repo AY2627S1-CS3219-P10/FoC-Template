@@ -4,6 +4,7 @@ import type {
   ErrandDetails,
   ErrandRecord,
 } from '../domain/errand';
+import type { Transition } from '../domain/lifecycle';
 export const ORDER_REPOSITORY = Symbol('ORDER_REPOSITORY');
 export const SERVICE_CLIENTS = Symbol('SERVICE_CLIENTS');
 export type ErrandSort =
@@ -61,6 +62,16 @@ export interface OrderRepository {
     sort?: ErrandSort,
   ): Promise<ErrandRecord[]>;
   find(id: string): Promise<ErrandRecord | null>;
+  /**
+   * Applies one lifecycle transition as a single conditional UPDATE plus its history
+   * row. Returns false, changing nothing, when the errand is not in `row.from`, is
+   * deleted, has a pending operation, or `actorId` does not hold the row's role.
+   */
+  transition(
+    id: string,
+    row: Transition,
+    actorId: string | null,
+  ): Promise<boolean>;
 }
 export interface ErrandServices {
   username(userId: string, token: string): Promise<string | null>;

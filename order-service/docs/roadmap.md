@@ -17,7 +17,7 @@ answered, re-evaluate every slice that lists it.
 | 2 | S1 Hygiene | READY | everything | — |
 | 3 | N1 Correlation IDs | READY | HTTP in/out + logs, using `x-correlation-id` behind one constant | final header name (Q-017) |
 | 4 | S3 Lifecycle model | DONE (decided part) | — | rename/removal of IN_PROGRESS / EXPIRED (Q-006) |
-| 5 | S4 Accept | PARTIAL, after S3 | race-safe conditional-UPDATE accept, self-accept rejection, courier can read assigned errand, race test | one-active-errand constraint (Q-005); courier credit-account check (Q-012) |
+| 5 | S4 Accept | DONE (decided part) | — | one-active-errand constraint (Q-005); courier credit-account check (Q-012) |
 | 6 | S5 Pickup / deliver / dispute | after S3, S4 | everything (D-005, D-007) | dispute *resolution* (Q-014) is a later slice |
 | 7 | S2 Discovery | PARTIAL | `availableForAcceptance` flag on details, exclusion of non-OPEN | pickup-location filter (Q-009) |
 | 8 | S6a Completion + outbox | PARTIAL, after S3, S5, N1 | outbox table, relay, confirm + early confirm, `errand.completed.v1`, contract test | admin-delete guard (Q-011); end-to-end with courier accounts (Q-012); docker wiring (Q-018) |

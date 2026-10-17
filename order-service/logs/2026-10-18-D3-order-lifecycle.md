@@ -8,6 +8,11 @@ Postman.
 ## Summary
 _Written at the end of the pass by `order-change-summary`._
 
+Assumptions so far (decide-and-note; fold into the summary):
+- A-003 History table is `errand_history` (handoff name; alternative: roadmap's `errand_status_history`).
+- A-004 Wrong actor is checked before state: 403 beats 409 (alternative: 409 first, which leaks state to strangers).
+- A-005 COMPLETED rows must carry courier, `accepted_at`, `picked_up_at` (alternative: allow admin/legacy COMPLETED without them).
+
 ## Commits
 
 ### a77af2f fix(order): cap offered credits at credit-service's 10M limit
@@ -42,3 +47,16 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** the pass continues in a fresh session; one file gives it the facts without re-deriving them from the diffs.
 - **Verified:** docs only.
 - **Follow-up:** none.
+
+### 4b6ebfe feat(order): add lifecycle states, timestamps, history table and transition table
+- **When:** 2026-10-18 06:43 · **Slice:** S3 · **Refs:** D-005..D-008, FR5–FR7, Q-006, A-003, A-004, A-005
+- **Changed:**
+  - `migrations/202610180003_lifecycle_statuses` — enum values PICKED_UP, DISPUTED (own migration: a new value is unusable in the transaction that adds it)
+  - `migrations/202610180004_lifecycle_columns`, `prisma/schema.prisma` — `accepted_at…cancelled_at`, `completion_method`, `errand_history` (actor NULL only for SYSTEM), per-state CHECKs + timestamp ordering
+  - `src/domain/lifecycle.ts` — `TRANSITIONS` (decided rows only) and `transition()`: actor never allowed → 403, wrong state → 409
+  - `src/api/dto.ts` — additive: new statuses and optional timestamp/`completionMethod` fields in `ErrandResponse`
+  - `tests/unit/lifecycle.spec.ts` — 216-case matrix against an independent expected list; domain lists match Prisma enums
+  - `tests/integration/errands.spec.ts` — CHECK rejection test; fixtures forcing ACCEPTED/COMPLETED now carry their timestamps
+- **Why:** later slices (accept, pickup/deliver/dispute, confirm, auto-complete) need one place that says who may do what, and DB constraints so a buggy UPDATE cannot produce e.g. COMPLETED without a completion method. Checking the actor first means strangers learn nothing about an errand's state.
+- **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 260/260 (236 unit, 24 integration), statements 96.6%, branches 84.4%; `prisma migrate diff` (migrated DB → schema) empty; 0003/0004 applied on a DB with existing rows.
+- **Follow-up:** Q-006 (IN_PROGRESS/EXPIRED); no CHECKs for CANCELLED/EXPIRED until Q-007.
