@@ -7,6 +7,7 @@ export interface EnvironmentVariables {
   JWT_ACCESS_TOKEN_SECRET: string;
   NODE_ENV: 'development' | 'test' | 'production';
   PORT: number;
+  RABBITMQ_URL: string;
   REDIS_URL: string;
   SMTP_FROM: string;
   SMTP_HOST: string;
@@ -14,6 +15,9 @@ export interface EnvironmentVariables {
   SMTP_PORT: number;
   SMTP_SECURE: boolean;
   SMTP_USER: string;
+  USER_EVENTS_ENABLED: boolean;
+  USER_EVENTS_EXCHANGE: string;
+  USER_OUTBOX_POLL_INTERVAL_MS: number;
 }
 
 export const environmentSchema = Joi.object<EnvironmentVariables>({
@@ -46,6 +50,9 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
     .valid('development', 'test', 'production')
     .default('development'),
   PORT: Joi.number().port().default(3001),
+  RABBITMQ_URL: Joi.string()
+    .uri({ scheme: ['amqp', 'amqps'] })
+    .default('amqp://localhost:5672'),
   REDIS_URL: Joi.string()
     .uri({ scheme: ['redis', 'rediss'] })
     .required(),
@@ -66,6 +73,17 @@ export const environmentSchema = Joi.object<EnvironmentVariables>({
       then: Joi.valid(false),
     }),
   SMTP_USER: Joi.string().required(),
+  USER_EVENTS_ENABLED: Joi.boolean().default(false),
+  USER_EVENTS_EXCHANGE: Joi.string()
+    .trim()
+    .min(1)
+    .max(128)
+    .default('foc.events'),
+  USER_OUTBOX_POLL_INTERVAL_MS: Joi.number()
+    .integer()
+    .min(100)
+    .max(60_000)
+    .default(1_000),
 });
 
 export function validateEnvironment(

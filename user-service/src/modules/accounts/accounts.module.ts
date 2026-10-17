@@ -36,6 +36,7 @@ import { UpdatePhoneNumberUseCase } from './application/use-cases/update-phone-n
 import { UpdateUsernameUseCase } from './application/use-cases/update-username.use-case.js';
 import { SmtpVerificationEmailSender } from './infrastructure/email/smtp-verification-email.sender.js';
 import { RedisVerificationEmailResendRateLimiter } from './infrastructure/messaging/redis-verification-email-resend-rate-limiter.js';
+import { UserOutboxRelayService } from './infrastructure/messaging/user-outbox-relay.service.js';
 import { RedisEmailAvailabilityRateLimiter } from './infrastructure/messaging/redis-email-availability-rate-limiter.js';
 import { BullMqVerificationEmailDelivery } from './infrastructure/messaging/verification-email.queue.js';
 import {
@@ -206,6 +207,14 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
     },
     BearerAuthenticationGuard,
     AdministratorAuthorizationGuard,
+    {
+      inject: [PrismaService, ConfigService],
+      provide: UserOutboxRelayService,
+      useFactory: (
+        prisma: PrismaService,
+        config: ConfigService<EnvironmentVariables, true>,
+      ): UserOutboxRelayService => new UserOutboxRelayService(prisma, config),
+    },
     {
       inject: [SystemClock, PrismaAdministratorPrivilegeRepository],
       provide: ChangeAdministratorPrivilegeUseCase,
@@ -490,14 +499,16 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
         PrismaEmailVerificationRepository,
         HmacVerificationCodeHasher,
         SystemClock,
+        UuidGenerator,
       ],
       provide: VerifyEmailUseCase,
       useFactory: (
         repository: PrismaEmailVerificationRepository,
         codeHasher: HmacVerificationCodeHasher,
         clock: SystemClock,
+        idGenerator: UuidGenerator,
       ): VerifyEmailUseCase =>
-        new VerifyEmailUseCase({ clock, codeHasher, repository }),
+        new VerifyEmailUseCase({ clock, codeHasher, idGenerator, repository }),
     },
   ],
   exports: [
