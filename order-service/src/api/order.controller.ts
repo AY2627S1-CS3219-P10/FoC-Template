@@ -175,6 +175,52 @@ export class OrderController {
   ) {
     return this.service.accept(id, request.userId, request.accessToken);
   }
+  @Post(':id/pickup')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Assigned courier: mark an ACCEPTED errand as PICKED_UP',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the assigned courier' })
+  @ApiConflictResponse({ description: 'Errand is not ACCEPTED' })
+  pickup(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.pickup(id, request.userId, request.accessToken);
+  }
+  @Post(':id/deliver')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Assigned courier: mark a PICKED_UP errand as DELIVERED',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the assigned courier' })
+  @ApiConflictResponse({ description: 'Errand is not PICKED_UP' })
+  deliver(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.deliver(id, request.userId, request.accessToken);
+  }
+  @Post(':id/dispute')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Requester: dispute a DELIVERED errand; credits stay reserved until resolved',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the requester' })
+  @ApiConflictResponse({ description: 'Errand is not DELIVERED' })
+  dispute(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.dispute(id, request.userId, request.accessToken);
+  }
   @Delete(':id')
   @Header('Cache-Control', 'no-store')
   @ApiHeader({

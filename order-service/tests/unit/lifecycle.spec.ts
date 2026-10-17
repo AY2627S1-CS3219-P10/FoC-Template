@@ -2,6 +2,7 @@ import {
   ACTOR_ROLES,
   ERRAND_STATUSES,
   LIFECYCLE_ACTIONS,
+  alreadyApplied,
   transition,
 } from '../../src/domain/lifecycle';
 import { OrderError } from '../../src/domain/errand';
@@ -83,6 +84,14 @@ describe('lifecycle transition table (requirements.md §3)', () => {
     expect(() => transition('ACCEPTED', 'accept', 'COURIER')).toThrow(
       expect.objectContaining({ code: 'ERRAND_INVALID_TRANSITION' }),
     );
+  });
+
+  it('recognises a repeated action only in its own target state and role', () => {
+    expect(alreadyApplied('PICKED_UP', 'pickup', 'COURIER')).toBe(true);
+    expect(alreadyApplied('COMPLETED', 'confirm', 'REQUESTER')).toBe(true);
+    expect(alreadyApplied('DELIVERED', 'pickup', 'COURIER')).toBe(false);
+    expect(alreadyApplied('PICKED_UP', 'pickup', 'REQUESTER')).toBe(false);
+    expect(alreadyApplied('ACCEPTED', 'accept', 'COURIER')).toBe(true);
   });
 
   it('matches the Postgres enums in prisma/schema.prisma', () => {

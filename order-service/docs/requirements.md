@@ -87,20 +87,20 @@ selectable) through `ServiceClients.pickup`.
 ### FR7 — Courier lifecycle (priority 1, sprint 3)
 | ID | Requirement (D1) | Status | Notes |
 |---|---|---|---|
-| FR7.1 | Assigned courier marks ACCEPTED → PICKED_UP | todo | S5 (needs PICKED_UP, S3) |
-| FR7.1.1 | Reject other users / invalid prior state | todo | S5 |
-| FR7.1.2 | Record pickedUpAt | todo | S3 column, S5 |
+| FR7.1 | Assigned courier marks ACCEPTED → PICKED_UP | done | `POST /api/errands/:id/pickup` → `OrderService.pickup`; test "S5: courier picks up and delivers…" |
+| FR7.1.1 | Reject other users / invalid prior state | done | `OrderService.resolve` + `transition()`; test "S5: wrong actor gets 403, wrong state 409…" |
+| FR7.1.2 | Record pickedUpAt | done | `picked_up_at` set by `PrismaOrderRepository.transition` |
 | FR7.2 | *Requester* marks PICKED_UP → DELIVERED | superseded (D-005) | courier marks DELIVERED |
 | FR7.2.1 | Reject unless PICKED_UP and *requester* | superseded (D-005) | becomes: unless PICKED_UP and assigned courier |
-| FR7.2.2 | Record deliveredAt | todo | S3 column, S5 |
+| FR7.2.2 | Record deliveredAt | done | `delivered_at` set by `PrismaOrderRepository.transition` |
 
 ### Derived lifecycle rows (Responsibilities §5 + decisions)
 | ID | Requirement | Source | Status | Notes |
 |---|---|---|---|---|
-| L-1 | Courier marks PICKED_UP → DELIVERED, records deliveredAt, starts 4 h clock | D-005, D-008 | todo | S5 |
+| L-1 | Courier marks PICKED_UP → DELIVERED, records deliveredAt, starts 4 h clock | D-005, D-008 | partial | `POST …/deliver` records `delivered_at` (the clock's source of truth); timer job S6b |
 | L-2 | Requester confirms DELIVERED → COMPLETED (`completionMethod=REQUESTER_CONFIRMED`) | D-006 | todo | S6a |
 | L-3 | Requester confirms early PICKED_UP → COMPLETED | D-006 | todo | S6a |
-| L-4 | Requester disputes DELIVERED → DISPUTED; no credit movement | D-007 | todo | S5 |
+| L-4 | Requester disputes DELIVERED → DISPUTED; no credit movement | D-007 | done | `POST …/dispute`; test "S5: courier picks up and delivers, requester disputes…" checks balances unchanged |
 | L-5 | Still DELIVERED after 4 h → COMPLETED (`AUTO_TIMEOUT`); race-safe vs confirm/dispute | D-008 | todo | S6b |
 | L-6 | COMPLETED emits `errand.completed.v1` via outbox, exactly once per errand | D-001 | todo | S6a |
 | L-7 | Courier may hold only one active errand | Resp §5 | todo | C5 / Q-005 |

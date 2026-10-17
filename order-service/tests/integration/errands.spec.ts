@@ -423,6 +423,94 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     });
     expect(await prisma.errandHistory.count()).toBe(1);
   });
+  const act = (id: string, action: string, token: string) =>
+    app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/${action}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+  it('S5: courier picks up and delivers, requester disputes; timestamps and history, no credit movement', async () => {
+    const id = (await create()).json().errand.id;
+    expect((await accept(id)).statusCode).toBe(200);
+    const before = await balances();
+    const pickedUp = await act(id, 'pickup', 'courier');
+    expect(pickedUp.statusCode).toBe(200);
+    expect(pickedUp.json()).toMatchObject({
+      status: 'PICKED_UP',
+      version: 2,
+      pickedUpAt: expect.any(String),
+    });
+    expect((await act(id, 'deliver', 'courier')).json()).toMatchObject({
+      status: 'DELIVERED',
+      deliveredAt: expect.any(String),
+    });
+    expect((await act(id, 'dispute', 'requester')).json()).toMatchObject({
+      status: 'DISPUTED',
+      version: 4,
+      disputedAt: expect.any(String),
+      completionMethod: null,
+    });
+    expect(
+      (
+        await prisma.errandHistory.findMany({
+          where: { errandId: id },
+          orderBy: { occurredAt: 'asc' },
+        })
+      ).map((row) => [row.fromStatus, row.toStatus, row.actorRole]),
+    ).toEqual([
+      ['OPEN', 'ACCEPTED', 'COURIER'],
+      ['ACCEPTED', 'PICKED_UP', 'COURIER'],
+      ['PICKED_UP', 'DELIVERED', 'COURIER'],
+      ['DELIVERED', 'DISPUTED', 'REQUESTER'],
+    ]);
+    expect(await balances()).toEqual(before);
+  });
+  it('S5: wrong actor gets 403, wrong state 409, a repeat returns the current state', async () => {
+    const id = (await create()).json().errand.id;
+    expect(
+      (await app.inject({ method: 'POST', url: `/api/errands/${id}/pickup` }))
+        .statusCode,
+    ).toBe(401);
+    expect((await act(id, 'pickup', 'courier')).statusCode).toBe(403);
+    expect((await accept(id)).statusCode).toBe(200);
+    expect((await act(id, 'pickup', 'requester')).statusCode).toBe(403);
+    expect((await act(id, 'pickup', 'other')).json()).toMatchObject({
+      code: 'ERRAND_ACTION_FORBIDDEN',
+    });
+    expect((await act(id, 'dispute', 'courier')).statusCode).toBe(403);
+    expect((await act(id, 'deliver', 'courier')).json()).toMatchObject({
+      code: 'ERRAND_INVALID_TRANSITION',
+    });
+    expect((await act(id, 'pickup', 'courier')).statusCode).toBe(200);
+    expect((await act(id, 'dispute', 'requester')).statusCode).toBe(409);
+    expect((await act(id, 'pickup', 'courier')).json()).toMatchObject({
+      status: 'PICKED_UP',
+      version: 2,
+    });
+    expect((await act(id, 'deliver', 'courier')).statusCode).toBe(200);
+    expect((await act(id, 'pickup', 'courier')).statusCode).toBe(409);
+    expect((await act(randomUUID(), 'deliver', 'courier')).statusCode).toBe(
+      404,
+    );
+    expect(await prisma.errandHistory.count({ where: { errandId: id } })).toBe(
+      3,
+    );
+  });
+  it('S5 race: 10 parallel pickups by the assigned courier apply once', async () => {
+    const id = (await create()).json().errand.id;
+    await accept(id);
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () => act(id, 'pickup', 'courier')),
+    );
+    expect(results.every((result) => result.statusCode === 200)).toBe(true);
+    expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+      status: 'PICKED_UP',
+      version: 2,
+    });
+    expect(await prisma.errandHistory.count({ where: { errandId: id } })).toBe(
+      2,
+    );
+  });
   it('owners delete requests, release credits exactly once and hide deleted records', async () => {
     const id = (await create()).json().errand.id;
     const key = randomUUID();

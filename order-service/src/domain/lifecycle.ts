@@ -137,3 +137,17 @@ export function transition(
     );
   return row;
 }
+
+/**
+ * True when `actor` repeats `action` on an errand already in that action's target
+ * state, e.g. a retried pickup. Callers return the current state instead of 409.
+ */
+export function alreadyApplied(
+  status: ErrandStatus,
+  action: LifecycleAction,
+  actor: ActorRole,
+) {
+  return TRANSITIONS.some(
+    (row) => row.action === action && row.actor === actor && row.to === status,
+  );
+}

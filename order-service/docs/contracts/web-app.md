@@ -57,6 +57,12 @@ Errand { id, requesterId, requesterUsername?, courierId | null, status, pickupLo
 | Route | Actor | Success | Errors |
 |---|---|---|---|
 | `POST /api/errands/:id/accept` | any user except the requester | 200 `Errand` (ACCEPTED, `courierId`, `acceptedAt`); repeat by the same courier returns the current state | 401; 403 `ERRAND_ACTION_FORBIDDEN` (own errand); 404 `ERRAND_NOT_FOUND`; 409 `ERRAND_INVALID_TRANSITION` (taken / not OPEN), `ERRAND_OPERATION_PENDING` |
+| `POST /api/errands/:id/pickup` | assigned courier | 200 `Errand` (PICKED_UP, `pickedUpAt`) | 401; 403 `ERRAND_ACTION_FORBIDDEN`; 404; 409 `ERRAND_INVALID_TRANSITION` (not ACCEPTED) |
+| `POST /api/errands/:id/deliver` | assigned courier | 200 `Errand` (DELIVERED, `deliveredAt`) | same; 409 unless PICKED_UP |
+| `POST /api/errands/:id/dispute` | requester | 200 `Errand` (DISPUTED, `disputedAt`); credits stay reserved | same; 409 unless DELIVERED |
+
+Lifecycle actions are idempotent per actor: repeating one whose effect is already the
+current state returns 200 with the current errand and changes nothing.
 
 `Errand` also carries optional `acceptedAt`, `pickedUpAt`, `deliveredAt`, `disputedAt`,
 `completedAt`, `cancelledAt`, `completionMethod` (null until set). The assigned courier

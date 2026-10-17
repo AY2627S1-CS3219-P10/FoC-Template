@@ -5,8 +5,12 @@ import type { OrderRepository, ErrandServices, OperationRecord } from './ports';
 import type { ErrandSort } from './ports';
 import { assertEditFields, normalized, OrderError } from '../domain/errand';
 import type { CreateErrand, EditErrand, ErrandRecord } from '../domain/errand';
-import { transition } from '../domain/lifecycle';
-import type { ErrandStatus } from '../domain/lifecycle';
+import { alreadyApplied, transition } from '../domain/lifecycle';
+import type {
+  ActorRole,
+  ErrandStatus,
+  LifecycleAction,
+} from '../domain/lifecycle';
 
 function digest(value: object) {
   return createHash('sha256')
@@ -144,37 +148,76 @@ export class OrderService {
     );
   }
   /** FR5/FR6: claim an OPEN errand; exactly one concurrent courier wins. */
-  async accept(id: string, courierId: string, token: string) {
+  accept(id: string, userId: string, token: string) {
     // Q-005 (one active errand) and Q-012 (courier credit account) are parked; their
     // checks go here, before the conditional UPDATE.
-    const row = transition('OPEN', 'accept', 'COURIER');
-    if (!(await this.repository.transition(id, row, courierId))) {
-      const errand = await this.repository.find(id);
-      // A repeated accept by the winner returns the current state (idempotent).
-      if (errand?.courierId !== courierId) this.rejectAccept(errand, courierId);
-    }
-    return this.find(id, courierId, token);
+    return this.act(id, 'accept', userId, token);
   }
-  /** Explains a failed conditional UPDATE from a fresh read: 404, 403 or 409. */
-  private rejectAccept(errand: ErrandRecord | null, courierId: string): never {
+  /** FR7.1: the assigned courier collected the item. */
+  pickup(id: string, userId: string, token: string) {
+    return this.act(id, 'pickup', userId, token);
+  }
+  /** D-005: the assigned courier handed the item over. */
+  deliver(id: string, userId: string, token: string) {
+    return this.act(id, 'deliver', userId, token);
+  }
+  /** D-007: the requester disputes a delivery; no credits move. */
+  dispute(id: string, userId: string, token: string) {
+    return this.act(id, 'dispute', userId, token);
+  }
+  /**
+   * Resolves the transition from a fresh read and applies it as one conditional
+   * UPDATE. If a concurrent change wins in between, the second read explains why.
+   */
+  private async act(
+    id: string,
+    action: LifecycleAction,
+    userId: string,
+    token: string,
+  ) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const row = this.resolve(await this.repository.find(id), action, userId);
+      if (!row || (await this.repository.transition(id, row, userId)))
+        return this.find(id, userId, token);
+    }
+    throw new OrderError(
+      'ERRAND_STATE_CHANGED',
+      'The errand changed while updating it. Reload and try again.',
+      409,
+    );
+  }
+  /** The transition to apply, or null when this actor already applied it. */
+  private resolve(
+    errand: ErrandRecord | null,
+    action: LifecycleAction,
+    userId: string,
+  ) {
     if (!errand || errand.deletedAt)
       throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
-    transition(
-      errand.status as ErrandStatus,
-      'accept',
-      errand.requesterId === courierId ? 'REQUESTER' : 'COURIER',
-    );
+    const role: ActorRole | null =
+      errand.requesterId === userId
+        ? 'REQUESTER'
+        : errand.courierId === userId || action === 'accept'
+          ? 'COURIER'
+          : null;
+    if (!role)
+      throw new OrderError(
+        'ERRAND_ACTION_FORBIDDEN',
+        `Only the requester or the assigned courier may ${action} this errand.`,
+        403,
+      );
+    const status = errand.status as ErrandStatus;
+    // An accept candidate is not yet a participant, so a lost race is never a replay.
+    const participant = role === 'REQUESTER' || errand.courierId === userId;
+    if (participant && alreadyApplied(status, action, role)) return null;
+    const row = transition(status, action, role);
     if (errand.pendingOperationId)
       throw new OrderError(
         'ERRAND_OPERATION_PENDING',
         'Another change is still being processed.',
         409,
       );
-    throw new OrderError(
-      'ERRAND_STATE_CHANGED',
-      'The errand changed while accepting it. Reload and try again.',
-      409,
-    );
+    return row;
   }
   async find(id: string, requesterId: string, token?: string) {
     const errand = await this.repository.find(id);
