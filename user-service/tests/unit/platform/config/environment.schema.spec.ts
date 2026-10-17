@@ -23,8 +23,12 @@ describe('environmentSchema', () => {
     expect(value).toMatchObject({
       NODE_ENV: 'development',
       PORT: 3001,
+      RABBITMQ_URL: 'amqp://localhost:5672',
       SMTP_PORT: 587,
       SMTP_SECURE: false,
+      USER_EVENTS_ENABLED: false,
+      USER_EVENTS_EXCHANGE: 'foc.events',
+      USER_OUTBOX_POLL_INTERVAL_MS: 1000,
     });
   });
 
@@ -59,6 +63,27 @@ describe('environmentSchema', () => {
     });
 
     expect(error?.message).toContain('JWT_ACCESS_TOKEN_SECRET');
+  });
+
+  it('validates transactional outbox delivery settings', () => {
+    expect(
+      environmentSchema.validate({
+        ...VALID_ENVIRONMENT,
+        RABBITMQ_URL: 'https://not-amqp.example.test',
+      }).error?.message,
+    ).toContain('RABBITMQ_URL');
+    expect(
+      environmentSchema.validate({
+        ...VALID_ENVIRONMENT,
+        USER_OUTBOX_POLL_INTERVAL_MS: 99,
+      }).error?.message,
+    ).toContain('USER_OUTBOX_POLL_INTERVAL_MS');
+    expect(
+      environmentSchema.validate({
+        ...VALID_ENVIRONMENT,
+        USER_EVENTS_EXCHANGE: '',
+      }).error?.message,
+    ).toContain('USER_EVENTS_EXCHANGE');
   });
 
   it.each(['*', 'https://example.com/path', 'javascript:alert(1)'])(

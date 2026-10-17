@@ -113,6 +113,47 @@ activates the account. `POST /api/accounts/verify-email/resend` issues and queue
 a replacement code for a pending account. Its response does not reveal whether
 an account exists or is already verified.
 
+### User verification integration event
+
+A successful first-time verification also records `user.verified.v1` in the
+User Service PostgreSQL transactional outbox. Code consumption, account
+activation, and outbox insertion are one database transaction: none of them is
+committed if the event cannot be recorded. Invalid, expired, exhausted, or
+already-completed verification attempts do not create an event. The database
+also permits only one `user.verified.v1` outbox row per user.
+
+The outbox relay publishes the following stable envelope to the durable
+`foc.events` topic exchange using `user.verified.v1` as the routing key:
+
+```json
+{
+  "eventId": "<UUID v4>",
+  "eventType": "user.verified.v1",
+  "data": {
+    "userId": "<verified user UUID>"
+  }
+}
+```
+
+The outbox row ID is the envelope `eventId`; it is generated once before the
+verification transaction and remains unchanged across relay retries. Delivery
+is at least once, so consumers must deduplicate by `eventId`. The Credit Service
+uses this event to provision the user's initial credit account idempotently.
+There is no synchronous Credit Service call in the verification request.
+
+Set `USER_EVENTS_ENABLED=true` when RabbitMQ is available. `RABBITMQ_URL`,
+`USER_EVENTS_EXCHANGE` (default `foc.events`), and
+`USER_OUTBOX_POLL_INTERVAL_MS` (default 1000) configure delivery. A row is
+marked published only after RabbitMQ confirms it; failures are logged without
+payloads or connection credentials and are retried on a later poll. PostgreSQL
+remains authoritative while RabbitMQ is unavailable.
+
+The outbox migration is additive. An application rollback may safely leave the
+table in place so pending events can still be recovered. Before a schema
+rollback, stop the relay and verification writes, preserve any unpublished
+rows, then drop `outbox_events` in a reviewed migration; dropping it first can
+lose provisioning signals for already-activated users.
+
 `POST /api/auth/login` authenticates an active account and creates a session.
 `POST /api/auth/refresh` atomically rotates its single-use refresh token, and
 `POST /api/auth/logout` revokes it without revealing whether the token existed.

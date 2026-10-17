@@ -140,7 +140,7 @@ describe('account lifecycle API', () => {
   });
 
   beforeEach(async () => {
-    await prisma.$executeRaw`TRUNCATE TABLE "users" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "outbox_events", "users" CASCADE`;
     await redis.executeCliCmd('FLUSHDB');
   });
 
@@ -186,6 +186,24 @@ describe('account lifecycle API', () => {
       url: '/api/accounts/verify-email',
     });
     expect(verification.statusCode).toBe(204);
+    const verifiedAccount = await prisma.user.findUniqueOrThrow({
+      select: { id: true },
+      where: { email: STUDENT_EMAIL },
+    });
+    await expect(
+      prisma.outboxEvent.findMany({
+        where: {
+          aggregateId: verifiedAccount.id,
+          eventType: 'user.verified.v1',
+        },
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        aggregateId: verifiedAccount.id,
+        eventType: 'user.verified.v1',
+        payload: { userId: verifiedAccount.id },
+      }),
+    ]);
 
     const login = await app.inject({
       method: 'POST',

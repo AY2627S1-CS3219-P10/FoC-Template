@@ -100,3 +100,17 @@ model Session {
   @@index([expiresAt])
   @@map("sessions")
 }
+
+model OutboxEvent {
+  id            String   @id @db.Uuid
+  aggregateType String   @map("aggregate_type") @db.VarChar(128)
+  aggregateId   String   @map("aggregate_id") @db.Uuid
+  eventType     String   @map("event_type") @db.VarChar(128)
+  payload       Json
+  published     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([aggregateId, eventType])
+  @@index([published, createdAt])
+  @@map("outbox_events")
+}
