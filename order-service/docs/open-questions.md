@@ -22,7 +22,7 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 | Q-010 | Does order-service own notifications? | S9 | Nasif | OPEN |
 | Q-011 | What may admin DELETE do after acceptance? | S6a (guard) | Nasif | OPEN |
 | Q-012 | How to avoid the courier-no-credit-account loop? | S4 (check), S6a | Nasif | OPEN |
-| Q-014 | How is a DISPUTED errand resolved? | dispute-resolution slice | Nasif | OPEN |
+| Q-014 | How is a DISPUTED errand resolved? | S12 | Nasif | OPEN |
 | Q-015 | Renumber D1 (FR10 ×2, FR9.1.3 ×2) | none (docs) | Team | OPEN |
 | Q-016 | Confirm event naming `errand.<kebab>.v1` (D-004) | S6a | Team | OPEN |
 | Q-017 | Correlation-ID header name across services | N1 | Nasif / team | OPEN |
@@ -96,7 +96,7 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 - **Options:** (A) admin `POST …/resolve-dispute` with PAY_COURIER / REFUND_REQUESTER.
   (B) requester withdraws the dispute → COMPLETED. (C) both.
 - **Recommendation:** C, no deadline.
-- **Blocks:** dispute-resolution slice only. **Meanwhile:** disputed errands hold credits.
+- **Blocks:** S12 only. **Meanwhile:** disputed errands hold credits.
 
 ### Q-015 — D1 numbering (C15)
 Team action: renumber the second FR10 block and the second FR9.1.3.

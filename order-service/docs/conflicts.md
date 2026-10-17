@@ -180,7 +180,7 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
 - **Open:** who resolves (admin? requester withdraws?), outcomes (pay courier →
   `errand.completed.v1`; refund requester → HTTP release → CANCELLED), deadline.
 - **Until decided:** a DISPUTED errand holds its reservation indefinitely. That is safe.
-- **Impact:** a later dispute-resolution slice; does not block S5.
+- **Impact:** S12 (dispute resolution); does not block S5.
 - **Recommendation:** admin-only `POST /api/errands/:id/resolve-dispute`
   `{outcome: PAY_COURIER | REFUND_REQUESTER, note}`; no deadline in this project.
 
