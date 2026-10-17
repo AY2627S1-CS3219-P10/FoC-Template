@@ -7,6 +7,7 @@ import type { EditErrand, ErrandDetails } from '../domain/errand';
 import { Prisma, type ErrandOperation } from '../generated/prisma/client';
 import { PrismaService } from './prisma.service';
 import { UpstreamFailure } from './service-clients';
+import { currentCorrelationId, withCorrelationId } from './correlation';
 
 export function operationRecord(value: ErrandOperation): OperationRecord {
   return { ...value, payload: value.payload as unknown as ErrandDetails };
@@ -52,6 +53,7 @@ export class PrismaOrderRepository implements OrderRepository {
             requesterId,
             idempotencyKey: key,
             inputDigest: digest,
+            correlationId: currentCorrelationId(),
             errandId: randomUUID(),
             kind: 'CREATE',
             payload: payload as unknown as Prisma.InputJsonObject,
@@ -104,6 +106,7 @@ export class PrismaOrderRepository implements OrderRepository {
             requesterId,
             idempotencyKey: key,
             inputDigest: digest,
+            correlationId: currentCorrelationId(),
             errandId: id,
             kind: 'EDIT',
             expectedVersion: errand.version,
@@ -169,7 +172,11 @@ export class PrismaOrderRepository implements OrderRepository {
           }
         }
         try {
-          await credits(creditOperation);
+          // Retries from the recovery worker reuse the original request's id.
+          await withCorrelationId(
+            stored.correlationId ?? currentCorrelationId() ?? randomUUID(),
+            () => credits(creditOperation),
+          );
         } catch (error) {
           if (!(error instanceof UpstreamFailure)) throw error;
           if (error.retryable) return op;
@@ -328,6 +335,7 @@ export class PrismaOrderRepository implements OrderRepository {
             requesterId: actorId,
             idempotencyKey: key,
             inputDigest: digest,
+            correlationId: currentCorrelationId(),
             errandId: id,
             kind: 'DELETE',
             expectedVersion: errand.version,

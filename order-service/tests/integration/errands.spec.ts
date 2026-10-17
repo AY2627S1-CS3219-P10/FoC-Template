@@ -132,6 +132,9 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         headers: {
           authorization: String(req.headers.authorization || ''),
           'Content-Type': 'application/json',
+          ...(req.headers['x-correlation-id']
+            ? { 'x-correlation-id': String(req.headers['x-correlation-id']) }
+            : {}),
         },
         body: body || undefined,
       });
@@ -465,6 +468,33 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     });
     expect(listed.statusCode).toBe(200);
     expect(listed.json()).toHaveLength(1);
+  });
+  it('carries one correlation id from the request to credit-service ledger rows (NFR8)', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/errands',
+      headers: {
+        authorization: 'Bearer requester',
+        'idempotency-key': randomUUID(),
+        'x-correlation-id': 'demo-create-1',
+      },
+      payload: input,
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.headers['x-correlation-id']).toBe('demo-create-1');
+    const errandId = response.json<{ errand: { id: string } }>().errand.id;
+    expect(
+      await creditPrisma.ledgerEntry.findFirst({ where: { errandId } }),
+    ).toMatchObject({ correlationId: 'demo-create-1' });
+    expect(
+      await prisma.errandOperation.findFirst({ where: { errandId } }),
+    ).toMatchObject({ correlationId: 'demo-create-1' });
+    const generated = await app.inject({
+      method: 'GET',
+      url: '/api/errands',
+      headers: auth,
+    });
+    expect(generated.headers['x-correlation-id']).toMatch(/^[0-9a-f-]{36}$/);
   });
   it('sorts the whole catalogue before pagination by time or credits and rejects unknown options', async () => {
     const ids: string[] = [];

@@ -68,6 +68,7 @@ model ErrandOperation {
   previousAmount  Int?            @map("previous_amount")
   errorCode       String?         @map("error_code") @db.VarChar(100)
   errorStatus     Int?            @map("error_status")
+  correlationId   String?         @map("correlation_id") @db.VarChar(128)
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
