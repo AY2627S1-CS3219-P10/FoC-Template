@@ -112,3 +112,16 @@ Assumptions so far (decide-and-note; fold into the summary):
 - **Why:** confirm-then-mark gives at-least-once delivery with a stable eventId, which credit already deduplicates; marking first could lose a payment. Off by default so the integration harness and a stack without RabbitMQ keep working; rows simply wait. `@testcontainers/rabbitmq` was tried and removed: it adds shared lockfile entries outside D-011, so it is parked as Q-019, not added.
 - **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 276/276, statements 96.6%, branches 90.2%. One-off manual run (temp test, deleted) against `rabbitmq:4.2-management-alpine`: message received with the expected envelope, `messageId`, `deliveryMode 2`, header; row marked published. Note: on this Mac that image only starts with `--user rabbitmq --tmpfs /var/lib/rabbitmq:uid=100,gid=101` (`.erlang.cookie` eacces otherwise).
 - **Follow-up:** Q-019; Q-018 compose wiring; Q-012 courier credit account before an end-to-end demo.
+
+### 3cc7bdc feat(order): auto-complete DELIVERED errands after 4 hours
+- **When:** 2026-10-18 07:00 · **Slice:** S6b · **Refs:** D-008, L-1, L-5, NFR5, A-008
+- **Changed:**
+  - `src/domain/lifecycle.ts` — `AUTO_COMPLETE_AFTER_HOURS = 4`
+  - `src/infrastructure/order.repository.ts`, `src/application/ports.ts` — SYSTEM rows guarded by `delivered_at <= CURRENT_TIMESTAMP - 4h`; `dueAutoCompletions()`
+  - `migrations/202610180006_auto_complete_index` — partial index on `delivered_at` for DELIVERED rows
+  - `src/application/order.service.ts` — `autoComplete(id)`: idempotent, returns whether it won
+  - `src/infrastructure/timer.worker.ts`, `src/app.module.ts` — `TimerWorker`: 30 s sweeper → BullMQ `order-timers`, `jobId` per errand, fresh correlation id per job
+  - `tests/integration/errands.spec.ts` — timestamps aged with SQL (no sleeps): 3h59m no-op, dispute at 3h59m wins, 5 parallel jobs → one event, confirm vs job ×5 → one event
+- **Why:** the deadline lives in Postgres and the job re-checks it inside the same conditional UPDATE, so Redis is only a work queue: wiping it, duplicating jobs or racing a confirm/dispute cannot complete an errand twice or early. DB `now()` avoids app clock skew between replicas.
+- **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 279/279, statements 96.6%, branches 90.2%. `TimerWorker` itself is thin glue with no direct test (same as `RecoveryWorker`).
+- **Follow-up:** none.

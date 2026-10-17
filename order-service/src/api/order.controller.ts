@@ -39,6 +39,7 @@ import {
   EditErrandDto,
   ErrandResponse,
   ListErrandsDto,
+  ManageErrandsDto,
   OperationResponse,
 } from './dto';
 
@@ -62,16 +63,35 @@ export class OrderController {
   @Get('manage')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({
-    summary: 'List your requests, or all requests for administrators',
+    summary:
+      "List your requests, or all requests (or one requester's via requesterId) for administrators",
   })
   @ApiOkResponse({ type: [ErrandResponse] })
   managed(
-    @Query() query: ListErrandsDto,
+    @Query() query: ManageErrandsDto,
     @Req() request: AuthenticatedRequest,
   ) {
     return this.service.managed(
       request.userId,
       request.accessToken,
+      query.limit ?? 50,
+      query.offset ?? 0,
+      query.sort,
+      query.requesterId,
+    );
+  }
+  @Get('assigned')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'List errands you accepted as courier, in any status',
+  })
+  @ApiOkResponse({ type: [ErrandResponse] })
+  assigned(
+    @Query() query: ListErrandsDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.assigned(
+      request.userId,
       query.limit ?? 50,
       query.offset ?? 0,
       query.sort,

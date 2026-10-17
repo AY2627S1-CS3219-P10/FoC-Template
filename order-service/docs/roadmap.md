@@ -19,7 +19,7 @@ answered, re-evaluate every slice that lists it.
 | 4 | S3 Lifecycle model | DONE (decided part) | — | rename/removal of IN_PROGRESS / EXPIRED (Q-006) |
 | 5 | S4 Accept | DONE (decided part) | — | one-active-errand constraint (Q-005); courier credit-account check (Q-012) |
 | 6 | S5 Pickup / deliver / dispute | DONE | — | dispute *resolution* (Q-014) is a later slice |
-| 7 | S2 Discovery | PARTIAL | `availableForAcceptance` flag on details, exclusion of non-OPEN | pickup-location filter (Q-009) |
+| 7 | S2 Discovery | DONE (decided part) | — | pickup-location filter (Q-009) |
 | 8 | S6a Completion + outbox | DONE (decided part) | — | real-broker test dep (Q-019); admin-delete guard (Q-011); end-to-end with courier accounts (Q-012); docker wiring (Q-018) |
 | 9 | S6b 4 h auto-complete | DONE | — | — |
 | 10 | S10 History + reorder | after S3 | history view, reorder via create journal | cancelled errands in history depend on Q-007 |

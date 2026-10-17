@@ -62,6 +62,12 @@ Errand { id, requesterId, requesterUsername?, courierId | null, status, pickupLo
 | `POST /api/errands/:id/dispute` | requester | 200 `Errand` (DISPUTED, `disputedAt`); credits stay reserved | same; 409 unless DELIVERED |
 | `POST /api/errands/:id/confirm` | requester | 200 `Errand` (COMPLETED, `completedAt`, `completionMethod: REQUESTER_CONFIRMED`); courier paid via `errand.completed.v1` | same; 409 unless PICKED_UP or DELIVERED |
 
+| `GET /api/errands/assigned?limit&offset&sort` | any user | 200 `Errand[]` the caller accepted as courier, any status | 401 |
+| `GET /api/errands/manage?requesterId=<uuid>` (optional param) | administrators, or the requester themself | 200 `Errand[]` of that requester | 400 bad uuid; 403 `ADMINISTRATOR_REQUIRED` |
+
+Details (`GET /api/errands/:id` and every action response) also carry
+`availableForAcceptance` (OPEN and unassigned).
+
 Lifecycle actions are idempotent per actor: repeating one whose effect is already the
 current state returns 200 with the current errand and changes nothing.
 

@@ -840,6 +840,63 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       ).toBe(1);
     }
   });
+  const list = (url: string, token: string) =>
+    app.inject({
+      method: 'GET',
+      url,
+      headers: { authorization: `Bearer ${token}` },
+    });
+  it('D3 queries: courier assignments, admin view of one requester, availableForAcceptance', async () => {
+    const open = (await create()).json().errand.id;
+    const taken = (await create()).json().errand.id;
+    const own = (await create(input, randomUUID(), 'other')).json().errand.id;
+    expect((await read(open, 'courier')).json()).toMatchObject({
+      availableForAcceptance: true,
+    });
+    await accept(taken);
+    expect((await read(taken, 'courier')).json()).toMatchObject({
+      availableForAcceptance: false,
+    });
+    expect(
+      (await list('/api/errands/assigned', 'courier'))
+        .json<{ id: string }[]>()
+        .map((errand) => errand.id),
+    ).toEqual([taken]);
+    expect((await list('/api/errands/assigned', 'requester')).json()).toEqual(
+      [],
+    );
+    const ids = (response: { json: () => unknown }) =>
+      (response.json() as { id: string }[]).map((errand) => errand.id).sort();
+    expect(
+      ids(
+        await list(`/api/errands/manage?requesterId=${requesterId}`, 'admin'),
+      ),
+    ).toEqual([open, taken].sort());
+    expect(ids(await list('/api/errands/manage', 'admin'))).toEqual(
+      [open, taken, own].sort(),
+    );
+    expect(
+      ids(
+        await list(
+          `/api/errands/manage?requesterId=${requesterId}`,
+          'requester',
+        ),
+      ),
+    ).toEqual([open, taken].sort());
+    const forbidden = await list(
+      `/api/errands/manage?requesterId=${otherId}`,
+      'requester',
+    );
+    expect(forbidden.statusCode).toBe(403);
+    expect(forbidden.json()).toMatchObject({ code: 'ADMINISTRATOR_REQUIRED' });
+    expect(
+      (await list('/api/errands/manage?requesterId=nope', 'admin')).statusCode,
+    ).toBe(400);
+    expect(
+      (await list(`/api/errands?requesterId=${requesterId}`, 'admin'))
+        .statusCode,
+    ).toBe(400);
+  });
   it('owners delete requests, release credits exactly once and hide deleted records', async () => {
     const id = (await create()).json().errand.id;
     const key = randomUUID();

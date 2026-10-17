@@ -93,6 +93,16 @@ export class ListErrandsDto {
   @Max(10000)
   offset?: number;
 }
+export class ManageErrandsDto extends ListErrandsDto {
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      "Administrators only: list this requester's errands instead of all",
+  })
+  @ValidateIf((_o, value) => value !== undefined)
+  @IsUUID('4')
+  requesterId?: string;
+}
 export class ErrandResponse extends CreateErrandDto {
   @ApiPropertyOptional({ nullable: true }) requesterUsername?: string | null;
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -134,6 +144,11 @@ export class ErrandResponse extends CreateErrandDto {
     nullable: true,
   })
   completionMethod?: string | null;
+  @ApiPropertyOptional({
+    description:
+      'Details only (FR4.2.2): true while the errand is OPEN and unassigned',
+  })
+  availableForAcceptance?: boolean;
 }
 export class OperationResponse {
   @ApiProperty({ format: 'uuid' }) operationId!: string;

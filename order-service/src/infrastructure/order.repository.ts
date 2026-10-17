@@ -359,6 +359,19 @@ export class PrismaOrderRepository implements OrderRepository {
       skip: offset,
     });
   }
+  listAssigned(
+    courierId: string,
+    limit: number,
+    offset: number,
+    sort: ErrandSort = 'newest',
+  ) {
+    return this.prisma.errand.findMany({
+      where: { courierId, deletedAt: null },
+      orderBy: sortOrder(sort),
+      take: limit,
+      skip: offset,
+    });
+  }
   async deleteIntent(
     actorId: string,
     admin: boolean,

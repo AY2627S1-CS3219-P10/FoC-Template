@@ -63,7 +63,7 @@ selectable) through `ServiceClients.pickup`.
 | FR4.1.2 | Exclude assigned/cancelled/expired/unavailable | partial | `listOpen` filters `status: OPEN, courierId: null, pendingOperationId: null, deletedAt: null`; expiry not implemented (S7) |
 | FR4.2 | Courier views details before accepting | done | `src/application/order.service.ts` `OrderService.find` (OPEN + unassigned visible to all) |
 | FR4.2.1 | Pickup info, delivery details, credits, status | done | `ErrandResponse` in `src/api/dto.ts` |
-| FR4.2.2 | Indicate whether still available for acceptance | todo | no explicit flag in the response (S2, additive `availableForAcceptance`) |
+| FR4.2.2 | Indicate whether still available for acceptance | done | `availableForAcceptance` in `OrderService.find`; test "D3 queries: …" |
 
 ### FR5 — Accept (priority 1, sprint 3)
 | ID | Requirement (D1) | Status | Notes |

@@ -61,6 +61,12 @@ export interface OrderRepository {
     offset: number,
     sort?: ErrandSort,
   ): Promise<ErrandRecord[]>;
+  listAssigned(
+    courierId: string,
+    limit: number,
+    offset: number,
+    sort?: ErrandSort,
+  ): Promise<ErrandRecord[]>;
   find(id: string): Promise<ErrandRecord | null>;
   /**
    * Applies one lifecycle transition as a single conditional UPDATE plus its history

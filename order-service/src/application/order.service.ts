@@ -139,13 +139,30 @@ export class OrderService {
     limit: number,
     offset: number,
     sort: ErrandSort = 'newest',
+    requesterId?: string,
   ) {
+    const admin = await this.clients.isAdministrator(token);
+    if (requesterId && requesterId !== userId && !admin)
+      throw new OrderError(
+        'ADMINISTRATOR_REQUIRED',
+        "Only administrators may list another requester's errands.",
+        403,
+      );
     return this.repository.listManaged(
-      (await this.clients.isAdministrator(token)) ? null : userId,
+      requesterId ?? (admin ? null : userId),
       limit,
       offset,
       sort,
     );
+  }
+  /** Errands the caller is (or was) the courier for, in any status. */
+  assigned(
+    userId: string,
+    limit: number,
+    offset: number,
+    sort: ErrandSort = 'newest',
+  ) {
+    return this.repository.listAssigned(userId, limit, offset, sort);
   }
   /** FR5/FR6: claim an OPEN errand; exactly one concurrent courier wins. */
   accept(id: string, userId: string, token: string) {
@@ -253,6 +270,8 @@ export class OrderService {
       );
     return {
       ...errand,
+      availableForAcceptance:
+        errand.status === 'OPEN' && errand.courierId === null,
       requesterUsername: token
         ? await this.clients.username(errand.requesterId, token)
         : null,
