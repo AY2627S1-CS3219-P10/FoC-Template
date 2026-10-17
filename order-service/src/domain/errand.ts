@@ -1,3 +1,5 @@
+/** Credit-service rejects amounts above its MAX_CREDIT_BALANCE (10,000,000). */
+export const MAX_OFFERED_CREDITS = 10_000_000;
 export interface CreateErrand {
   pickupLocationId: string;
   description: string;

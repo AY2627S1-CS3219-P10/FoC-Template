@@ -22,6 +22,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config tests/jest-unit.json --runInBand",
     "test:integration": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config tests/jest-integration.json --runInBand",
+    "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config tests/jest-coverage.json --runInBand --coverage",
     "lint": "eslint src tests",
     "format:check": "prettier --check src tests"
   },

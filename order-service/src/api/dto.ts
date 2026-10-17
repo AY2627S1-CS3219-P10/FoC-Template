@@ -11,6 +11,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { MAX_OFFERED_CREDITS } from '../domain/errand';
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 export class CreateErrandDto {
@@ -33,10 +34,10 @@ export class CreateErrandDto {
   @MinLength(1)
   @MaxLength(1000)
   instructions!: string;
-  @ApiProperty({ minimum: 1, maximum: 2000000000 })
+  @ApiProperty({ minimum: 1, maximum: MAX_OFFERED_CREDITS })
   @IsInt()
   @Min(1)
-  @Max(2000000000)
+  @Max(MAX_OFFERED_CREDITS)
   offeredCredits!: number;
 }
 export class EditErrandDto {
@@ -62,11 +63,11 @@ export class EditErrandDto {
   @MinLength(1)
   @MaxLength(1000)
   instructions?: string;
-  @ApiPropertyOptional({ minimum: 1, maximum: 2000000000 })
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_OFFERED_CREDITS })
   @ValidateIf((_o, value) => value !== undefined)
   @IsInt()
   @Min(1)
-  @Max(2000000000)
+  @Max(MAX_OFFERED_CREDITS)
   offeredCredits?: number;
 }
 export class ListErrandsDto {
