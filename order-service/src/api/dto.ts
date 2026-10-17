@@ -103,7 +103,9 @@ export class ErrandResponse extends CreateErrandDto {
       'OPEN',
       'ACCEPTED',
       'IN_PROGRESS',
+      'PICKED_UP',
       'DELIVERED',
+      'DISPUTED',
       'COMPLETED',
       'CANCELLED',
       'EXPIRED',
@@ -115,6 +117,23 @@ export class ErrandResponse extends CreateErrandDto {
   @ApiProperty({ minimum: 0 }) version!: number;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  acceptedAt?: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  pickedUpAt?: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  deliveredAt?: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  disputedAt?: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  completedAt?: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  cancelledAt?: string | null;
+  @ApiPropertyOptional({
+    enum: ['REQUESTER_CONFIRMED', 'AUTO_TIMEOUT'],
+    nullable: true,
+  })
+  completionMethod?: string | null;
 }
 export class OperationResponse {
   @ApiProperty({ format: 'uuid' }) operationId!: string;

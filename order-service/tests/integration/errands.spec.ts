@@ -336,7 +336,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     const id = (await create()).json().errand.id;
     await prisma.errand.update({
       where: { id },
-      data: { status: 'ACCEPTED', courierId: otherId },
+      data: { status: 'ACCEPTED', courierId: otherId, acceptedAt: new Date() },
     });
     expect((await remove(id)).statusCode).toBe(409);
     expect(
@@ -425,7 +425,14 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     });
     await prisma.errand.update({
       where: { id },
-      data: { status: 'COMPLETED', courierId: otherId },
+      data: {
+        status: 'COMPLETED',
+        courierId: otherId,
+        acceptedAt: new Date(),
+        pickedUpAt: new Date(),
+        completedAt: new Date(),
+        completionMethod: 'REQUESTER_CONFIRMED',
+      },
     });
     expect((await remove(id, 'admin')).statusCode).toBe(200);
     expect(
@@ -686,7 +693,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     ).toBe(400);
     await prisma.errand.update({
       where: { id },
-      data: { status: 'ACCEPTED', courierId: otherId },
+      data: { status: 'ACCEPTED', courierId: otherId, acceptedAt: new Date() },
     });
     expect(
       (await edit(id, { expectedVersion: 0, description: 'Too late' }))
@@ -758,6 +765,108 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       }),
     ).toMatchObject({ availableCredits: 70, reservedCredits: 30 });
     expect(await creditPrisma.creditReservationAdjustment.count()).toBe(1);
+  });
+  it('S3: per-state CHECKs reject lifecycle rows missing their transition facts', async () => {
+    const id = (await create()).json().errand.id;
+    const at = new Date('2026-10-18T10:00:00Z');
+    const later = new Date('2026-10-18T10:05:00Z');
+    const rejected = async (data: object, constraint: string) =>
+      expect(prisma.errand.update({ where: { id }, data })).rejects.toThrow(
+        constraint,
+      );
+    await rejected(
+      { status: 'ACCEPTED', courierId: otherId },
+      'errands_assigned_states',
+    );
+    await rejected(
+      { status: 'PICKED_UP', courierId: otherId, acceptedAt: at },
+      'errands_picked_up_states',
+    );
+    await rejected(
+      {
+        status: 'DISPUTED',
+        courierId: otherId,
+        acceptedAt: at,
+        pickedUpAt: at,
+        deliveredAt: at,
+      },
+      'errands_disputed_state',
+    );
+    await rejected(
+      {
+        status: 'COMPLETED',
+        courierId: otherId,
+        acceptedAt: at,
+        pickedUpAt: at,
+        completedAt: at,
+      },
+      'errands_completion',
+    );
+    await rejected(
+      {
+        status: 'COMPLETED',
+        courierId: otherId,
+        acceptedAt: at,
+        pickedUpAt: at,
+        completedAt: at,
+        completionMethod: 'AUTO_TIMEOUT',
+      },
+      'errands_completion',
+    );
+    await rejected(
+      {
+        status: 'PICKED_UP',
+        courierId: otherId,
+        acceptedAt: later,
+        pickedUpAt: at,
+      },
+      'errands_lifecycle_order',
+    );
+    await prisma.errand.update({
+      where: { id },
+      data: {
+        status: 'DISPUTED',
+        courierId: otherId,
+        acceptedAt: at,
+        pickedUpAt: at,
+        deliveredAt: at,
+        disputedAt: later,
+      },
+    });
+    await prisma.errandHistory.create({
+      data: {
+        errandId: id,
+        fromStatus: 'DELIVERED',
+        toStatus: 'DISPUTED',
+        action: 'dispute',
+        actorRole: 'REQUESTER',
+        actorId: requesterId,
+      },
+    });
+    await expect(
+      prisma.errandHistory.create({
+        data: {
+          errandId: id,
+          toStatus: 'COMPLETED',
+          action: 'auto-complete',
+          actorRole: 'SYSTEM',
+          actorId: requesterId,
+        },
+      }),
+    ).rejects.toThrow('errand_history_actor');
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/api/errands/${id}`,
+          headers: auth,
+        })
+      ).json(),
+    ).toMatchObject({
+      status: 'DISPUTED',
+      disputedAt: later.toISOString(),
+      completionMethod: null,
+    });
   });
   it('journals outages durably and exposes operation status only to the requester', async () => {
     outage = true;

@@ -12,10 +12,24 @@ enum ErrandStatus {
   OPEN
   ACCEPTED
   IN_PROGRESS
+  PICKED_UP
   DELIVERED
+  DISPUTED
   COMPLETED
   CANCELLED
   EXPIRED
+}
+
+enum CompletionMethod {
+  REQUESTER_CONFIRMED
+  AUTO_TIMEOUT
+}
+
+enum ActorRole {
+  REQUESTER
+  COURIER
+  ADMIN
+  SYSTEM
 }
 
 enum OperationStatus {
@@ -31,23 +45,31 @@ enum OperationKind {
 }
 
 model Errand {
-  id                  String           @id @db.Uuid
-  requesterId         String           @map("requester_id") @db.Uuid
-  courierId           String?          @map("courier_id") @db.Uuid
-  status              ErrandStatus     @default(OPEN)
-  pickupLocationId    String           @map("pickup_location_id") @db.Uuid
-  pickupSupplierName  String           @map("pickup_supplier_name") @db.VarChar(150)
-  pickupLocationLabel String           @map("pickup_location_label") @db.VarChar(300)
-  description         String           @db.VarChar(1000)
-  deliveryDestination String           @map("delivery_destination") @db.VarChar(250)
-  instructions        String           @db.VarChar(1000)
-  offeredCredits      Int              @map("offered_credits")
-  version             Int              @default(0)
-  pendingOperationId  String?          @unique @map("pending_operation_id") @db.Uuid
-  pendingOperation    ErrandOperation? @relation("PendingOperation", fields: [pendingOperationId], references: [id], onDelete: Restrict)
-  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt           DateTime?        @map("deleted_at") @db.Timestamptz(3)
+  id                  String            @id @db.Uuid
+  requesterId         String            @map("requester_id") @db.Uuid
+  courierId           String?           @map("courier_id") @db.Uuid
+  status              ErrandStatus      @default(OPEN)
+  pickupLocationId    String            @map("pickup_location_id") @db.Uuid
+  pickupSupplierName  String            @map("pickup_supplier_name") @db.VarChar(150)
+  pickupLocationLabel String            @map("pickup_location_label") @db.VarChar(300)
+  description         String            @db.VarChar(1000)
+  deliveryDestination String            @map("delivery_destination") @db.VarChar(250)
+  instructions        String            @db.VarChar(1000)
+  offeredCredits      Int               @map("offered_credits")
+  version             Int               @default(0)
+  pendingOperationId  String?           @unique @map("pending_operation_id") @db.Uuid
+  pendingOperation    ErrandOperation?  @relation("PendingOperation", fields: [pendingOperationId], references: [id], onDelete: Restrict)
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  acceptedAt          DateTime?         @map("accepted_at") @db.Timestamptz(3)
+  pickedUpAt          DateTime?         @map("picked_up_at") @db.Timestamptz(3)
+  deliveredAt         DateTime?         @map("delivered_at") @db.Timestamptz(3)
+  disputedAt          DateTime?         @map("disputed_at") @db.Timestamptz(3)
+  completedAt         DateTime?         @map("completed_at") @db.Timestamptz(3)
+  cancelledAt         DateTime?         @map("cancelled_at") @db.Timestamptz(3)
+  completionMethod    CompletionMethod? @map("completion_method")
+  history             ErrandHistory[]
 
   @@index([status, courierId, createdAt, id])
   @@index([requesterId, createdAt])
@@ -75,4 +97,20 @@ model ErrandOperation {
   @@unique([requesterId, idempotencyKey])
   @@index([status, createdAt])
   @@map("errand_operations")
+}
+
+model ErrandHistory {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  errandId      String        @map("errand_id") @db.Uuid
+  errand        Errand        @relation(fields: [errandId], references: [id], onDelete: Restrict)
+  fromStatus    ErrandStatus? @map("from_status")
+  toStatus      ErrandStatus  @map("to_status")
+  action        String        @db.VarChar(40)
+  actorRole     ActorRole     @map("actor_role")
+  actorId       String?       @map("actor_id") @db.Uuid
+  correlationId String?       @map("correlation_id") @db.VarChar(128)
+  occurredAt    DateTime      @default(now()) @map("occurred_at") @db.Timestamptz(3)
+
+  @@index([errandId, occurredAt])
+  @@map("errand_history")
 }

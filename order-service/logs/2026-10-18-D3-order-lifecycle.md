@@ -32,3 +32,13 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** NFR8 wants one id across the create and complete flows, and the demo needs a single id to follow a request from order into credit logs and ledger. Using credit's existing header name avoids a new convention.
 - **Verified:** `typecheck`, `lint` clean; 16 unit and 23 integration tests passed.
 - **Follow-up:** header name still to be confirmed with the team (Q-017); the AMQP-header half arrives with the outbox (S6a).
+
+### 474865f docs(order): add handoff for the next agent session and N1 log entry
+- **When:** 2026-10-18 06:32 · **Slice:** — · **Refs:** D-012
+- **Changed:**
+  - `logs/HANDOFF-2026-10-18.md` — state, decisions, next steps and parked questions for the next agent session
+  - `logs/2026-10-18-D3-order-lifecycle.md` — entry for `f2c4b61`
+  - `.agents/README.md` — start-of-task step now reads the newest handoff
+- **Why:** the pass continues in a fresh session; one file gives it the facts without re-deriving them from the diffs.
+- **Verified:** docs only.
+- **Follow-up:** none.

@@ -16,7 +16,7 @@ answered, re-evaluate every slice that lists it.
 | 1 | S0 Agent docs | DONE (this pass) | — | — |
 | 2 | S1 Hygiene | READY | everything | — |
 | 3 | N1 Correlation IDs | READY | HTTP in/out + logs, using `x-correlation-id` behind one constant | final header name (Q-017) |
-| 4 | S3 Lifecycle model | PARTIAL | add PICKED_UP, DISPUTED; timestamps; `completionMethod`; history table; domain transition table for decided rows | rename/removal of IN_PROGRESS / EXPIRED (Q-006) |
+| 4 | S3 Lifecycle model | DONE (decided part) | — | rename/removal of IN_PROGRESS / EXPIRED (Q-006) |
 | 5 | S4 Accept | PARTIAL, after S3 | race-safe conditional-UPDATE accept, self-accept rejection, courier can read assigned errand, race test | one-active-errand constraint (Q-005); courier credit-account check (Q-012) |
 | 6 | S5 Pickup / deliver / dispute | after S3, S4 | everything (D-005, D-007) | dispute *resolution* (Q-014) is a later slice |
 | 7 | S2 Discovery | PARTIAL | `availableForAcceptance` flag on details, exclusion of non-OPEN | pickup-location filter (Q-009) |
@@ -61,11 +61,13 @@ Docs and `.agents/` tooling. No code. Log: `logs/2026-10-18-S0-agent-docs.md`.
 - **Goal:** schema + domain foundation for every later lifecycle slice.
 - **Can proceed:** enum values PICKED_UP, DISPUTED (ADD VALUE); columns `acceptedAt`,
   `pickedUpAt`, `deliveredAt`, `disputedAt`, `completedAt`, `cancelledAt`,
-  `completionMethod`; `errand_status_history` table; `src/domain` transition table with
+  `completionMethod`; `errand_history` table; `src/domain` transition table with
   decided rows (see requirements.md §3); per-state CHECK constraints; full matrix unit
   tests.
 - **Parked:** IN_PROGRESS/EXPIRED rename/removal (Q-006).
 - **Acceptance:** matrix test covers every status × action × actor.
+- **Done:** migrations `202610180003_lifecycle_statuses`, `202610180004_lifecycle_columns`;
+  `src/domain/lifecycle.ts` `TRANSITIONS`/`transition()`; `tests/unit/lifecycle.spec.ts`.
 
 ### S4 — Accept (FR5, FR6)
 - **Can proceed:** `POST /api/errands/:id/accept` with a single conditional UPDATE
