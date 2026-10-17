@@ -271,6 +271,35 @@ describe('Credit API with PostgreSQL', () => {
       .expect(200);
   });
 
+  it('rejects expired and wrong-audience tokens on balance reads', async () => {
+    const ownerId = await initialize();
+    const claims = { sid: randomUUID(), isAdmin: false };
+    const tokenOptions = {
+      algorithm: 'HS256' as const,
+      issuer: 'foc-user-service',
+      subject: ownerId,
+    };
+    const expired = jwt.sign(claims, {
+      ...tokenOptions,
+      audience: 'foc-api',
+      expiresIn: -1,
+    });
+    const wrongAudience = jwt.sign(claims, {
+      ...tokenOptions,
+      audience: 'another-api',
+      expiresIn: 900,
+    });
+
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}`)
+      .set('authorization', `Bearer ${expired}`)
+      .expect(401);
+    await request(app.getHttpServer())
+      .get(`/v1/credit-accounts/${ownerId}`)
+      .set('authorization', `Bearer ${wrongAudience}`)
+      .expect(401);
+  });
+
   it('returns bounded transaction history only to the owner or an administrator', async () => {
     const ownerId = await initialize();
     const otherUserId = randomUUID();
