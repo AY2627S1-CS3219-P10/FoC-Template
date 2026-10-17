@@ -1,9 +1,12 @@
+import { supplierMatches, type SupplierMatch } from "./supplier-matches";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
     public code?: string,
     public retryAfter?: number,
+    public matches: SupplierMatch[] = [],
   ) {
     super(message);
   }
@@ -37,6 +40,9 @@ export async function request<T>(
       data.message || "The request could not be completed.",
       data.code,
       Number(response.headers.get("Retry-After")) || undefined,
+      data.code === "POSSIBLE_SUPPLIER_DUPLICATE"
+        ? supplierMatches(data.matches)
+        : [],
     );
   return data as T;
 }

@@ -173,6 +173,168 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   ).toBe(true);
 });
 
+test("matches show descriptions and require fresh confirmation after form edits", async ({
+  page,
+}) => {
+  await session(page, admin);
+  const writes: Record<string, unknown>[] = [];
+  await page.route("**/api/admin/suppliers**", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET") {
+      return route.fulfill({
+        json: new URL(request.url()).pathname.endsWith("/campus-locations")
+          ? campusLocations
+          : [supplier],
+      });
+    }
+    const body = request.postDataJSON();
+    writes.push(body);
+    if (body.confirmDistinctOutlet !== true) {
+      return route.fulfill({
+        status: 409,
+        json: {
+          code: "POSSIBLE_SUPPLIER_DUPLICATE",
+          message: "Similar suppliers already exist at this location.",
+          matches: [
+            {
+              supplierId: supplier.id,
+              supplierName: supplier.name,
+              locationId: supplier.locations[0].id,
+              building: "UTown",
+              floor: 1,
+              locationDescription: "Main entrance",
+            },
+          ],
+        },
+      });
+    }
+    return route.fulfill({ status: 201, json: supplier });
+  });
+
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Add supplier", exact: true }).click();
+  await page.getByLabel("Supplier name").fill("Another Coffee");
+  await page
+    .getByRole("combobox", { name: "Category" })
+    .selectOption("FOOD_COFFEE");
+  await page
+    .getByRole("combobox", { name: "Building" })
+    .selectOption(campusLocations[0].id);
+  await page.getByLabel("Floor", { exact: true }).fill("1");
+  await page.getByLabel("Location description").fill("Near staircase");
+  await page.getByLabel("Opening time").fill("08:00");
+  await page.getByLabel("Closing time").fill("20:00");
+  await page
+    .getByRole("button", { name: "Create supplier", exact: true })
+    .click();
+  const warning = page.getByRole("region", { name: "Review matching outlets" });
+  await expect(warning).toBeVisible();
+  await expect(page.getByLabel("Supplier name")).toHaveValue("Another Coffee");
+  await expect(warning).toContainText("Campus Coffee");
+  await expect(warning).toContainText("Main entrance");
+  await expect(
+    page.getByRole("button", { name: "Confirm separate pickup point" }),
+  ).toBeDisabled();
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).not.toHaveProperty("confirmDistinctOutlet");
+
+  await page
+    .getByRole("checkbox", { name: /different physical pickup point/ })
+    .check();
+  await page.getByLabel("Location description").fill("Opposite study area");
+  await expect(warning).not.toBeVisible();
+  await page
+    .getByRole("button", { name: "Create supplier", exact: true })
+    .click();
+  await expect(warning).toBeVisible();
+  expect(writes[1]).not.toHaveProperty("confirmDistinctOutlet");
+  await expect(
+    page.getByRole("checkbox", { name: /different physical pickup point/ }),
+  ).not.toBeChecked();
+  await page
+    .getByRole("checkbox", { name: /different physical pickup point/ })
+    .check();
+  await page
+    .getByRole("button", { name: "Confirm separate pickup point" })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Supplier created" }),
+  ).toBeVisible();
+  expect(writes).toHaveLength(3);
+  expect(writes[2]).toMatchObject({
+    confirmDistinctOutlet: true,
+    location: { locationDescription: "Opposite study area", floor: 1 },
+  });
+});
+
+for (const action of ["Use existing outlet", "Edit existing outlet"]) {
+  test(`match review can ${action.toLowerCase()} without creating another record`, async ({
+    page,
+  }) => {
+    await session(page, admin);
+    let writes = 0;
+    await page.route("**/api/admin/suppliers**", (route) => {
+      if (route.request().method() === "GET")
+        return route.fulfill({
+          json: route.request().url().endsWith("/campus-locations")
+            ? campusLocations
+            : [supplier],
+        });
+      writes += 1;
+      return route.fulfill({
+        status: 409,
+        json: {
+          code: "POSSIBLE_SUPPLIER_DUPLICATE",
+          message: "Review matches",
+          matches: [
+            {
+              supplierId: supplier.id,
+              supplierName: supplier.name,
+              locationId: supplier.locations[0].id,
+              building: "UTown",
+              floor: 1,
+              locationDescription: "Main entrance",
+            },
+          ],
+        },
+      });
+    });
+    await page.goto("/admin");
+    await page
+      .getByRole("button", { name: "Add supplier", exact: true })
+      .click();
+    await page.getByLabel("Supplier name").fill("Another Coffee");
+    await page
+      .getByRole("combobox", { name: "Building" })
+      .selectOption(campusLocations[0].id);
+    await page.getByLabel("Floor", { exact: true }).fill("1");
+    await page.getByLabel("Location description").fill("New point");
+    await page.getByLabel("Opening time").fill("09:00");
+    await page.getByLabel("Closing time").fill("18:00");
+    await page
+      .getByRole("button", { name: "Create supplier", exact: true })
+      .click();
+    await page.getByRole("button", { name: action, exact: true }).click();
+    if (action === "Use existing outlet") {
+      await expect(
+        page
+          .getByRole("status")
+          .filter({ hasText: "No duplicate was created" }),
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("heading", {
+          name: "Edit pickup location · Campus Coffee",
+        }),
+      ).toBeVisible();
+      await expect(page.getByLabel("Location description")).toHaveValue(
+        "Main entrance",
+      );
+    }
+    expect(writes).toBe(1);
+  });
+}
+
 test("account search, promotion and demotion require confirmation and protect self", async ({
   page,
 }) => {

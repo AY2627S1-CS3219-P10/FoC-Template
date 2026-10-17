@@ -21,6 +21,10 @@ const SCIENCE_CAMPUS_LOCATION: CampusLocationCatalogEntry = {
 };
 
 class StubSupplierManagementRepository implements SupplierManagementRepositoryPort {
+  findPossibleDuplicates(): Promise<[]> {
+    return Promise.resolve([]);
+  }
+
   readonly locationRecords: UpdateSupplierLocationRecord[] = [];
 
   createSupplier(record: CreateSupplierRecord): Promise<SupplierCatalogEntry> {

@@ -12,13 +12,13 @@ export interface CampusLocationCatalogEntry {
 export interface SupplierLocationCatalogEntry {
   building: string;
   closesAt: string;
-  floor: number;
+  floor: number | null;
   id: string;
   imageUrl: string | null;
   isOpenOvernight: boolean;
-  latitude: number;
+  latitude: number | null;
   locationDescription: string;
-  longitude: number;
+  longitude: number | null;
   opensAt: string;
   supplierAtLocation: string;
 }

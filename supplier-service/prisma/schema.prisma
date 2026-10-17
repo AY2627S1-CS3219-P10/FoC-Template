@@ -33,12 +33,12 @@ model Supplier {
 model SupplierLocation {
   id                  String   @id @default(uuid()) @db.Uuid
   supplierId          String   @map("supplier_id") @db.Uuid
-  supplierAtLocation  String   @unique @map("supplier_at_location") @db.Citext
-  building            String   @db.VarChar(160)
-  floor               Int
-  locationDescription String   @map("location_description") @db.VarChar(500)
-  latitude            Decimal  @db.Decimal(11, 8)
-  longitude           Decimal  @db.Decimal(11, 8)
+  supplierAtLocation  String   @map("supplier_at_location") @db.Citext
+  building            String   @db.Citext
+  floor               Int?
+  locationDescription String   @map("location_description") @db.Citext
+  latitude            Decimal? @db.Decimal(11, 8)
+  longitude           Decimal? @db.Decimal(11, 8)
   opensAt             DateTime @map("opens_at") @db.Time(0)
   closesAt            DateTime @map("closes_at") @db.Time(0)
   isOpenOvernight     Boolean  @default(false) @map("is_open_overnight")
@@ -49,7 +49,7 @@ model SupplierLocation {
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
-  @@unique([supplierId, building, floor, locationDescription])
+  @@unique([supplierId, building, floor, locationDescription], map: "supplier_locations_pickup_point_key")
   @@index([building, isActive])
   @@index([supplierId, isActive])
   @@map("supplier_locations")

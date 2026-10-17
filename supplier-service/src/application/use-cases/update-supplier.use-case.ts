@@ -8,6 +8,7 @@ import { SupplierValidationError } from '../../domain/supplier-validation.error.
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
 export interface UpdateSupplierInput {
+  confirmDistinctOutlet?: boolean;
   category?: string;
   name?: string;
 }
@@ -40,6 +41,9 @@ export class UpdateSupplierUseCase {
     }
 
     return this.repository.updateSupplier({
+      ...(input.confirmDistinctOutlet === true
+        ? { confirmDistinctOutlet: true }
+        : {}),
       category,
       id: supplierId,
       name,

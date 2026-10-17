@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -70,4 +71,12 @@ export class CreateSupplierRequest {
   @Type(() => CreateSupplierLocationRequest)
   @ValidateNested()
   location!: CreateSupplierLocationRequest;
+
+  @ApiPropertyOptional({
+    description:
+      'Explicitly confirm a different pickup point after reviewing existing matches. A distinct location description is required.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  confirmDistinctOutlet?: boolean;
 }

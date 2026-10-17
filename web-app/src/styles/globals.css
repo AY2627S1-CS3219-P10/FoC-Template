@@ -1544,6 +1544,25 @@ hr {
 .admin-confirm .admin-actions {
   margin-top: 20px;
 }
+.admin-form .admin-confirm-checkbox {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.admin-page .admin-confirm-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #245348;
+}
+.admin-confirm-checkbox span {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.5;
+}
 .admin-page .admin-error {
   background: #fff0ec;
   color: #8f3529;

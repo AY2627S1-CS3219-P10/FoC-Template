@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -14,6 +15,13 @@ import {
 const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 
 export class UpdateSupplierLocationRequest {
+  @ApiPropertyOptional({
+    description:
+      'Confirm this is a separate pickup point after reviewing matches.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  confirmDistinctOutlet?: boolean;
   @ApiPropertyOptional({
     description: 'Identifier from GET /api/suppliers/campus-locations',
     example: '20000000-0000-4000-8000-000000000008',
