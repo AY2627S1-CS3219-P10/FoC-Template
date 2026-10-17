@@ -1,6 +1,7 @@
 # Event-driven design for order-service
 
-Status: **design only**. Nothing here is implemented yet; slices S6a/S6b/S9 build it.
+Status: **partly implemented.** `outbox_events` and the `errand.completed.v1` write on
+confirm exist (`PrismaOrderRepository.transition`); relay, timers and S9 are still to come.
 Procedure for adding events: `.agents/skills/order-domain-events/SKILL.md`.
 
 ## 1. Which channel for which job

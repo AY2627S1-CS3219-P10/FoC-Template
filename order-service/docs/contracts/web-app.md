@@ -60,6 +60,7 @@ Errand { id, requesterId, requesterUsername?, courierId | null, status, pickupLo
 | `POST /api/errands/:id/pickup` | assigned courier | 200 `Errand` (PICKED_UP, `pickedUpAt`) | 401; 403 `ERRAND_ACTION_FORBIDDEN`; 404; 409 `ERRAND_INVALID_TRANSITION` (not ACCEPTED) |
 | `POST /api/errands/:id/deliver` | assigned courier | 200 `Errand` (DELIVERED, `deliveredAt`) | same; 409 unless PICKED_UP |
 | `POST /api/errands/:id/dispute` | requester | 200 `Errand` (DISPUTED, `disputedAt`); credits stay reserved | same; 409 unless DELIVERED |
+| `POST /api/errands/:id/confirm` | requester | 200 `Errand` (COMPLETED, `completedAt`, `completionMethod: REQUESTER_CONFIRMED`); courier paid via `errand.completed.v1` | same; 409 unless PICKED_UP or DELIVERED |
 
 Lifecycle actions are idempotent per actor: repeating one whose effect is already the
 current state returns 200 with the current errand and changes nothing.

@@ -24,6 +24,7 @@ import { OrderService } from '../../src/application/order.service';
 import { AppModule as CreditModule } from '../../../credit-service/src/app.module';
 import { PrismaService as CreditPrisma } from '../../../credit-service/src/infrastructure/prisma.service';
 import { HttpExceptionFilter as CreditFilter } from '../../../credit-service/src/api/http-exception.filter';
+import { CreditEventsHandler } from '../../../credit-service/src/api/credit-events.handler';
 
 const requesterId = '10000000-0000-4000-8000-000000000001';
 const otherId = '10000000-0000-4000-8000-000000000002';
@@ -259,7 +260,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     outage = false;
     loseAck = null;
     await prisma.$executeRawUnsafe(
-      'TRUNCATE errands, errand_operations CASCADE',
+      'TRUNCATE errands, errand_operations, outbox_events CASCADE',
     );
     await creditPrisma.$executeRawUnsafe('TRUNCATE credit_accounts CASCADE');
     for (const userId of [requesterId, otherId]) {
@@ -510,6 +511,153 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     expect(await prisma.errandHistory.count({ where: { errandId: id } })).toBe(
       2,
     );
+  });
+  /** Creates an errand and walks it to `status` through the real routes. */
+  const errandIn = async (status: 'PICKED_UP' | 'DELIVERED') => {
+    const id = (await create()).json().errand.id;
+    await accept(id);
+    await act(id, 'pickup', 'courier');
+    if (status === 'DELIVERED') await act(id, 'deliver', 'courier');
+    return id as string;
+  };
+  it('S6a: requester confirms; errand.completed.v1 is written once with exactly the credit payload', async () => {
+    const id = await errandIn('DELIVERED');
+    const correlationId = randomUUID();
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/confirm`,
+      headers: {
+        authorization: 'Bearer requester',
+        'x-correlation-id': correlationId,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: 'COMPLETED',
+      completionMethod: 'REQUESTER_CONFIRMED',
+      completedAt: expect.any(String),
+    });
+    expect((await act(id, 'confirm', 'requester')).statusCode).toBe(200);
+    const events = await prisma.outboxEvent.findMany();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      aggregateId: id,
+      eventType: 'errand.completed.v1',
+      headers: { 'x-correlation-id': correlationId },
+      publishedAt: null,
+    });
+    expect(events[0].payload).toStrictEqual({
+      errandId: id,
+      requesterId,
+      courierId,
+      amount: input.offeredCredits,
+    });
+  });
+  it('S6a contract: credit-service settles the stored event, paying the courier once', async () => {
+    expect(
+      (
+        await creditApp.inject({
+          method: 'POST',
+          url: '/v1/credit-accounts',
+          headers: {
+            authorization: `Bearer ${process.env.CREDIT_USER_SERVICE_TOKEN}`,
+          },
+          payload: { userId: courierId },
+        })
+      ).statusCode,
+    ).toBe(201);
+    const id = await errandIn('PICKED_UP');
+    expect((await act(id, 'confirm', 'requester')).json()).toMatchObject({
+      status: 'COMPLETED',
+      completionMethod: 'REQUESTER_CONFIRMED',
+    });
+    const event = await prisma.outboxEvent.findFirstOrThrow({
+      where: { aggregateId: id },
+    });
+    const envelope = {
+      eventId: event.id,
+      eventType: event.eventType,
+      data: event.payload as never,
+    };
+    const handler = creditApp.get(CreditEventsHandler);
+    await handler.handleErrandCompleted(envelope);
+    await handler.handleErrandCompleted(envelope);
+    const account = (userId: string) =>
+      creditPrisma.creditAccount.findUnique({ where: { userId } });
+    expect(await account(requesterId)).toMatchObject({
+      availableCredits: 80,
+      reservedCredits: 0,
+    });
+    expect(await account(courierId)).toMatchObject({ availableCredits: 120 });
+  });
+  it('S6a: only the requester confirms, and only from PICKED_UP or DELIVERED', async () => {
+    const id = (await create()).json().errand.id;
+    expect((await act(id, 'confirm', 'requester')).statusCode).toBe(409);
+    await accept(id);
+    expect((await act(id, 'confirm', 'requester')).statusCode).toBe(409);
+    await act(id, 'pickup', 'courier');
+    expect((await act(id, 'confirm', 'courier')).statusCode).toBe(403);
+    expect((await act(id, 'confirm', 'other')).statusCode).toBe(403);
+    await act(id, 'deliver', 'courier');
+    await act(id, 'dispute', 'requester');
+    expect((await act(id, 'confirm', 'requester')).statusCode).toBe(409);
+    expect(await prisma.outboxEvent.count()).toBe(0);
+  });
+  it('S6a race: confirm vs dispute on DELIVERED has exactly one winner', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = await errandIn('DELIVERED');
+      const results = await Promise.all([
+        act(id, 'confirm', 'requester'),
+        act(id, 'dispute', 'requester'),
+      ]);
+      expect(results.map((result) => result.statusCode).sort()).toEqual([
+        200, 409,
+      ]);
+      const { status } = await prisma.errand.findUniqueOrThrow({
+        where: { id },
+      });
+      expect(
+        await prisma.outboxEvent.count({ where: { aggregateId: id } }),
+      ).toBe(status === 'COMPLETED' ? 1 : 0);
+      expect(
+        await prisma.errandHistory.count({ where: { errandId: id } }),
+      ).toBe(4);
+    }
+  });
+  it('S6a race: early confirm vs deliver always ends COMPLETED with one event', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = await errandIn('PICKED_UP');
+      const [confirmed, delivered] = await Promise.all([
+        act(id, 'confirm', 'requester'),
+        act(id, 'deliver', 'courier'),
+      ]);
+      // If deliver commits first, confirm re-reads DELIVERED and still completes.
+      expect(confirmed.statusCode).toBe(200);
+      expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+        status: 'COMPLETED',
+        completionMethod: 'REQUESTER_CONFIRMED',
+      });
+      expect(
+        await prisma.outboxEvent.count({ where: { aggregateId: id } }),
+      ).toBe(1);
+      expect(
+        await prisma.errandHistory.count({ where: { errandId: id } }),
+      ).toBe(delivered.statusCode === 200 ? 4 : 3);
+    }
+  });
+  it('S6a race: 10 parallel confirms produce one completion and one event', async () => {
+    const id = await errandIn('DELIVERED');
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () => act(id, 'confirm', 'requester')),
+    );
+    expect(results.every((result) => result.statusCode === 200)).toBe(true);
+    expect(await prisma.outboxEvent.count({ where: { aggregateId: id } })).toBe(
+      1,
+    );
+    expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+      status: 'COMPLETED',
+      version: 4,
+    });
   });
   it('owners delete requests, release credits exactly once and hide deleted records', async () => {
     const id = (await create()).json().errand.id;

@@ -8,7 +8,12 @@ import type { LifecycleTimestamp, Transition } from '../domain/lifecycle';
 import { Prisma, type ErrandOperation } from '../generated/prisma/client';
 import { PrismaService } from './prisma.service';
 import { UpstreamFailure } from './service-clients';
-import { currentCorrelationId, withCorrelationId } from './correlation';
+import {
+  CORRELATION_HEADER,
+  currentCorrelationId,
+  withCorrelationId,
+} from './correlation';
+import { ERRAND_COMPLETED_EVENT } from '../domain/events';
 
 export function operationRecord(value: ErrandOperation): OperationRecord {
   return { ...value, payload: value.payload as unknown as ErrandDetails };
@@ -283,6 +288,19 @@ export class PrismaOrderRepository implements OrderRepository {
     return this.prisma.errand.findUnique({ where: { id } });
   }
   async transition(id: string, row: Transition, actorId: string | null) {
+    const correlationId = currentCorrelationId() ?? null;
+    // Entering COMPLETED writes errand.completed.v1 in the same statement (D-001).
+    const event =
+      row.to === 'COMPLETED'
+        ? Prisma.sql`, event AS (
+            INSERT INTO "outbox_events" ("aggregate_id", "event_type", "payload", "headers")
+            SELECT "id", ${ERRAND_COMPLETED_EVENT},
+                   jsonb_build_object('errandId', "id", 'requesterId', "requester_id",
+                                      'courierId', "courier_id", 'amount', "offered_credits"),
+                   jsonb_strip_nulls(jsonb_build_object(${CORRELATION_HEADER}::text, ${correlationId}::text))
+            FROM changed
+          )`
+        : Prisma.empty;
     // One statement: concurrent callers serialise on the row lock and every loser
     // re-evaluates the WHERE clause against the winner's committed row (FR6).
     const changed = await this.prisma.$queryRaw<{ id: string }[]>`
@@ -299,14 +317,14 @@ export class PrismaOrderRepository implements OrderRepository {
           AND "deleted_at" IS NULL
           AND "pending_operation_id" IS NULL
           AND ${actorGuard(row, actorId)}
-        RETURNING "id"
+        RETURNING "id", "requester_id", "courier_id", "offered_credits"
       ), logged AS (
         INSERT INTO "errand_history"
           ("errand_id", "from_status", "to_status", "action", "actor_role", "actor_id", "correlation_id")
         SELECT "id", ${row.from}::"ErrandStatus", ${row.to}::"ErrandStatus", ${row.action},
-               ${row.actor}::"ActorRole", ${actorId}::uuid, ${currentCorrelationId() ?? null}
+               ${row.actor}::"ActorRole", ${actorId}::uuid, ${correlationId}
         FROM changed
-      )
+      )${event}
       SELECT "id" FROM changed`;
     return changed.length === 1;
   }

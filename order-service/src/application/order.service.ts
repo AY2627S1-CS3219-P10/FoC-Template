@@ -165,6 +165,10 @@ export class OrderService {
   dispute(id: string, userId: string, token: string) {
     return this.act(id, 'dispute', userId, token);
   }
+  /** D-006: the requester confirms (also early, from PICKED_UP); the courier is paid via the outbox. */
+  confirm(id: string, userId: string, token: string) {
+    return this.act(id, 'confirm', userId, token);
+  }
   /**
    * Resolves the transition from a fresh read and applies it as one conditional
    * UPDATE. If a concurrent change wins in between, the second read explains why.

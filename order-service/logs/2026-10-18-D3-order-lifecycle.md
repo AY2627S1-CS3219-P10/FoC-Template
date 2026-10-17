@@ -74,3 +74,15 @@ Assumptions so far (decide-and-note; fold into the summary):
 - **Why:** the guarantee lives in Postgres, not in app locks: concurrent UPDATEs serialise on the row lock and losers re-check the WHERE against the winner's row, so at most one courier can match. One statement also makes the history row atomic with the change without holding a transaction open in Node. Re-reading only on failure keeps the success path to one query.
 - **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 264/264, statements 96.0%, branches 87.0%. Mutation check: with the status/courier guards removed the race test failed (6 winners), then restored.
 - **Follow-up:** Q-005 (one active errand) and Q-012 (courier credit account) plug in at the marked spot in `accept()`.
+
+### 3973172 feat(order): add pickup, deliver and dispute actions
+- **When:** 2026-10-18 06:49 · **Slice:** S5 · **Refs:** FR7.1, FR7.2.2, D-005, D-007, A-006, A-007
+- **Changed:**
+  - `src/application/order.service.ts` — `pickup`/`deliver`/`dispute` and `accept` share `act()`: fresh read → role → `transition()` → conditional UPDATE, re-read once if a concurrent change won
+  - `src/domain/lifecycle.ts` — `alreadyApplied()` for idempotent repeats
+  - `src/api/order.controller.ts` — three `POST /api/errands/:id/<action>` routes (200 `Errand`)
+  - `tests/integration/errands.spec.ts` — full ACCEPTED→DISPUTED walk with history and unchanged balances; 401/403/404/409/repeat matrix; 10 parallel pickups apply once
+  - `docs/requirements.md`, `docs/contracts/web-app.md`, `docs/roadmap.md` — evidence, additive routes, S5 done
+- **Why:** one code path for every lifecycle action means S6a's confirm only adds a route and the outbox write. Reading first lets the domain table pick the from-state (confirm has two) and give precise 403/409 errors; the UPDATE's WHERE still guarantees correctness if the read is stale.
+- **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 268/268, statements 96.5%, branches 90.2%.
+- **Follow-up:** dispute resolution (Q-014); 4 h timer on `delivered_at` (S6b).

@@ -221,6 +221,22 @@ export class OrderController {
   ) {
     return this.service.dispute(id, request.userId, request.accessToken);
   }
+  @Post(':id/confirm')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Requester: confirm a DELIVERED (or early, PICKED_UP) errand; pays the courier via errand.completed.v1',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the requester' })
+  @ApiConflictResponse({ description: 'Errand is not PICKED_UP or DELIVERED' })
+  confirm(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.confirm(id, request.userId, request.accessToken);
+  }
   @Delete(':id')
   @Header('Cache-Control', 'no-store')
   @ApiHeader({

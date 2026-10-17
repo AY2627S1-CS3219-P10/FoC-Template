@@ -98,11 +98,11 @@ selectable) through `ServiceClients.pickup`.
 | ID | Requirement | Source | Status | Notes |
 |---|---|---|---|---|
 | L-1 | Courier marks PICKED_UP → DELIVERED, records deliveredAt, starts 4 h clock | D-005, D-008 | partial | `POST …/deliver` records `delivered_at` (the clock's source of truth); timer job S6b |
-| L-2 | Requester confirms DELIVERED → COMPLETED (`completionMethod=REQUESTER_CONFIRMED`) | D-006 | todo | S6a |
-| L-3 | Requester confirms early PICKED_UP → COMPLETED | D-006 | todo | S6a |
+| L-2 | Requester confirms DELIVERED → COMPLETED (`completionMethod=REQUESTER_CONFIRMED`) | D-006 | done | `POST …/confirm` → `OrderService.confirm`; test "S6a: requester confirms; errand.completed.v1 is written once…" |
+| L-3 | Requester confirms early PICKED_UP → COMPLETED | D-006 | done | same route; test "S6a contract: credit-service settles the stored event…" |
 | L-4 | Requester disputes DELIVERED → DISPUTED; no credit movement | D-007 | done | `POST …/dispute`; test "S5: courier picks up and delivers, requester disputes…" checks balances unchanged |
 | L-5 | Still DELIVERED after 4 h → COMPLETED (`AUTO_TIMEOUT`); race-safe vs confirm/dispute | D-008 | todo | S6b |
-| L-6 | COMPLETED emits `errand.completed.v1` via outbox, exactly once per errand | D-001 | todo | S6a |
+| L-6 | COMPLETED emits `errand.completed.v1` via outbox, exactly once per errand | D-001 | partial | written in the same statement as the transition (`PrismaOrderRepository.transition`), partial unique index `outbox_events_one_completion_per_errand`; races "S6a race: …"; relay pending |
 | L-7 | Courier may hold only one active errand | Resp §5 | todo | C5 / Q-005 |
 | L-8 | 30-min ACCEPTED → OPEN, 1-h PICKED_UP → CANCELLED | Resp §7 | todo | C4 / Q-004 |
 | L-9 | Dispute resolution | Resp §5 (partial) | todo | C14 / Q-014 |
