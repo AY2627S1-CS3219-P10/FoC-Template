@@ -125,3 +125,15 @@ Assumptions so far (decide-and-note; fold into the summary):
 - **Why:** the deadline lives in Postgres and the job re-checks it inside the same conditional UPDATE, so Redis is only a work queue: wiping it, duplicating jobs or racing a confirm/dispute cannot complete an errand twice or early. DB `now()` avoids app clock skew between replicas.
 - **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 279/279, statements 96.6%, branches 90.2%. `TimerWorker` itself is thin glue with no direct test (same as `RecoveryWorker`).
 - **Follow-up:** none.
+
+### 9d0850c feat(order): add courier assignments, admin per-requester view and availability flag
+- **When:** 2026-10-18 07:01 · **Slice:** S2 / D3 queries · **Refs:** FR4.2.2, FR5.2.1, NFR3.2
+- **Changed:**
+  - `src/api/order.controller.ts`, `src/api/dto.ts` — `GET /api/errands/assigned`; `ManageErrandsDto.requesterId` (optional, admin-only for others); `availableForAcceptance` documented
+  - `src/application/order.service.ts` — `assigned()`; `managed()` 403 `ADMINISTRATOR_REQUIRED` for non-admins asking for someone else; flag on details
+  - `src/application/ports.ts`, `src/infrastructure/order.repository.ts` — `listAssigned()`
+  - `tests/integration/errands.spec.ts` — courier list, admin per-requester list, 403/400 cases, flag before/after accept
+  - `docs/requirements.md`, `docs/contracts/web-app.md`, `docs/roadmap.md`
+- **Why:** D3 asks for courier, requester and admin query patterns. A separate DTO keeps `requesterId` from being silently accepted on the public open list (400 there). Authorization is checked in the service from user-service's `isAdmin`, never from the query.
+- **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 280/280, statements 96.7%, branches 92.2%.
+- **Follow-up:** pickup-location filter (Q-009).

@@ -27,6 +27,7 @@ answered, re-evaluate every slice that lists it.
 | 12 | N2 Single `/me` call | READY | everything | — |
 | 13 | N3 Latency review | READY | analysis, tx-across-HTTP fix proposal | — |
 | 14 | N4 Coverage gate | after S1 | everything | — |
+| 15 | Postman authorization collection | DONE | — | live run needs all four services and test accounts |
 | — | S7 Requester cancel + expiry | BLOCKED | — | Q-006, Q-007, Q-008 |
 | — | S8 Courier cancel + 30 min / 1 h timers | BLOCKED | — | Q-003, Q-004 |
 | — | S9 Notifications + Socket.IO | BLOCKED | — | Q-010 |
