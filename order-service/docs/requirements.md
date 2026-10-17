@@ -169,13 +169,13 @@ selectable) through `ServiceClients.pickup`.
 |---|---|---|---|---|---|
 | — | create | REQUESTER | OPEN | createdAt; reserve (HTTP journal) | done |
 | OPEN | edit | REQUESTER | OPEN | adjust (HTTP journal) | done |
-| OPEN | accept | COURIER | ACCEPTED | acceptedAt, courierId | decided (FR5/FR6); C5, C12 parked |
-| ACCEPTED | pickup | COURIER (assigned) | PICKED_UP | pickedUpAt | decided |
-| PICKED_UP | deliver | COURIER (assigned) | DELIVERED | deliveredAt; 4 h timer | D-005 |
-| PICKED_UP | confirm (early) | REQUESTER | COMPLETED | completedAt, REQUESTER_CONFIRMED; `errand.completed.v1` | D-006 |
-| DELIVERED | confirm | REQUESTER | COMPLETED | as above | D-006 |
-| DELIVERED | dispute | REQUESTER | DISPUTED | disputedAt; no credit effect | D-007 |
-| DELIVERED | auto-complete | SYSTEM | COMPLETED | AUTO_TIMEOUT; `errand.completed.v1` | D-008 |
+| OPEN | accept | COURIER | ACCEPTED | acceptedAt, courierId | done (S4); C5, C12 parked |
+| ACCEPTED | pickup | COURIER (assigned) | PICKED_UP | pickedUpAt | done (S5) |
+| PICKED_UP | deliver | COURIER (assigned) | DELIVERED | deliveredAt; 4 h timer | done (S5, D-005) |
+| PICKED_UP | confirm (early) | REQUESTER | COMPLETED | completedAt, REQUESTER_CONFIRMED; `errand.completed.v1` | done (S6a, D-006) |
+| DELIVERED | confirm | REQUESTER | COMPLETED | as above | done (S6a, D-006) |
+| DELIVERED | dispute | REQUESTER | DISPUTED | disputedAt; no credit effect | done (S5, D-007) |
+| DELIVERED | auto-complete | SYSTEM | COMPLETED | AUTO_TIMEOUT; `errand.completed.v1` | done (S6b, D-008) |
 | OPEN | cancel | REQUESTER | CANCELLED | cancelledAt; release (HTTP journal) | FR8.1; route/semantics C7 |
 | OPEN | expire | SYSTEM | CANCELLED or EXPIRED | release (HTTP journal) | FR8.2; C6, C8 |
 | ACCEPTED | courier-cancel | COURIER (assigned) | OPEN or CANCELLED | reason, history | C3 |
@@ -185,6 +185,7 @@ selectable) through `ServiceClients.pickup`.
 
 Rows whose status column names an OPEN conflict must **not** be implemented until the
 conflict is decided.
+Implemented rows live in `src/domain/lifecycle.ts` `TRANSITIONS`.
 
 ## 4. Non-functional requirements (Responsibilities §12; D1 NFR1–NFR10)
 | NFR | Obligation | Status | Evidence / notes |
@@ -192,21 +193,21 @@ conflict is decided.
 | NFR1 | 100k historical errands; 500 concurrent users | partial | indexes in `prisma/schema.prisma` / migrations; not load-tested |
 | NFR2.1 | 95% of list/create/details/accept < 2 s | todo | N3: `/me` called up to twice per request; tx held across credit HTTP |
 | NFR2.2 | 95% of notifications available < 5 s | todo | S9 |
-| NFR3.2 | All mutations authenticated + permission-checked; unauthorised → no state change | done (current routes) | `src/api/auth.guard.ts` `AuthGuard` |
+| NFR3.2 | All mutations authenticated + permission-checked; unauthorised → no state change | done | `src/api/auth.guard.ts` `AuthGuard`; actor checks in `OrderService.resolve` / `managed`; S4/S5/S6a 401/403 tests; `postman/order-service.postman_collection.json` |
 | NFR4 | No private data in listings/logs | partial | pino redacts auth/cookie headers (`src/app.module.ts`); events must carry ids only |
-| NFR5 | No permanent loss of critical state; resumable | partial | journal + `RecoveryWorker`; outbox (S6a) and timers (S6b+) pending |
-| NFR8 | Structured logs w/ correlationId; health endpoint | partial | `src/api/health.controller.ts` `HealthController`; no correlation id (N1) |
-| NFR9 | ≥80% coverage on critical logic; invalid-transition + concurrency tests | partial | no coverage script (S1); accept race test pending (S4) |
-| NFR10 | Containerised, restart-safe | done | `Dockerfile`, `docker-entrypoint.sh` (`migrate deploy`) |
+| NFR5 | No permanent loss of critical state; resumable | partial | journal + `RecoveryWorker`; `outbox_events` + `OutboxRelay` (confirm-then-mark); deadlines in Postgres + `TimerWorker`; cancel/expiry timers blocked (S7, S8) |
+| NFR8 | Structured logs w/ correlationId; health endpoint | done | `src/infrastructure/correlation.ts`, `src/api/correlation.middleware.ts`; id on journal ops, `errand_history`, outbox `headers`/AMQP header; `HealthController` |
+| NFR9 | ≥80% coverage on critical logic; invalid-transition + concurrency tests | done | `test:coverage` (80% gate on domain/application; 96.7% statements, 92.2% branches); `tests/unit/lifecycle.spec.ts` matrix; race tests "S4 race…", "S5 race…", "S6a race…", "S6b race…" |
+| NFR10 | Containerised, restart-safe | done | `Dockerfile`, `docker-entrypoint.sh` (`migrate deploy`); image verified 2026-10-18 (9 migrations, ready after restart). Compose RabbitMQ wiring: Q-018 |
 
 ## 5. Known defects and risks
 | ID | Problem | Where | Fix slice |
 |---|---|---|---|
-| K1 | Order allows `offeredCredits` up to 2,000,000,000; credit's max is 10,000,000 → amounts above 10M fail at credit as FAILED operations | `src/api/dto.ts` `CreateErrandDto`/`EditErrandDto` `@Max(2000000000)`; migration `202610120001_initial_errands` CHECK | S1 |
+| K1 | Order allows `offeredCredits` up to 2,000,000,000; credit's max is 10,000,000 → amounts above 10M fail at credit as FAILED operations | `src/api/dto.ts` `CreateErrandDto`/`EditErrandDto` `@Max(2000000000)`; migration `202610120001_initial_errands` CHECK | S1 (done, `a77af2f`) |
 | K2 | DB transaction + row lock held during the credit HTTP call (8 s fetch, 30 s tx timeout) | `PrismaOrderRepository.execute` | N3 |
 | K3 | User Service `/me` called twice on some routes | `AuthGuard` + `ServiceClients.isAdministrator` | N2 |
-| K4 | No correlation id propagation | — | N1 |
-| K5 | Assigned courier cannot read their own errand | `OrderService.find` | S4 |
+| K4 | No correlation id propagation | — | N1 (fixed, `f2c4b61`) |
+| K5 | Assigned courier cannot read their own errand | `OrderService.find` | S4 (fixed) |
 | R1 | Admin DELETE after acceptance can release credits before settlement | `deleteIntent` + `ServiceClients.release` ignoring `RESERVATION_STATE_CONFLICT` | S6a (C11) |
 | R2 | Courier with no credit account → `errand.completed.v1` requeued forever | credit consumer 404 handling | S4/S6a (C12) |
 | — | `dist/`, `coverage/`, `src/generated/` are stale local artefacts (gitignored) | — | run `db:generate`; ignore the others |

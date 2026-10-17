@@ -6,15 +6,45 @@ pickup/deliver/dispute, confirm + outbox, auto-complete), requester cancel, Dock
 Postman.
 
 ## Summary
-_Written at the end of the pass by `order-change-summary`._
+### Questions for you
+Blocking what D3 can show (cancel + expiry):
+1. **Q-006** Rename `IN_PROGRESS` → `PICKED_UP` (A), or keep both (B)? Does expiry end in `EXPIRED` (A) or `CANCELLED` (B)? · **Recommend:** rename; `EXPIRED` (D1 names it).
+2. **Q-007** Owner `DELETE` once CANCELLED exists: soft-delete + new `POST …/cancel` (A), or DELETE sets CANCELLED on the same route + `…/cancel` (B)? · **Recommend:** B (keeps web-app working, history shows CANCELLED).
+3. **Q-008** Errand category for 2 h / 24 h expiry: derive from supplier category and snapshot it (A), or a new request field (B)? · **Recommend:** A.
+Credit safety:
+4. **Q-012** Courier without a credit account makes credit requeue `errand.completed.v1` forever. Check at accept → 409 (A), ask credit to change 404 handling (B), user-service `user.verified.v1` (C)? · **Recommend:** A now, raise C with the team.
+5. **Q-011** Admin DELETE after acceptance: hide only (no credit call) once ≥ PICKED_UP (A), or forbid after OPEN (B)? · **Recommend:** A.
+6. **Q-019** (new) Add dev dep `@testcontainers/rabbitmq@12.1.0` for an automated real-broker test? It changes shared lockfile sections, outside D-011. Yes (A) / no, keep fake-channel tests + manual check (B). · **Recommend:** A.
+Later slices: **Q-005** one active errand per courier (rec: yes, partial unique index) · **Q-003** courier cancel → OPEN (rec) or CANCELLED · **Q-004** timers (rec: 30-min reopen yes, 1-h cancel no, expiry from `createdAt`) · **Q-014** dispute resolution (rec: admin resolve + requester withdraw) · **Q-009** pickup filter (rec: `pickupLocationId` + `q`) · **Q-010** notifications owner (rec: order-service) · **Q-017** keep `x-correlation-id` (rec: yes).
+Team: Q-015 D1 renumbering, Q-016 event naming, **Q-018** send the compose message in `docs/events.md` §8.
 
-Assumptions so far (decide-and-note; fold into the summary):
-- A-003 History table is `errand_history` (handoff name; alternative: roadmap's `errand_status_history`).
-- A-004 Wrong actor is checked before state: 403 beats 409 (alternative: 409 first, which leaks state to strangers).
-- A-005 COMPLETED rows must carry courier, `accepted_at`, `picked_up_at` (alternative: allow admin/legacy COMPLETED without them).
-- A-006 Repeating a lifecycle action whose effect is already the current state returns 200 with the current errand (alternative: 409). Matches accept replay; never re-applies.
-- A-007 A non-participant calling pickup/deliver/dispute gets 403, not 404 (alternative: 404 like `GET`). The handoff asks for 403 "wrong actor"; ids are UUIDv4.
-- A-008 The 4 h timer is sweeper-only (30 s, Postgres deadline) with no delayed job at deliver time, so lateness is ≤ 30 s (alternative: also enqueue a delayed job, which couples `OrderService` to Redis).
+### What changed
+The errand lifecycle now works end to end on the backend: a courier accepts (race-safe), picks up and delivers; the requester confirms (also early from PICKED_UP) or disputes; a DELIVERED errand completes itself after 4 h. Completion writes `errand.completed.v1` to a transactional outbox, and a relay publishes it to RabbitMQ so credit-service pays the courier exactly once. New queries: a courier's assigned errands, an admin view of one requester, and an `availableForAcceptance` flag. A Postman collection proves 401/403/409 handling. FR5, FR6, FR7, L-1…L-6, NFR3.2/8/9 are done. Still missing: requester cancel and expiry (Q-006/7/8), courier cancel and timers (Q-003/4), dispute resolution (Q-014), notifications (Q-010).
+
+### How it works
+- [lifecycle.ts](../src/domain/lifecycle.ts) `TRANSITIONS`: one row per (from, action, actor). An actor never allowed the action gets 403; a wrong state gets 409.
+- [order.service.ts](../src/application/order.service.ts) `act()`: read the errand → resolve the role (requester / assigned courier / accept candidate) → domain row → repository; re-read once if a concurrent change won; a repeat returns the current state.
+- [order.repository.ts](../src/infrastructure/order.repository.ts) `transition()`: **one SQL statement**: a conditional `UPDATE … WHERE status = from AND <actor guard>` with `version+1`, plus CTEs that insert the `errand_history` row and, for COMPLETED, the outbox row. Concurrent callers serialise on the row lock, so exactly one wins.
+- [outbox.relay.ts](../src/infrastructure/outbox.relay.ts): publishes credit's envelope and marks the row published only after the broker confirms. [timer.worker.ts](../src/infrastructure/timer.worker.ts): a sweeper reads deadlines from Postgres; the job re-checks them with DB `now()`.
+- DB CHECKs per state (e.g. COMPLETED needs `completed_at` + `completion_method`); unique index: one completion event per errand.
+
+### Try it
+`postman/README.md`: fill `foc-local` with four test accounts, run the collection. Or: `POST /api/errands/{id}/accept` (courier JWT) → `/pickup` → `/deliver` (courier) → `/confirm` (requester JWT) → `GET /api/errands/{id}` shows `COMPLETED`, `completionMethod`.
+
+### Tests
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check` clean · `pnpm test` 237 passed · `pnpm test:integration` 43 passed · `pnpm test:coverage` 280 passed, domain/application 96.7% statements, 92.2% branches. Also: `prisma migrate diff` empty; image build + run (9 migrations, ready, restart-safe); relay verified once by hand against RabbitMQ 4.2. Postman collection **not run live** (needs the full stack and accounts).
+
+### Assumptions and risks
+- A-003 History table `errand_history` (alternative: `errand_status_history`).
+- A-004 / A-007 Wrong actor → 403 before any state check, also for non-participants (alternative: 404 like `GET`).
+- A-005 COMPLETED rows must carry courier, `accepted_at`, `picked_up_at`.
+- A-006 Repeating an action already in effect → 200 with the current errand (alternative: 409).
+- A-008 4 h timer is sweeper-only (≤ 30 s late) (alternative: also a delayed job at deliver).
+- Risk: until Q-012 is settled, completing an errand for a courier without a credit account parks the event in credit's retry loop. Until Q-011, admin DELETE can still release after acceptance.
+- Risk: root compose does not give order-service RabbitMQ (Q-018); on this Mac the RabbitMQ image needs `--user rabbitmq --tmpfs /var/lib/rabbitmq:uid=100,gid=101`.
+
+### Next
+Answer Q-006/7/8 → S7 requester cancel + expiry (use `order-lifecycle-transition`). Ready without answers: N2 (single `/me` call, K3), S10 history + reorder, S11 live tracking.
 
 ## Commits
 
@@ -148,3 +178,13 @@ Assumptions so far (decide-and-note; fold into the summary):
 - **Why:** D3 asks for Postman proof that authorization is enforced by the backend. Logging in through the real user-service keeps the proof honest: no test-only bypass exists in order-service.
 - **Verified:** JSON parses; versions/codes cross-checked against the integration tests. **Not run live:** that needs user/supplier/credit running with verified test accounts. Container check (no commit needed): `docker build -f order-service/Dockerfile .` OK; image run against Postgres 17 + Redis applied all 9 migrations, `/health/live` and `/health/ready` OK, unauthenticated `GET /api/errands` 401; after `docker restart` "No pending migrations", ready again.
 - **Follow-up:** live Newman run once the stack and accounts exist; compose wiring Q-018; RabbitMQ on this Mac needs the `--user rabbitmq --tmpfs` workaround (see `841ab3c`).
+
+### c710f7a docs(order): add order-lifecycle-transition skill from the implemented patterns
+- **When:** 2026-10-18 07:04 · **Slice:** — · **Refs:** A-002, D-010
+- **Changed:**
+  - `.agents/skills/order-lifecycle-transition/SKILL.md` — 52-line procedure: domain row + matrix test, single-statement UPDATE with history/outbox CTEs, `act()`, outbox and timer patterns, minimum tests
+  - `.agents/README.md` — skill row; code map lists `lifecycle.ts`, `events.ts`, `outbox.relay.ts`, `timer.worker.ts`, `postman/`
+  - `docs/events.md` — pointer to the real skill (the old `order-domain-events` name never existed)
+- **Why:** A-002 deferred these skills until real code existed. One short skill instead of three keeps agent context small, and the cancel/expiry slices can copy the patterns once Q-006/7/8 are answered.
+- **Verified:** docs only.
+- **Follow-up:** none.
