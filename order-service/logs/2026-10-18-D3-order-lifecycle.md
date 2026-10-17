@@ -137,3 +137,14 @@ Assumptions so far (decide-and-note; fold into the summary):
 - **Why:** D3 asks for courier, requester and admin query patterns. A separate DTO keeps `requesterId` from being silently accepted on the public open list (400 there). Authorization is checked in the service from user-service's `isAdmin`, never from the query.
 - **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 280/280, statements 96.7%, branches 92.2%.
 - **Follow-up:** pickup-location filter (Q-009).
+
+### 8bc6fb8 test(order): add Postman collection proving backend authorization
+- **When:** 2026-10-18 07:04 · **Slice:** D3 Postman / containers · **Refs:** NFR3.2, NFR10, D3 Parts 4–5
+- **Changed:**
+  - `postman/order-service.postman_collection.json` — 32 requests with tests: 401, 403 (wrong actor), 409 (wrong state, lost race, key reuse), idempotent replays, lifecycle to COMPLETED, query patterns
+  - `postman/foc-local.postman_environment.json` — URLs and per-role credentials (passwords typed as secrets, empty)
+  - `postman/README.md` — prerequisites, how JWTs come from user-service `POST /api/auth/login`, how to run
+  - `docs/roadmap.md` — Postman row
+- **Why:** D3 asks for Postman proof that authorization is enforced by the backend. Logging in through the real user-service keeps the proof honest: no test-only bypass exists in order-service.
+- **Verified:** JSON parses; versions/codes cross-checked against the integration tests. **Not run live:** that needs user/supplier/credit running with verified test accounts. Container check (no commit needed): `docker build -f order-service/Dockerfile .` OK; image run against Postgres 17 + Redis applied all 9 migrations, `/health/live` and `/health/ready` OK, unauthenticated `GET /api/errands` 401; after `docker restart` "No pending migrations", ready again.
+- **Follow-up:** live Newman run once the stack and accounts exist; compose wiring Q-018; RabbitMQ on this Mac needs the `--user rabbitmq --tmpfs` workaround (see `841ab3c`).

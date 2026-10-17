@@ -36,6 +36,7 @@ failing test → domain (`src/domain`, no Nest/Prisma imports) → ports (`src/a
 | `order-open-questions` | always: tiers, parking, batching questions |
 | `order-api-endpoint` | adding/changing an HTTP route |
 | `order-schema-migration` | schema / SQL migration changes |
+| `order-lifecycle-transition` | adding a status transition, its outbox event or timer |
 | `order-race-testing` | proving one winner under concurrency |
 | `order-failure-injection` | proving recovery after crashes/outages |
 | `order-observability` | logs, correlation ids, health |
@@ -44,18 +45,21 @@ failing test → domain (`src/domain`, no Nest/Prisma imports) → ports (`src/a
 | `order-commit-log` | after **every** commit |
 | `order-change-summary` | end of a pass |
 
-Lifecycle, events and timers: follow `docs/events.md` and copy the existing code patterns
-listed in the code map.
+Lifecycle, events and timers: `order-lifecycle-transition` (patterns) and `docs/events.md`
+(wire format).
 
 ## Code map
 | Path | Role |
 |---|---|
 | `src/api/` | controllers, DTOs (class-validator), `AuthGuard` (calls user-service `/me`), `HttpFilter` |
 | `src/application/order.service.ts` | use cases; `ports.ts` defines repository and service-client interfaces |
-| `src/domain/` | pure rules: errand types, edit rules, lifecycle transition table |
-| `src/infrastructure/order.repository.ts` | Prisma persistence; `execute()` runs journal operations |
+| `src/domain/` | pure rules: `errand.ts` (types, edit rules), `lifecycle.ts` (transition table), `events.ts` (event names, payloads) |
+| `src/infrastructure/order.repository.ts` | Prisma persistence; `execute()` runs journal operations; `transition()` is the single-statement lifecycle UPDATE + history + outbox |
 | `src/infrastructure/service-clients.ts` | HTTP clients for user, supplier, credit (`UpstreamFailure`) |
 | `src/infrastructure/recovery.worker.ts` | BullMQ + sweeper that resumes PENDING operations |
+| `src/infrastructure/outbox.relay.ts` | publishes `outbox_events` to RabbitMQ (`ORDER_EVENTS_ENABLED`) |
+| `src/infrastructure/timer.worker.ts` | `order-timers` sweeper + BullMQ jobs (4 h auto-complete) |
+| `postman/` | Postman collection proving API authorization |
 | `prisma/schema.prisma`, `migrations/` | schema; hand-written SQL migrations |
 | `tests/unit`, `tests/integration` | Jest; integration uses Testcontainers Postgres + in-process credit app |
 | `dist/`, `coverage/`, `src/generated/` | gitignored build output; regenerate, never edit or commit |
