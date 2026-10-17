@@ -1,5 +1,7 @@
 # Order Service
 
+> Requirements, decisions, contracts and roadmap: [`docs/`](docs/). Agent workflow and skills: [`.agents/README.md`](.agents/README.md). Change history with rationale: [`logs/`](logs/).
+
 FR4 creation, authenticated open browsing and requester editing. Uses Node 24, TypeScript, NestJS/Fastify, Prisma 7, PostgreSQL, and Redis/BullMQ recovery. Services own separate databases; credit changes use the Credit Service HTTP API.
 
 ## PowerShell startup

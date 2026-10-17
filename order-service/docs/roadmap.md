@@ -35,7 +35,7 @@ answered, re-evaluate every slice that lists it.
 ## Slice details
 
 ### S0 — Agent docs (DONE)
-Docs and `.agents/` tooling. No code. Summary: `docs/changes/001-S0-agent-docs.md`.
+Docs and `.agents/` tooling. No code. Log: `logs/2026-10-18-S0-agent-docs.md`.
 
 ### S1 — Hygiene
 - **Goal:** fix K1 and add coverage tooling.

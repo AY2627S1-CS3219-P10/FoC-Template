@@ -80,5 +80,18 @@ parts and asks the user in a batch at the end of the pass. Supersedes D-003.
 ### D-010 · 2026-10-18 · ACCEPTED
 **Agent tooling location.** Skills and agent references live in `order-service/.agents/`.
 `order-service/AGENTS.md` is canonical; `CLAUDE.md` and `GEMINI.md` point to it. Every
-coding pass ends with a committed summary in `docs/changes/`; a claude.ai Artifact of
-it is optional (Claude agents only) and the markdown is authoritative.
+coding pass ends with a committed summary (location amended by D-012); a claude.ai
+Artifact of it is optional (Claude agents only) and the markdown is authoritative.
+
+### D-011 · 2026-10-18 · ACCEPTED
+**Root lockfile exception.** When a slice adds a dependency to order-service, the root
+`pnpm-lock.yaml` may change, but only inside its `order-service` importer section.
+`check-scope.sh --allow-lockfile` enforces this. First use: `amqplib@0.10.9` and
+`@types/amqplib@0.10.8` (same versions as credit-service) for the RabbitMQ relay.
+Source: user answer on 2026-10-18.
+
+### D-012 · 2026-10-18 · ACCEPTED
+**Logs.** After every commit an agent appends a short entry (what changed, why, how it was
+verified) to the pass log in `order-service/logs/`; the end-of-pass summary is written at
+the top of the same file (`order-commit-log`, `order-change-summary`). Replaces the
+`docs/changes/` location from D-010. Source: user request on 2026-10-18.
