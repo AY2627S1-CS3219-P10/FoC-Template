@@ -20,7 +20,7 @@ Start here. Skills are plain Markdown procedures in `skills/<name>/SKILL.md`.
 1. `git status`; confirm branch `order-system`.
 2. Read `docs/decisions.md` (wins over everything), then the slice in `docs/roadmap.md`,
    its rows in `docs/requirements.md`, and `docs/open-questions.md`.
-3. Skim the newest file in `logs/` to see where the last pass stopped.
+3. Read `logs/HANDOFF-*.md` if one exists (current state, next steps, parked questions), then skim the newest pass log in `logs/`.
 4. Write a 5–10 line brief (in chat or the log): goal, FRs, files, API/schema/event
    changes, new deps, tests, what is parked.
 
