@@ -170,6 +170,17 @@ export class OrderService {
     return this.act(id, 'confirm', userId, token);
   }
   /**
+   * D-008: completes a DELIVERED errand once its 4 h deadline has passed. Safe to run
+   * any number of times; returns false when a confirm or dispute got there first.
+   */
+  autoComplete(id: string) {
+    return this.repository.transition(
+      id,
+      transition('DELIVERED', 'auto-complete', 'SYSTEM'),
+      null,
+    );
+  }
+  /**
    * Resolves the transition from a fresh read and applies it as one conditional
    * UPDATE. If a concurrent change wins in between, the second read explains why.
    */

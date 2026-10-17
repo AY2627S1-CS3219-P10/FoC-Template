@@ -21,8 +21,13 @@ import { HttpFilter } from '../../src/api/http.filter';
 import { PrismaService } from '../../src/infrastructure/prisma.service';
 import { RecoveryWorker } from '../../src/infrastructure/recovery.worker';
 import { OutboxRelay } from '../../src/infrastructure/outbox.relay';
+import { TimerWorker } from '../../src/infrastructure/timer.worker';
 import type { ChannelModel } from 'amqplib';
 import { OrderService } from '../../src/application/order.service';
+import {
+  ORDER_REPOSITORY,
+  type OrderRepository,
+} from '../../src/application/ports';
 import { AppModule as CreditModule } from '../../../credit-service/src/app.module';
 import { PrismaService as CreditPrisma } from '../../../credit-service/src/infrastructure/prisma.service';
 import { HttpExceptionFilter as CreditFilter } from '../../../credit-service/src/api/http-exception.filter';
@@ -228,6 +233,8 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         }),
       )
       .overrideProvider(RecoveryWorker)
+      .useValue({})
+      .overrideProvider(TimerWorker)
       .useValue({})
       .compile();
     app = module.createNestApplication<NestFastifyApplication>(
@@ -760,6 +767,78 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     ]);
     expect(event.publishedAt).toBeInstanceOf(Date);
     await relay.onModuleDestroy();
+  });
+  /** Moves an errand's lifecycle timestamps into the past instead of waiting. */
+  const age = (id: string, interval: string) =>
+    prisma.$executeRaw`UPDATE "errands" SET "accepted_at" = "accepted_at" - ${interval}::interval, "picked_up_at" = "picked_up_at" - ${interval}::interval, "delivered_at" = "delivered_at" - ${interval}::interval WHERE "id" = ${id}::uuid`;
+  it('S6b: a DELIVERED errand completes automatically after 4 h with one event (D-008)', async () => {
+    const due = await errandIn('DELIVERED');
+    const early = await errandIn('DELIVERED');
+    await age(due, '4 hours 1 second');
+    await age(early, '3 hours 59 minutes');
+    expect(await service.autoComplete(early)).toBe(false);
+    expect(
+      await app.get<OrderRepository>(ORDER_REPOSITORY).dueAutoCompletions(),
+    ).toEqual([due]);
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => service.autoComplete(due)),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(
+      await prisma.errand.findUnique({ where: { id: due } }),
+    ).toMatchObject({ status: 'COMPLETED', completionMethod: 'AUTO_TIMEOUT' });
+    expect(await prisma.outboxEvent.findMany()).toEqual([
+      expect.objectContaining({
+        aggregateId: due,
+        payload: { errandId: due, requesterId, courierId, amount: 20 },
+      }),
+    ]);
+    expect(
+      await prisma.errandHistory.findFirst({
+        where: { errandId: due, toStatus: 'COMPLETED' },
+      }),
+    ).toMatchObject({
+      actorRole: 'SYSTEM',
+      actorId: null,
+      action: 'auto-complete',
+    });
+    expect(
+      await prisma.errand.findUnique({ where: { id: early } }),
+    ).toMatchObject({ status: 'DELIVERED', completionMethod: null });
+    expect((await act(due, 'confirm', 'requester')).statusCode).toBe(200);
+    expect(await prisma.outboxEvent.count()).toBe(1);
+  });
+  it('S6b: a dispute at 3h59m wins; the later job is a no-op', async () => {
+    const id = await errandIn('DELIVERED');
+    await age(id, '3 hours 59 minutes');
+    expect((await act(id, 'dispute', 'requester')).statusCode).toBe(200);
+    await age(id, '2 minutes');
+    expect(
+      await app.get<OrderRepository>(ORDER_REPOSITORY).dueAutoCompletions(),
+    ).toEqual([]);
+    expect(await service.autoComplete(id)).toBe(false);
+    expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+      status: 'DISPUTED',
+    });
+    expect(await prisma.outboxEvent.count()).toBe(0);
+  });
+  it('S6b race: requester confirm vs the 4 h job completes once', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = await errandIn('DELIVERED');
+      await age(id, '5 hours');
+      const [confirmed, timed] = await Promise.all([
+        act(id, 'confirm', 'requester'),
+        service.autoComplete(id),
+      ]);
+      expect(confirmed.statusCode).toBe(200);
+      const errand = await prisma.errand.findUniqueOrThrow({ where: { id } });
+      expect(errand.completionMethod).toBe(
+        timed ? 'AUTO_TIMEOUT' : 'REQUESTER_CONFIRMED',
+      );
+      expect(
+        await prisma.outboxEvent.count({ where: { aggregateId: id } }),
+      ).toBe(1);
+    }
   });
   it('owners delete requests, release credits exactly once and hide deleted records', async () => {
     const id = (await create()).json().errand.id;

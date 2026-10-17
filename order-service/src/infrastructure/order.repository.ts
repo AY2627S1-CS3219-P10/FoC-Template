@@ -4,6 +4,7 @@ import type { OrderRepository, OperationRecord } from '../application/ports';
 import type { ErrandSort } from '../application/ports';
 import { assertEditable, OrderError } from '../domain/errand';
 import type { EditErrand, ErrandDetails } from '../domain/errand';
+import { AUTO_COMPLETE_AFTER_HOURS } from '../domain/lifecycle';
 import type { LifecycleTimestamp, Transition } from '../domain/lifecycle';
 import { Prisma, type ErrandOperation } from '../generated/prisma/client';
 import { PrismaService } from './prisma.service';
@@ -44,7 +45,12 @@ const STAMP_COLUMNS: Record<LifecycleTimestamp, string> = {
   disputedAt: 'disputed_at',
   completedAt: 'completed_at',
 };
-/** Which user may apply a row: accept claims an unassigned errand for a non-requester. */
+/** DB clock, so app-server clock skew cannot complete an errand early (D-008). */
+const AUTO_COMPLETE_DUE = Prisma.sql`"delivered_at" <= CURRENT_TIMESTAMP - make_interval(hours => ${AUTO_COMPLETE_AFTER_HOURS})`;
+/**
+ * Who may apply a row: accept claims an unassigned errand for a non-requester; the
+ * system may only auto-complete once the deadline has passed.
+ */
 function actorGuard(row: Transition, actorId: string | null) {
   if (row.action === 'accept')
     return Prisma.sql`"courier_id" IS NULL AND "requester_id" <> ${actorId}::uuid`;
@@ -52,7 +58,7 @@ function actorGuard(row: Transition, actorId: string | null) {
     return Prisma.sql`"courier_id" = ${actorId}::uuid`;
   if (row.actor === 'REQUESTER')
     return Prisma.sql`"requester_id" = ${actorId}::uuid`;
-  return Prisma.sql`TRUE`;
+  return AUTO_COMPLETE_DUE;
 }
 @Injectable()
 export class PrismaOrderRepository implements OrderRepository {
@@ -286,6 +292,14 @@ export class PrismaOrderRepository implements OrderRepository {
   }
   find(id: string) {
     return this.prisma.errand.findUnique({ where: { id } });
+  }
+  async dueAutoCompletions() {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "errands"
+      WHERE "status" = 'DELIVERED' AND "deleted_at" IS NULL
+        AND "pending_operation_id" IS NULL AND ${AUTO_COMPLETE_DUE}
+      ORDER BY "delivered_at" LIMIT 100`;
+    return rows.map((row) => row.id);
   }
   async transition(id: string, row: Transition, actorId: string | null) {
     const correlationId = currentCorrelationId() ?? null;

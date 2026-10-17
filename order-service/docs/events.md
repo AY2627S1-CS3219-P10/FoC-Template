@@ -2,7 +2,9 @@
 
 Status: **partly implemented.** `outbox_events`, the `errand.completed.v1` write on
 confirm (`PrismaOrderRepository.transition`) and the relay (`src/infrastructure/outbox.relay.ts`
-`OutboxRelay`) exist; timers (S6b) and S9 are still to come.
+`OutboxRelay`) and the 4 h auto-complete (`TimerWorker`, queue `order-timers`) exist; S9 is
+still to come. Timers: a 30 s sweeper reads deadlines from Postgres and enqueues one job per
+errand (`jobId` dedupes); no delayed job is scheduled at deliver time (lateness ≤ 30 s).
 Procedure for adding events: `.agents/skills/order-domain-events/SKILL.md`.
 
 ## 1. Which channel for which job

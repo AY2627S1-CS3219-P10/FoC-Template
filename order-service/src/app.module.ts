@@ -18,6 +18,7 @@ import { PrismaOrderRepository } from './infrastructure/order.repository';
 import { ServiceClients } from './infrastructure/service-clients';
 import { RecoveryWorker } from './infrastructure/recovery.worker';
 import { OutboxRelay } from './infrastructure/outbox.relay';
+import { TimerWorker } from './infrastructure/timer.worker';
 function validate(env: Record<string, unknown>) {
   for (const name of [
     'DATABASE_URL',
@@ -81,6 +82,7 @@ function validate(env: Record<string, unknown>) {
     OrderService,
     RecoveryWorker,
     OutboxRelay,
+    TimerWorker,
     { provide: ORDER_REPOSITORY, useClass: PrismaOrderRepository },
     { provide: SERVICE_CLIENTS, useClass: ServiceClients },
   ],

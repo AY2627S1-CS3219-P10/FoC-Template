@@ -72,6 +72,8 @@ export interface OrderRepository {
     row: Transition,
     actorId: string | null,
   ): Promise<boolean>;
+  /** Up to 100 DELIVERED errands whose auto-complete deadline has passed (DB clock). */
+  dueAutoCompletions(): Promise<string[]>;
 }
 export interface ErrandServices {
   username(userId: string, token: string): Promise<string | null>;

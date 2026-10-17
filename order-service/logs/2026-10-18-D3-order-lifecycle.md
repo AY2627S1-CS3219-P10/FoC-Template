@@ -14,6 +14,7 @@ Assumptions so far (decide-and-note; fold into the summary):
 - A-005 COMPLETED rows must carry courier, `accepted_at`, `picked_up_at` (alternative: allow admin/legacy COMPLETED without them).
 - A-006 Repeating a lifecycle action whose effect is already the current state returns 200 with the current errand (alternative: 409). Matches accept replay; never re-applies.
 - A-007 A non-participant calling pickup/deliver/dispute gets 403, not 404 (alternative: 404 like `GET`). The handoff asks for 403 "wrong actor"; ids are UUIDv4.
+- A-008 The 4 h timer is sweeper-only (30 s, Postgres deadline) with no delayed job at deliver time, so lateness is ≤ 30 s (alternative: also enqueue a delayed job, which couples `OrderService` to Redis).
 
 ## Commits
 
@@ -99,3 +100,15 @@ Assumptions so far (decide-and-note; fold into the summary):
 - **Why:** the event must exist if and only if the errand is COMPLETED. Writing both in one statement means no crash window between them, and the unique index backs that up. The payload comes from the row being updated, so `amount` is the reserved bounty at completion. The contract test uses credit's real handler, so an extra key or a wrong type fails here, not in credit's DLQ.
 - **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 274/274, statements 96.6%, branches 90.2%; `prisma migrate diff` empty.
 - **Follow-up:** relay (next commit); admin-delete guard Q-011; courier credit account Q-012.
+
+### 841ab3c feat(order): relay outbox events to RabbitMQ behind ORDER_EVENTS_ENABLED
+- **When:** 2026-10-18 06:58 · **Slice:** S6a (part 2) · **Refs:** D-001, D-011, NFR5, Q-018, Q-019
+- **Changed:**
+  - `src/infrastructure/outbox.relay.ts`, `src/app.module.ts` — `OutboxRelay`: 1000 ms poll, batch 50, `foc.events` topic exchange, credit's envelope, persistent, `messageId=eventId`, `x-correlation-id` AMQP header; marks published after broker confirm; off unless `ORDER_EVENTS_ENABLED=true`
+  - `package.json`, root `pnpm-lock.yaml` (order-service importer only) — `amqplib@0.10.9`, `@types/amqplib@0.10.8`
+  - `.env.example` — `ORDER_EVENTS_ENABLED`, `RABBITMQ_URL`, `ORDER_EVENTS_EXCHANGE`
+  - `tests/integration/errands.spec.ts` — relay against an in-memory confirm channel: exact envelope/options, publish once, broker rejection keeps the row pending and the retry reuses the eventId
+  - `docs/open-questions.md` (Q-019), `docs/events.md`, `docs/requirements.md`, `docs/roadmap.md`
+- **Why:** confirm-then-mark gives at-least-once delivery with a stable eventId, which credit already deduplicates; marking first could lose a payment. Off by default so the integration harness and a stack without RabbitMQ keep working; rows simply wait. `@testcontainers/rabbitmq` was tried and removed: it adds shared lockfile entries outside D-011, so it is parked as Q-019, not added.
+- **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 276/276, statements 96.6%, branches 90.2%. One-off manual run (temp test, deleted) against `rabbitmq:4.2-management-alpine`: message received with the expected envelope, `messageId`, `deliveryMode 2`, header; row marked published. Note: on this Mac that image only starts with `--user rabbitmq --tmpfs /var/lib/rabbitmq:uid=100,gid=101` (`.erlang.cookie` eacces otherwise).
+- **Follow-up:** Q-019; Q-018 compose wiring; Q-012 courier credit account before an end-to-end demo.

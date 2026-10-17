@@ -31,6 +31,9 @@ export type LifecycleAction = (typeof LIFECYCLE_ACTIONS)[number];
 export const ACTOR_ROLES = ['REQUESTER', 'COURIER', 'ADMIN', 'SYSTEM'] as const;
 export type ActorRole = (typeof ACTOR_ROLES)[number];
 
+/** D-008: a DELIVERED errand completes automatically this long after `deliveredAt`. */
+export const AUTO_COMPLETE_AFTER_HOURS = 4;
+
 export type CompletionMethod = 'REQUESTER_CONFIRMED' | 'AUTO_TIMEOUT';
 export type LifecycleTimestamp =
   'acceptedAt' | 'pickedUpAt' | 'deliveredAt' | 'disputedAt' | 'completedAt';
