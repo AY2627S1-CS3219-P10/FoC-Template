@@ -311,6 +311,9 @@ importers:
       '@prisma/client':
         specifier: 7.10.0
         version: 7.10.0(prisma@7.10.0(@types/node@24.13.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3))(typescript@6.0.3)
+      amqplib:
+        specifier: 0.10.9
+        version: 0.10.9
       bullmq:
         specifier: 6.3.8
         version: 6.3.8(ioredis@6.0.0(supports-color@8.1.1))(pg@8.23.0)
@@ -360,6 +363,9 @@ importers:
       '@testcontainers/postgresql':
         specifier: 12.1.0
         version: 12.1.0(supports-color@8.1.1)
+      '@types/amqplib':
+        specifier: 0.10.8
+        version: 0.10.8
       '@types/jest':
         specifier: 30.0.0
         version: 30.0.0

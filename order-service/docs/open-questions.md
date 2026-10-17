@@ -27,6 +27,7 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 | Q-016 | Confirm event naming `errand.<kebab>.v1` (D-004) | S6a | Team | OPEN |
 | Q-017 | Correlation-ID header name across services | N1 | Nasif / team | OPEN |
 | Q-018 | compose.yaml: give order-service RabbitMQ | S6a end-to-end run | Teammate (compose) | OPEN |
+| Q-019 | Add dev dep `@testcontainers/rabbitmq@12.1.0` (lockfile `packages:` change)? | automated real-broker test | Nasif | OPEN |
 
 ---
 
@@ -115,3 +116,17 @@ Team action: renumber the second FR10 block and the second FR9.1.3.
 Owner: whoever maintains the root `compose.yaml`. The ready-to-send message is in
 `docs/events.md` → "External dependency". Blocks only running S6a end-to-end in
 Docker; local dev can point `RABBITMQ_URL` at `127.0.0.1:5672`.
+
+### Q-019 — RabbitMQ testcontainer dependency
+- **Status:** OPEN · **Related:** S6a, D-011
+- **Question:** may order-service add the dev dependency `@testcontainers/rabbitmq@12.1.0`?
+  Unlike `amqplib` it is new to the workspace, so the root `pnpm-lock.yaml` would also
+  change in its shared `packages:`/`snapshots:` sections, outside what D-011 allows.
+- **Options:** (A) approve it and widen D-011 for this package; (B) keep the fake-channel
+  relay tests plus the manual real-broker check (current state).
+- **Recommendation:** A. A committed real-broker test is stronger evidence for D3.
+- **Blocks:** only an automated real-broker test.
+- **Done meanwhile:** relay tested against an in-memory confirm channel (envelope, headers,
+  confirm-before-mark, retry with the same eventId); verified once by hand against
+  `rabbitmq:4.2-management-alpine`.
+

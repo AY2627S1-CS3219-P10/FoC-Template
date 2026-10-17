@@ -17,6 +17,7 @@ import { PrismaService } from './infrastructure/prisma.service';
 import { PrismaOrderRepository } from './infrastructure/order.repository';
 import { ServiceClients } from './infrastructure/service-clients';
 import { RecoveryWorker } from './infrastructure/recovery.worker';
+import { OutboxRelay } from './infrastructure/outbox.relay';
 function validate(env: Record<string, unknown>) {
   for (const name of [
     'DATABASE_URL',
@@ -79,6 +80,7 @@ function validate(env: Record<string, unknown>) {
     AuthGuard,
     OrderService,
     RecoveryWorker,
+    OutboxRelay,
     { provide: ORDER_REPOSITORY, useClass: PrismaOrderRepository },
     { provide: SERVICE_CLIENTS, useClass: ServiceClients },
   ],

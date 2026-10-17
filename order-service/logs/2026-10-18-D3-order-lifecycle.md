@@ -86,3 +86,16 @@ Assumptions so far (decide-and-note; fold into the summary):
 - **Why:** one code path for every lifecycle action means S6a's confirm only adds a route and the outbox write. Reading first lets the domain table pick the from-state (confirm has two) and give precise 403/409 errors; the UPDATE's WHERE still guarantees correctness if the read is stale.
 - **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 268/268, statements 96.5%, branches 90.2%.
 - **Follow-up:** dispute resolution (Q-014); 4 h timer on `delivered_at` (S6b).
+
+### 24f7c13 feat(order): add confirm and write errand.completed.v1 to a transactional outbox
+- **When:** 2026-10-18 06:52 · **Slice:** S6a (part 1) · **Refs:** D-001, D-006, L-2, L-3, L-6, FR10-credit.3
+- **Changed:**
+  - `migrations/202610180005_outbox_events`, `prisma/schema.prisma` — `outbox_events`; partial unique index, one `errand.completed.v1` per errand; index on unpublished rows
+  - `src/infrastructure/order.repository.ts` — a transition into COMPLETED also inserts the event in the same statement; payload built in SQL from the updated row; correlation id in `headers`
+  - `src/domain/events.ts` — event name and the exact payload type
+  - `src/application/order.service.ts`, `src/api/order.controller.ts` — `POST /api/errands/:id/confirm`
+  - `tests/integration/errands.spec.ts` — exact payload/headers; contract test through credit's `CreditEventsHandler` (delivered twice, courier paid once); wrong actor/state; three race tests
+  - `docs/requirements.md`, `docs/contracts/web-app.md`, `docs/events.md` — evidence, route, status
+- **Why:** the event must exist if and only if the errand is COMPLETED. Writing both in one statement means no crash window between them, and the unique index backs that up. The payload comes from the row being updated, so `amount` is the reserved bounty at completion. The contract test uses credit's real handler, so an extra key or a wrong type fails here, not in credit's DLQ.
+- **Verified:** `typecheck`, `lint`, `format:check` clean; `test:coverage` → 274/274, statements 96.6%, branches 90.2%; `prisma migrate diff` empty.
+- **Follow-up:** relay (next commit); admin-delete guard Q-011; courier credit account Q-012.

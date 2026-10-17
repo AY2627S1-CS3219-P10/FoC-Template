@@ -102,7 +102,7 @@ selectable) through `ServiceClients.pickup`.
 | L-3 | Requester confirms early PICKED_UP → COMPLETED | D-006 | done | same route; test "S6a contract: credit-service settles the stored event…" |
 | L-4 | Requester disputes DELIVERED → DISPUTED; no credit movement | D-007 | done | `POST …/dispute`; test "S5: courier picks up and delivers, requester disputes…" checks balances unchanged |
 | L-5 | Still DELIVERED after 4 h → COMPLETED (`AUTO_TIMEOUT`); race-safe vs confirm/dispute | D-008 | todo | S6b |
-| L-6 | COMPLETED emits `errand.completed.v1` via outbox, exactly once per errand | D-001 | partial | written in the same statement as the transition (`PrismaOrderRepository.transition`), partial unique index `outbox_events_one_completion_per_errand`; races "S6a race: …"; relay pending |
+| L-6 | COMPLETED emits `errand.completed.v1` via outbox, exactly once per errand | D-001 | done | written in the same statement as the transition (`PrismaOrderRepository.transition`), partial unique index `outbox_events_one_completion_per_errand`; races "S6a race: …"; `OutboxRelay` tests "S6a relay: …" |
 | L-7 | Courier may hold only one active errand | Resp §5 | todo | C5 / Q-005 |
 | L-8 | 30-min ACCEPTED → OPEN, 1-h PICKED_UP → CANCELLED | Resp §7 | todo | C4 / Q-004 |
 | L-9 | Dispute resolution | Resp §5 (partial) | todo | C14 / Q-014 |
@@ -134,7 +134,7 @@ selectable) through `ServiceClients.pickup`.
 | FR10-credit.2 | Reserve offered credits on creation | done | `OrderService.process` → `ServiceClients.reserve` |
 | FR10-credit.2.1 | Reject creation on insufficient credits | done | test "rejects insufficient credits without an errand, and never overspends concurrently" |
 | FR10-credit.2.2 | Concurrent creates never overspend | done | same test (credit-service enforces) |
-| FR10-credit.3 | Transfer on COMPLETED; release on CANCELLED | partial | release on DELETE done; transfer todo (S6a, via `errand.completed.v1`, D-001) |
+| FR10-credit.3 | Transfer on COMPLETED; release on CANCELLED | partial | transfer via `errand.completed.v1` done (contract test "S6a contract: …"); release on DELETE done; CANCELLED status blocked (Q-007) |
 | FR10-credit.3.1 | Ledger entry per reserve/transfer/release | other service | credit-service ledger |
 | FR10-credit.3.2 | Transfer/release at most once | partial | release idempotent (test "lost release acknowledgement keeps deletion durable and retries without duplicate refunds"); transfer via event `eventId` dedupe (S6a) |
 | FR10-credit.4, .4.1 | User views balances | other service | credit-service + web-app |

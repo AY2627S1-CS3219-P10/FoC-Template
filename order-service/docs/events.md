@@ -1,7 +1,8 @@
 # Event-driven design for order-service
 
-Status: **partly implemented.** `outbox_events` and the `errand.completed.v1` write on
-confirm exist (`PrismaOrderRepository.transition`); relay, timers and S9 are still to come.
+Status: **partly implemented.** `outbox_events`, the `errand.completed.v1` write on
+confirm (`PrismaOrderRepository.transition`) and the relay (`src/infrastructure/outbox.relay.ts`
+`OutboxRelay`) exist; timers (S6b) and S9 are still to come.
 Procedure for adding events: `.agents/skills/order-domain-events/SKILL.md`.
 
 ## 1. Which channel for which job
@@ -77,9 +78,8 @@ index on (created_at) where published_at is null
 | `ORDER_EVENTS_ENABLED` | `false` | when false the relay does not start; rows still written |
 | `ORDER_EVENTS_EXCHANGE` | `foc.events` | |
 
-Dependencies when S6a lands (pinned to credit's versions): `amqplib@0.10.9`,
-`@types/amqplib@0.10.8` (dev), `@testcontainers/rabbitmq` matching
-`@testcontainers/postgresql@12.1.0` (dev). `@nestjs/microservices` only if order ever
+Dependencies (pinned to credit's versions): `amqplib@0.10.9`, `@types/amqplib@0.10.8`
+(dev). `@testcontainers/rabbitmq@12.1.0` is waiting on Q-019. `@nestjs/microservices` only if order ever
 consumes events.
 
 ## 6. Consuming events

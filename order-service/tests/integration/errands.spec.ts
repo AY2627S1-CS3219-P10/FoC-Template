@@ -20,6 +20,8 @@ import { AppModule } from '../../src/app.module';
 import { HttpFilter } from '../../src/api/http.filter';
 import { PrismaService } from '../../src/infrastructure/prisma.service';
 import { RecoveryWorker } from '../../src/infrastructure/recovery.worker';
+import { OutboxRelay } from '../../src/infrastructure/outbox.relay';
+import type { ChannelModel } from 'amqplib';
 import { OrderService } from '../../src/application/order.service';
 import { AppModule as CreditModule } from '../../../credit-service/src/app.module';
 import { PrismaService as CreditPrisma } from '../../../credit-service/src/infrastructure/prisma.service';
@@ -658,6 +660,106 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       status: 'COMPLETED',
       version: 4,
     });
+  });
+  /** Relay wired to an in-memory confirm channel; `nack` makes the broker reject. */
+  function fakeRelay() {
+    const sent: { routingKey: string; body: unknown; options: unknown }[] = [];
+    const broker = { nack: false };
+    const channel = {
+      assertExchange: jest.fn(() => Promise.resolve()),
+      close: () => Promise.resolve(),
+      publish: (
+        _exchange: string,
+        routingKey: string,
+        content: Buffer,
+        options: unknown,
+        done: (error: Error | null) => void,
+      ) => {
+        if (broker.nack) return done(new Error('nack'));
+        sent.push({
+          routingKey,
+          body: JSON.parse(content.toString()),
+          options,
+        });
+        done(null);
+      },
+    };
+    class TestRelay extends OutboxRelay {
+      protected open() {
+        return Promise.resolve({
+          on: () => undefined,
+          close: () => Promise.resolve(),
+          createConfirmChannel: () => Promise.resolve(channel),
+        } as unknown as ChannelModel);
+      }
+    }
+    const relay = new TestRelay(
+      prisma,
+      new ConfigService({ ORDER_EVENTS_ENABLED: 'true' }),
+    );
+    return { relay, sent, broker, channel };
+  }
+  it("S6a relay: publishes credit's envelope after broker confirm, once per event", async () => {
+    const id = await errandIn('DELIVERED');
+    const correlationId = randomUUID();
+    await app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/confirm`,
+      headers: {
+        authorization: 'Bearer requester',
+        'x-correlation-id': correlationId,
+      },
+    });
+    const event = await prisma.outboxEvent.findFirstOrThrow();
+    const { relay, sent, channel } = fakeRelay();
+    expect(await relay.publishPending()).toBe(1);
+    expect(channel.assertExchange).toHaveBeenCalledWith('foc.events', 'topic', {
+      durable: true,
+    });
+    expect(sent).toEqual([
+      {
+        routingKey: 'errand.completed.v1',
+        body: {
+          pattern: 'errand.completed.v1',
+          data: {
+            eventId: event.id,
+            eventType: 'errand.completed.v1',
+            data: { errandId: id, requesterId, courierId, amount: 20 },
+          },
+        },
+        options: expect.objectContaining({
+          deliveryMode: 2,
+          messageId: event.id,
+          contentType: 'application/json',
+          headers: { 'x-correlation-id': correlationId },
+        }),
+      },
+    ]);
+    expect(
+      (await prisma.outboxEvent.findUniqueOrThrow({ where: { id: event.id } }))
+        .publishedAt,
+    ).toBeInstanceOf(Date);
+    expect(await relay.publishPending()).toBe(0);
+    expect(sent).toHaveLength(1);
+    await relay.onModuleDestroy();
+  });
+  it('S6a relay: a broker rejection keeps the row pending and the retry reuses the eventId', async () => {
+    const id = await errandIn('DELIVERED');
+    await act(id, 'confirm', 'requester');
+    const { relay, sent, broker } = fakeRelay();
+    broker.nack = true;
+    expect(await relay.publishPending()).toBe(0);
+    expect(
+      await prisma.outboxEvent.count({ where: { publishedAt: null } }),
+    ).toBe(1);
+    broker.nack = false;
+    expect(await relay.publishPending()).toBe(1);
+    const event = await prisma.outboxEvent.findFirstOrThrow();
+    expect(sent.map((message) => message.options)).toEqual([
+      expect.objectContaining({ messageId: event.id }),
+    ]);
+    expect(event.publishedAt).toBeInstanceOf(Date);
+    await relay.onModuleDestroy();
   });
   it('owners delete requests, release credits exactly once and hide deleted records', async () => {
     const id = (await create()).json().errand.id;

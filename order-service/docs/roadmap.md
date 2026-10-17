@@ -20,7 +20,7 @@ answered, re-evaluate every slice that lists it.
 | 5 | S4 Accept | DONE (decided part) | — | one-active-errand constraint (Q-005); courier credit-account check (Q-012) |
 | 6 | S5 Pickup / deliver / dispute | DONE | — | dispute *resolution* (Q-014) is a later slice |
 | 7 | S2 Discovery | PARTIAL | `availableForAcceptance` flag on details, exclusion of non-OPEN | pickup-location filter (Q-009) |
-| 8 | S6a Completion + outbox | PARTIAL, after S3, S5, N1 | outbox table, relay, confirm + early confirm, `errand.completed.v1`, contract test | admin-delete guard (Q-011); end-to-end with courier accounts (Q-012); docker wiring (Q-018) |
+| 8 | S6a Completion + outbox | DONE (decided part) | — | real-broker test dep (Q-019); admin-delete guard (Q-011); end-to-end with courier accounts (Q-012); docker wiring (Q-018) |
 | 9 | S6b 4 h auto-complete | after S6a | everything (D-008) | — |
 | 10 | S10 History + reorder | after S3 | history view, reorder via create journal | cancelled errands in history depend on Q-007 |
 | 11 | S11 Live tracking | after S5 | everything | — |
