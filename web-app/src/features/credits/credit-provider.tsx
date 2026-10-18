@@ -28,13 +28,24 @@ export function CreditProvider({ children }: { children: React.ReactNode }) {
       setState({ userId, balance: null, error: "", loading: Boolean(userId) });
       if (!userId) return;
       try {
-        const balance = await authenticatedRequest<CreditBalance>("credits", {});
+        let balance: CreditBalance;
+        try {
+          balance = await authenticatedRequest<CreditBalance>("credits");
+        } catch (failure) {
+          if (
+            !(failure instanceof ApiError) ||
+            failure.code !== "ACCOUNT_NOT_FOUND"
+          ) {
+            throw failure;
+          }
+          // This idempotent fallback repairs accounts verified before the
+          // UserVerified outbox event was delivered.
+          balance = await authenticatedRequest<CreditBalance>("credits", {});
+        }
         if (active) setState({ userId, balance, error: "", loading: false });
       } catch (failure) {
         if (!active) return;
-        const error = failure instanceof ApiError && failure.code === "ACCOUNT_NOT_FOUND"
-          ? "Your credit account has not been set up yet. Please try again shortly."
-          : failure instanceof Error ? failure.message : "Unable to load your credits.";
+        const error = failure instanceof Error ? failure.message : "Unable to load your credits.";
         setState({ userId, balance: null, error, loading: false });
       }
     });
