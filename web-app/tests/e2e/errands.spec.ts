@@ -16,7 +16,7 @@ test("create an errand and refresh its listing and credit balance", async ({ pag
     created = true; return route.fulfill({ status: 201, json: { status: "SUCCEEDED", operationId: "operation", errand } });
   });
   await page.goto("/errands/create");
-  await expect(page.getByRole("option", { name: "Cafe", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: "Cafe · Floor 1", exact: true })).toHaveCount(1);
   await page.getByRole("combobox", { name: "Pickup location" }).selectOption("10000000-0000-4000-8000-000000000002");
   await page.getByLabel("Errand description").fill("Pick up my coffee"); await page.getByLabel("Delivery destination").fill("UTown entrance"); await page.getByLabel("Pickup or delivery instructions").fill("Meet downstairs"); await page.getByLabel("Offered credits").fill("20");
   await page.locator("form").getByRole("button", { name: "Create errand", exact: true }).click();
