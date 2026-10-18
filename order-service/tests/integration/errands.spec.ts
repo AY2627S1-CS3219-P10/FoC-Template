@@ -177,8 +177,16 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     process.env.CREDIT_SERVICE_URL = await listen(proxy);
     lookup = createServer((req, res) => {
       res.setHeader('Content-Type', 'application/json');
-      if (req.url?.match(/^\/api\/accounts\/[^/]+\/identity$/)) {
-        res.end(JSON.stringify({ id: requesterId, username: 'RequesterName' }));
+      const identity = req.url?.match(/^\/api\/accounts\/([^/]+)\/identity$/);
+      if (identity) {
+        // Numbered couriers stand for accounts that no longer exist.
+        const username = {
+          [requesterId]: 'RequesterName',
+          [otherId]: 'OtherName',
+          [courierId]: 'CourierName',
+        }[identity[1]];
+        if (username) res.end(JSON.stringify({ id: identity[1], username }));
+        else res.writeHead(404).end('{}');
         return;
       }
       if (req.url === '/api/accounts/me') {
@@ -345,8 +353,14 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       version: 1,
       acceptedAt: expect.any(String),
     });
-    expect((await read(id, 'courier')).json()).toMatchObject({ courierId });
-    expect((await read(id, 'requester')).json()).toMatchObject({ courierId });
+    const names = {
+      courierId,
+      courierUsername: 'CourierName',
+      requesterUsername: 'RequesterName',
+    };
+    expect(response.json()).toMatchObject(names);
+    expect((await read(id, 'courier')).json()).toMatchObject(names);
+    expect((await read(id, 'requester')).json()).toMatchObject(names);
     expect((await read(id, 'other')).statusCode).toBe(404);
     expect(
       (
@@ -366,6 +380,30 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         actorId: courierId,
       }),
     ]);
+  });
+  it('courierUsername is null while unassigned, after a release, and for a deleted courier account', async () => {
+    const id = (await create()).json().errand.id;
+    expect((await read(id, 'requester')).json()).toMatchObject({
+      courierId: null,
+      courierUsername: null,
+    });
+    await accept(id);
+    const released = await app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/courier-cancel`,
+      headers: { authorization: 'Bearer courier' },
+    });
+    expect(released.json()).toMatchObject({
+      courierId: null,
+      courierUsername: null,
+    });
+    const gone = await accept(id, 'courier-7');
+    expect(gone.statusCode).toBe(200);
+    expect(gone.json()).toMatchObject({
+      courierId: userFor('Bearer courier-7'),
+      courierUsername: null,
+      requesterUsername: 'RequesterName',
+    });
   });
   it('S4: rejects self-accept, unknown, deleted, taken and pending errands without changing them', async () => {
     const id = (await create()).json().errand.id;

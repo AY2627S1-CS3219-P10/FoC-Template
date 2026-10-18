@@ -363,6 +363,14 @@ export class OrderService {
         'This errand is being updated. Try again shortly.',
         409,
       );
+    const [requesterUsername, courierUsername] = token
+      ? await Promise.all([
+          this.clients.username(errand.requesterId, token),
+          errand.courierId
+            ? this.clients.username(errand.courierId, token)
+            : null,
+        ])
+      : [null, null];
     return {
       ...errand,
       availableForAcceptance:
@@ -370,9 +378,8 @@ export class OrderService {
         errand.courierId === null &&
         errand.expiresAt > new Date() &&
         !(await this.repository.isExcluded(errand.id, requesterId)),
-      requesterUsername: token
-        ? await this.clients.username(errand.requesterId, token)
-        : null,
+      requesterUsername,
+      courierUsername,
     };
   }
 }

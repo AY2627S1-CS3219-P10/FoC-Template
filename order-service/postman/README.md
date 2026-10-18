@@ -1,16 +1,17 @@
 # Postman: order-service authorization and lifecycle (D3)
 
-`order-service.postman_collection.json` (53 requests) and `foc-local.postman_environment.json`.
+`order-service.postman_collection.json` (65 requests) and `foc-local.postman_environment.json`.
 Every request has tests, so a Collection Runner pass is the evidence. All checks are
 enforced by order-service itself, never by the client.
 
 | Folder | Shows |
 |---|---|
-| 0 Setup | logs in four users through user-service, picks a supplier location |
+| 0 Setup | logs in four users through user-service, picks a supplier location, records the requester's, courier's and stranger's credit balances (200 also proves each courier has a credit account, Q-012) |
 | 1 Authentication | 401 without a token or with a forged one |
-| 2 Lifecycle | create (201) and idempotent replay; key reuse with other data 409; stranger edit 403; requester accepting own errand 403; courier accept 200; lost race 409; repeat accept 200 unchanged; pickup/deliver/confirm/dispute with wrong actor 403 and wrong state 409; confirm twice gives one completion |
+| 2 Lifecycle | create (201) and idempotent replay; key reuse with other data 409; stranger edit 403; requester accepting own errand 403; courier accept 200; lost race 409; repeat accept 200 unchanged; pickup/deliver/confirm/dispute with wrong actor 403 and wrong state 409; confirm twice gives one completion; credit-service shows 5 reserved once after create and replay, and the courier +5 after confirm (polled, settlement is asynchronous) |
 | 3 Query patterns | courier's assigned list; stranger cannot read; per-requester view admin-only (403 / 200) |
-| 4 Cancel, courier cancel and item type | `itemType` FOOD → 2 h, default NON_PERISHABLE → 24 h, bad value 400, PATCH of it 400; courier cancel → OPEN with the deadline unchanged, that courier excluded (403 `ERRAND_COURIER_EXCLUDED`), another courier may accept; requester cancel of an ACCEPTED errand releases credits and the courier; repeat cancel returns the same operation; DELETE cancels; cancel and courier cancel after pickup 409 |
+| 4 Cancel, courier cancel and item type | `itemType` FOOD → 2 h, default NON_PERISHABLE → 24 h, bad value 400, PATCH of it 400; courier cancel → OPEN with the deadline unchanged, that courier excluded (403 `ERRAND_COURIER_EXCLUDED`), another courier may accept; requester cancel of an ACCEPTED errand releases credits and the courier; repeat cancel returns the same operation; DELETE cancels; cancel and courier cancel after pickup 409; credit-service shows each cancel's 5 released and the second courier unchanged |
+| 5 Credit reconciliation | from credit-service, not order-service: courier received exactly 10 (two completions, paid once each), requester paid exactly 10 with nothing of this run left reserved, second courier unchanged |
 
 ## Tested manually (no web-app UI yet)
 web-app has no control for these yet, so for D3 they are shown with this collection and
@@ -23,20 +24,25 @@ by hand, not through the UI. Backend authorization is the same either way.
 | `POST /api/errands/:id/cancel` | folder 4 |
 | `POST /api/errands/:id/courier-cancel` | folder 4 |
 | `DELETE /api/errands/:id` as requester, now a cancel (web-app does call this one) | folder 4 |
-| 30-minute reopen, expiry, 4 h auto-complete | no request: age the timestamps with SQL as in `../docs/demo-timers.md`, then `GET /api/errands/{id}` |
+| 30-minute reopen, expiry, 4 h auto-complete | no request: age the timestamps with SQL as in `../docs/demo-timers.md`, then `GET /api/errands/{id}` and the credit balances (section "Check the credits" there) |
 
 ## Before running
 1. Start user-service (3001), supplier-service (3002), credit-service (3003) and
    order-service (3004), e.g. root `compose.yaml` plus the services' own instructions.
+   Set `ORDER_EVENTS_ENABLED=true` in `order-service/.env` (and restart order-service):
+   folders 2 and 5 wait for the courier to be paid, which needs the outbox relay.
 2. Accounts (put emails and passwords in the environment, never in the collection):
    - `requester`, `courier`, `stranger`: three **active** NUS student accounts. Register with
      `POST /api/accounts/register`, then activate with the emailed code via
      `POST /api/accounts/verify-email`.
    - `admin`: an administrator, e.g. from `user-service/src/seed-administrators.ts`.
-3. Credit accounts: log in to web-app once as `requester` and as `courier`. web-app
-   provisions their credit accounts (`web-app/src/app/api/credits/route.ts`). The
-   requester needs ≥ 20 credits (four errands of 5 can be reserved at once). The courier needs an account or credit cannot settle the
-   completion event (Q-012).
+3. Credit accounts: credit-service opens one with 100 credits when it consumes
+   `user.verified.v1`, so verifying the email is normally enough; otherwise log in to
+   web-app once (`web-app/src/app/api/credits/route.ts`). The requester needs ≥ 20
+   available credits (four errands of 5 can be reserved at once). Both couriers need an
+   account or credit cannot settle the completion event (Q-012); `0 Setup` fails with
+   404 if one is missing. There is no top-up route: when the requester runs low, swap
+   the requester and courier accounts in the environment.
 4. At least one supplier with a location must exist in supplier-service.
 
 ## How the JWTs are obtained
@@ -47,12 +53,22 @@ calling user-service `GET /api/accounts/me`, so a revoked session fails immediat
 
 ## Run
 Postman: import both files, select **FoC local**, run the collection in order.
-CLI: `npx newman run order-service.postman_collection.json -e foc-local.postman_environment.json`
-(environment filled in first).
+CLI, from the repo root, with credentials kept in a file outside the repo (one
+`key=value` per line, keys as in the environment) and never typed into it:
+```bash
+args=(); while IFS='=' read -r k v; do [ -n "$k" ] && args+=(--env-var "$k=$v"); done < ~/foc-newman.env
+npx -y newman@6.2.3 run order-service/postman/order-service.postman_collection.json \
+  -e order-service/postman/foc-local.postman_environment.json "${args[@]}"
+```
+Expect 67 requests executed (65 plus one retry for each of the two settlement polls)
+and no failed assertions. Do not share the JSON reporter's output: it contains the
+environment, passwords included.
 
 Each run creates fresh errands (`createKey` and the folder 4 keys are regenerated), so
 the collection can be re-run. It spends 10 of the requester's credits per run (the
 folder 2 errand and the folder 4 early-confirmed one), paid to the courier once
 `errand.completed.v1` is relayed (`ORDER_EVENTS_ENABLED=true`, see `docs/events.md`).
 The two cancelled errands in folder 4 release their 5 credits each. Folder 4 uses the
-`stranger` account as a second courier.
+`stranger` account as a second courier. The credit checks compare with the balances
+recorded in `0 Setup`, so other errands the accounts already have do not matter, but do
+not use the same accounts in web-app while the collection runs.

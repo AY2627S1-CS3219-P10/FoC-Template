@@ -54,7 +54,7 @@ function ErrandDetailContent({ id }: { id: string }) {
         <div><dt>Pickup location</dt><dd>{errand.pickupLocationLabel}</dd></div>
         <div><dt>Deliver to</dt><dd>{errand.deliveryDestination}</dd></div><div><dt>Instructions</dt><dd>{errand.instructions}</dd></div>
         <div><dt>Offered credits</dt><dd>{errand.offeredCredits.toLocaleString()} credits</dd></div><div><dt>Status</dt><dd><ErrandStatus status={errand.status} /></dd></div>
-        <div><dt>Requester</dt><dd>{owner ? auth.user.username : errand.requesterUsername || "Unavailable user"}</dd></div>{errand.courierId && <div><dt>Courier</dt><dd>{errand.courierId}</dd></div>}
+        <div><dt>Requester</dt><dd>{owner ? auth.user.username : errand.requesterUsername || "Unavailable user"}</dd></div>{errand.courierId && <div><dt>Courier</dt><dd>{errand.courierId === userId ? auth.user.username : errand.courierUsername || "Unavailable user"}</dd></div>}
         <div><dt>Created</dt><dd>{new Date(errand.createdAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</dd></div><div><dt>Last updated</dt><dd>{new Date(errand.updatedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</dd></div>
       </dl>
       <div className="errand-lifecycle-dates">{([
