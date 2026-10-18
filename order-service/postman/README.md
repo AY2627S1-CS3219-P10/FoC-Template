@@ -29,8 +29,9 @@ by hand, not through the UI. Backend authorization is the same either way.
 ## Before running
 1. Start user-service (3001), supplier-service (3002), credit-service (3003) and
    order-service (3004), e.g. root `compose.yaml` plus the services' own instructions.
-   Set `ORDER_EVENTS_ENABLED=true` in `order-service/.env` (and restart order-service):
-   folders 2 and 5 wait for the courier to be paid, which needs the outbox relay.
+   Make sure `order-service/.env` does not say `ORDER_EVENTS_ENABLED=false` (the relay is
+   on by default since 2026-10-18; restart order-service after changing it): folders 2
+   and 5 wait for the courier to be paid, which needs the outbox relay.
 2. Accounts (put emails and passwords in the environment, never in the collection):
    - `requester`, `courier`, `stranger`: three **active** NUS student accounts. Register with
      `POST /api/accounts/register`, then activate with the emailed code via
