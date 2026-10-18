@@ -12,6 +12,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { MAX_OFFERED_CREDITS } from '../domain/errand';
+import { ERRAND_STATUSES } from '../domain/lifecycle';
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 export class CreateErrandDto {
@@ -108,19 +109,7 @@ export class ErrandResponse extends CreateErrandDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) requesterId!: string;
   @ApiProperty({ format: 'uuid', nullable: true }) courierId!: string | null;
-  @ApiProperty({
-    enum: [
-      'OPEN',
-      'ACCEPTED',
-      'IN_PROGRESS',
-      'PICKED_UP',
-      'DELIVERED',
-      'DISPUTED',
-      'COMPLETED',
-      'CANCELLED',
-      'EXPIRED',
-    ],
-  })
+  @ApiProperty({ enum: ERRAND_STATUSES })
   status!: string;
   @ApiProperty() pickupSupplierName!: string;
   @ApiProperty() pickupLocationLabel!: string;
@@ -139,6 +128,8 @@ export class ErrandResponse extends CreateErrandDto {
   completedAt?: string | null;
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   cancelledAt?: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  expiredAt?: string | null;
   @ApiPropertyOptional({
     enum: ['REQUESTER_CONFIRMED', 'AUTO_TIMEOUT'],
     nullable: true,

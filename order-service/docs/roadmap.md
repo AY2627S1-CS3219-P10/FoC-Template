@@ -16,7 +16,7 @@ answered, re-evaluate every slice that lists it.
 | 1 | S0 Agent docs | DONE (this pass) | — | — |
 | 2 | S1 Hygiene | READY | everything | — |
 | 3 | N1 Correlation IDs | READY | HTTP in/out + logs, using `x-correlation-id` behind one constant | final header name (Q-017) |
-| 4 | S3 Lifecycle model | DONE (decided part) | — | rename/removal of IN_PROGRESS / EXPIRED (Q-006) |
+| 4 | S3 Lifecycle model | DONE (IN_PROGRESS removed, D-013) | — | — |
 | 5 | S4 Accept | DONE (decided part) | — | one-active-errand constraint (Q-005); courier credit-account check (Q-012) |
 | 6 | S5 Pickup / deliver / dispute | DONE | — | dispute *resolution* (Q-014) is a later slice |
 | 7 | S2 Discovery | DONE (decided part) | — | pickup-location filter (Q-009) |
@@ -65,7 +65,7 @@ Docs and `.agents/` tooling. No code. Log: `logs/2026-10-18-S0-agent-docs.md`.
   `completionMethod`; `errand_history` table; `src/domain` transition table with
   decided rows (see requirements.md §3); per-state CHECK constraints; full matrix unit
   tests.
-- **Parked:** IN_PROGRESS/EXPIRED rename/removal (Q-006).
+- **Done later:** IN_PROGRESS removed, EXPIRED kept as terminal (D-013, `202610180007_status_model`).
 - **Acceptance:** matrix test covers every status × action × actor.
 - **Done:** migrations `202610180003_lifecycle_statuses`, `202610180004_lifecycle_columns`;
   `src/domain/lifecycle.ts` `TRANSITIONS`/`transition()`; `tests/unit/lifecycle.spec.ts`.

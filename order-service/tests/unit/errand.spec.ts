@@ -28,8 +28,9 @@ describe('FR4 edit rules', () => {
   });
   it.each([
     'ACCEPTED',
-    'IN_PROGRESS',
+    'PICKED_UP',
     'DELIVERED',
+    'DISPUTED',
     'COMPLETED',
     'CANCELLED',
     'EXPIRED',

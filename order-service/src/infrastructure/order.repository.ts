@@ -44,6 +44,8 @@ const STAMP_COLUMNS: Record<LifecycleTimestamp, string> = {
   deliveredAt: 'delivered_at',
   disputedAt: 'disputed_at',
   completedAt: 'completed_at',
+  cancelledAt: 'cancelled_at',
+  expiredAt: 'expired_at',
 };
 /** DB clock, so app-server clock skew cannot complete an errand early (D-008). */
 const AUTO_COMPLETE_DUE = Prisma.sql`"delivered_at" <= CURRENT_TIMESTAMP - make_interval(hours => ${AUTO_COMPLETE_AFTER_HOURS})`;
@@ -302,6 +304,10 @@ export class PrismaOrderRepository implements OrderRepository {
     return rows.map((row) => row.id);
   }
   async transition(id: string, row: Transition, actorId: string | null) {
+    if (row.releasesCredits)
+      throw new Error(
+        `${row.action} releases credits and must use the journal`,
+      );
     const correlationId = currentCorrelationId() ?? null;
     // Entering COMPLETED writes errand.completed.v1 in the same statement (D-001).
     const event =
@@ -321,7 +327,7 @@ export class PrismaOrderRepository implements OrderRepository {
       WITH changed AS (
         UPDATE "errands"
         SET "status" = ${row.to}::"ErrandStatus",
-            ${Prisma.raw(`"${STAMP_COLUMNS[row.stamp]}"`)} = CURRENT_TIMESTAMP,
+            ${row.stamp ? Prisma.raw(`"${STAMP_COLUMNS[row.stamp]}" = CURRENT_TIMESTAMP,`) : Prisma.empty}
             "version" = "version" + 1,
             "updated_at" = CURRENT_TIMESTAMP
             ${row.action === 'accept' ? Prisma.sql`, "courier_id" = ${actorId}::uuid` : Prisma.empty}

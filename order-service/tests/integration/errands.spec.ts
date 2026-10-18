@@ -1421,6 +1421,23 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       },
       'errands_lifecycle_order',
     );
+    await rejected({ status: 'CANCELLED' }, 'errands_cancelled_state');
+    await rejected({ cancelledAt: at }, 'errands_cancelled_state');
+    await rejected({ status: 'EXPIRED' }, 'errands_expired_state');
+    await rejected({ expiredAt: at }, 'errands_expired_state');
+    await rejected(
+      {
+        status: 'CANCELLED',
+        cancelledAt: at,
+        courierId: otherId,
+        acceptedAt: at,
+      },
+      'errands_closed_unassigned',
+    );
+    await rejected(
+      { status: 'EXPIRED', expiredAt: at, acceptedAt: at },
+      'errands_closed_unassigned',
+    );
     await prisma.errand.update({
       where: { id },
       data: {

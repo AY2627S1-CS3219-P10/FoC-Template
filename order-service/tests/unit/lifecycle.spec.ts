@@ -2,6 +2,7 @@ import {
   ACTOR_ROLES,
   ERRAND_STATUSES,
   LIFECYCLE_ACTIONS,
+  TRANSITIONS,
   alreadyApplied,
   transition,
 } from '../../src/domain/lifecycle';
@@ -21,6 +22,11 @@ const allowed: Record<string, string> = {
   'DELIVERED confirm REQUESTER': 'COMPLETED',
   'DELIVERED dispute REQUESTER': 'DISPUTED',
   'DELIVERED auto-complete SYSTEM': 'COMPLETED',
+  'OPEN cancel REQUESTER': 'CANCELLED',
+  'ACCEPTED cancel REQUESTER': 'CANCELLED',
+  'ACCEPTED courier-cancel COURIER': 'OPEN',
+  'ACCEPTED reopen SYSTEM': 'OPEN',
+  'OPEN expire SYSTEM': 'EXPIRED',
 };
 const actorsByAction: Record<string, string[]> = {
   accept: ['COURIER'],
@@ -29,6 +35,10 @@ const actorsByAction: Record<string, string[]> = {
   confirm: ['REQUESTER'],
   dispute: ['REQUESTER'],
   'auto-complete': ['SYSTEM'],
+  cancel: ['REQUESTER'],
+  'courier-cancel': ['COURIER'],
+  reopen: ['SYSTEM'],
+  expire: ['SYSTEM'],
 };
 const matrix = ERRAND_STATUSES.flatMap((from) =>
   LIFECYCLE_ACTIONS.flatMap((action) =>
@@ -47,7 +57,7 @@ function outcome(...args: Parameters<typeof transition>) {
 
 describe('lifecycle transition table (requirements.md §3)', () => {
   it('covers every status × action × actor', () =>
-    expect(matrix).toHaveLength(9 * 6 * 4));
+    expect(matrix).toHaveLength(8 * 10 * 4));
 
   it.each(matrix)('%s + %s by %s', (from, action, actor) => {
     const expected =
@@ -77,6 +87,42 @@ describe('lifecycle transition table (requirements.md §3)', () => {
     });
   });
 
+  it('releases credits only through the journal rows, and the courier only before pickup', () => {
+    const flagged = (
+      flag: 'releasesCredits' | 'releasesCourier' | 'excludesCourier',
+    ) =>
+      TRANSITIONS.filter((row) => row[flag])
+        .map((row) => `${row.from} ${row.action} ${row.actor}`)
+        .sort();
+    expect(flagged('releasesCredits')).toEqual([
+      'ACCEPTED cancel REQUESTER',
+      'OPEN cancel REQUESTER',
+      'OPEN expire SYSTEM',
+    ]);
+    expect(flagged('releasesCourier')).toEqual([
+      'ACCEPTED cancel REQUESTER',
+      'ACCEPTED courier-cancel COURIER',
+      'ACCEPTED reopen SYSTEM',
+    ]);
+    expect(flagged('excludesCourier')).toEqual([
+      'ACCEPTED courier-cancel COURIER',
+      'ACCEPTED reopen SYSTEM',
+    ]);
+    expect(transition('OPEN', 'expire', 'SYSTEM').stamp).toBe('expiredAt');
+    expect(transition('ACCEPTED', 'cancel', 'REQUESTER').stamp).toBe(
+      'cancelledAt',
+    );
+    expect(transition('ACCEPTED', 'reopen', 'SYSTEM').stamp).toBeUndefined();
+  });
+
+  it('keeps DISPUTED a dead end and forbids every cancel after pickup (D-015, D-020, Q-020)', () => {
+    for (const from of ['PICKED_UP', 'DELIVERED', 'DISPUTED'] as const) {
+      expect(outcome(from, 'cancel', 'REQUESTER')).toBe(409);
+      expect(outcome(from, 'courier-cancel', 'COURIER')).toBe(409);
+    }
+    expect(TRANSITIONS.filter((row) => row.from === 'DISPUTED')).toEqual([]);
+  });
+
   it('reports the error codes the API returns', () => {
     expect(() => transition('OPEN', 'accept', 'REQUESTER')).toThrow(
       expect.objectContaining({ code: 'ERRAND_ACTION_FORBIDDEN' }),
@@ -92,6 +138,7 @@ describe('lifecycle transition table (requirements.md §3)', () => {
     expect(alreadyApplied('DELIVERED', 'pickup', 'COURIER')).toBe(false);
     expect(alreadyApplied('PICKED_UP', 'pickup', 'REQUESTER')).toBe(false);
     expect(alreadyApplied('ACCEPTED', 'accept', 'COURIER')).toBe(true);
+    expect(alreadyApplied('CANCELLED', 'cancel', 'REQUESTER')).toBe(true);
   });
 
   it('matches the Postgres enums in prisma/schema.prisma', () => {

@@ -11,7 +11,6 @@ datasource db {
 enum ErrandStatus {
   OPEN
   ACCEPTED
-  IN_PROGRESS
   PICKED_UP
   DELIVERED
   DISPUTED
@@ -68,6 +67,7 @@ model Errand {
   disputedAt          DateTime?         @map("disputed_at") @db.Timestamptz(3)
   completedAt         DateTime?         @map("completed_at") @db.Timestamptz(3)
   cancelledAt         DateTime?         @map("cancelled_at") @db.Timestamptz(3)
+  expiredAt           DateTime?         @map("expired_at") @db.Timestamptz(3)
   completionMethod    CompletionMethod? @map("completion_method")
   history             ErrandHistory[]
 

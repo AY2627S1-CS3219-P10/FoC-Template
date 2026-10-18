@@ -1,13 +1,9 @@
 import { OrderError } from './errand';
 
-/**
- * Every value of the Postgres `ErrandStatus` enum. IN_PROGRESS and EXPIRED are legacy
- * values with no transitions until Q-006 decides whether they are renamed or reused.
- */
+/** Every value of the Postgres `ErrandStatus` enum (D-013). */
 export const ERRAND_STATUSES = [
   'OPEN',
   'ACCEPTED',
-  'IN_PROGRESS',
   'PICKED_UP',
   'DELIVERED',
   'DISPUTED',
@@ -24,6 +20,10 @@ export const LIFECYCLE_ACTIONS = [
   'confirm',
   'dispute',
   'auto-complete',
+  'cancel',
+  'courier-cancel',
+  'reopen',
+  'expire',
 ] as const;
 export type LifecycleAction = (typeof LIFECYCLE_ACTIONS)[number];
 
@@ -33,24 +33,41 @@ export type ActorRole = (typeof ACTOR_ROLES)[number];
 
 /** D-008: a DELIVERED errand completes automatically this long after `deliveredAt`. */
 export const AUTO_COMPLETE_AFTER_HOURS = 4;
+/** D-017: an ACCEPTED errand not picked up this long after `acceptedAt` reopens. */
+export const REOPEN_AFTER_MINUTES = 30;
 
 export type CompletionMethod = 'REQUESTER_CONFIRMED' | 'AUTO_TIMEOUT';
 export type LifecycleTimestamp =
-  'acceptedAt' | 'pickedUpAt' | 'deliveredAt' | 'disputedAt' | 'completedAt';
+  | 'acceptedAt'
+  | 'pickedUpAt'
+  | 'deliveredAt'
+  | 'disputedAt'
+  | 'completedAt'
+  | 'cancelledAt'
+  | 'expiredAt';
 
 export interface Transition {
   from: ErrandStatus;
   action: LifecycleAction;
   actor: ActorRole;
   to: ErrandStatus;
-  /** Column set to the transition time. */
-  stamp: LifecycleTimestamp;
+  /** Column set to the transition time; none when the errand returns to OPEN. */
+  stamp?: LifecycleTimestamp;
   completionMethod?: CompletionMethod;
+  /** Clears `courierId`/`acceptedAt`: the courier can no longer act on the errand. */
+  releasesCourier?: true;
+  /** The released courier may never accept this errand again (D-016, D-017). */
+  excludesCourier?: true;
+  /**
+   * Releases the reservation over HTTP, so the row runs through the ErrandOperation
+   * journal instead of a single-statement transition (D-001, D-019).
+   */
+  releasesCredits?: true;
 }
 
 /**
- * Decided rows of docs/requirements.md §3 only. Cancel, expiry, courier cancel, timers
- * and dispute resolution are parked (Q-003, Q-004, Q-006, Q-007, Q-014).
+ * Decided rows of docs/requirements.md §3 only. Courier cancel after pickup (Q-020) and
+ * dispute resolution (Q-014) are parked, so DISPUTED has no way out.
  */
 export const TRANSITIONS: readonly Transition[] = [
   // FR5, FR6
@@ -110,6 +127,51 @@ export const TRANSITIONS: readonly Transition[] = [
     to: 'COMPLETED',
     stamp: 'completedAt',
     completionMethod: 'AUTO_TIMEOUT',
+  },
+  // D-014, D-015: the requester cancels before pickup; the whole reservation is released
+  {
+    from: 'OPEN',
+    action: 'cancel',
+    actor: 'REQUESTER',
+    to: 'CANCELLED',
+    stamp: 'cancelledAt',
+    releasesCredits: true,
+  },
+  {
+    from: 'ACCEPTED',
+    action: 'cancel',
+    actor: 'REQUESTER',
+    to: 'CANCELLED',
+    stamp: 'cancelledAt',
+    releasesCredits: true,
+    releasesCourier: true,
+  },
+  // D-016: the courier gives the errand back; credits stay reserved
+  {
+    from: 'ACCEPTED',
+    action: 'courier-cancel',
+    actor: 'COURIER',
+    to: 'OPEN',
+    releasesCourier: true,
+    excludesCourier: true,
+  },
+  // D-017: not picked up within 30 minutes; same effect as a courier cancel
+  {
+    from: 'ACCEPTED',
+    action: 'reopen',
+    actor: 'SYSTEM',
+    to: 'OPEN',
+    releasesCourier: true,
+    excludesCourier: true,
+  },
+  // D-013, D-017, D-019: nobody accepted before `expiresAt`
+  {
+    from: 'OPEN',
+    action: 'expire',
+    actor: 'SYSTEM',
+    to: 'EXPIRED',
+    stamp: 'expiredAt',
+    releasesCredits: true,
   },
 ];
 

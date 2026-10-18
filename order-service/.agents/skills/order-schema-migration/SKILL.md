@@ -17,7 +17,7 @@ description: Change the order-service Postgres schema safely with hand-written P
 
 ## Enums
 - **Adding a value:** `ALTER TYPE "<Enum>" ADD VALUE '<VALUE>';`. In Postgres a newly added value cannot be used in the same transaction that adds it, so do not insert rows using it in the same migration.
-- **Renaming or removing a value** (for example `IN_PROGRESS`, `EXPIRED`): this is decision C6. If it is OPEN, **park it** and add only the new values. Never rename a value that existing code or the web-app reads until the decision is recorded.
+- **Renaming or removing a value:** only once `docs/decisions.md` records it (as D-013 did for `IN_PROGRESS`). `RENAME VALUE` fails if the target already exists; then move the rows, drop the CHECKs and partial indexes that compare the column with literals, rebuild the type (`…_old` + `USING col::text::"New"`) and recreate them (`202610180007_status_model`).
 - Existing rows must still be valid after the migration.
 
 ## Columns expected for the lifecycle slices
