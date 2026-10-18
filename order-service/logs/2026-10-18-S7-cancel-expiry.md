@@ -44,3 +44,15 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** cancel releases credits, so it goes through the journal like the old delete (D-001): the pending lock stops accept and pickup while the release is in doubt. That lock is also what makes cancel vs accept and cancel vs pickup race-safe. Admin DELETE stays a soft delete because Q-011 is still open (A-011).
 - **Verified:** `typecheck`, `lint` clean; `pnpm test` 344 passed; `pnpm test:integration` 46 passed.
 - **Follow-up:** web-app contract and Postman requests are updated at the end of the pass.
+
+### 9296379 feat(order): courier cancel reopens the errand and excludes that courier (D-016)
+- **When:** 2026-10-18 13:58 · **Slice:** C · **Refs:** D-016, Q-020
+- **Changed:**
+  - `migrations/202610180009_excluded_couriers`, `prisma/schema.prisma` — `errand_excluded_couriers (errand_id, courier_id, created_at)`, PK on both ids
+  - `src/infrastructure/order.repository.ts` — `transition()` clears courier/`accepted_at` for `releasesCourier` rows (guarded by the expected courier), inserts the exclusion in the same statement, records the released courier in history; accept's guard skips excluded couriers
+  - `src/application/order.service.ts` — `courierCancel()`; accept → 403 `ERRAND_COURIER_EXCLUDED`; `availableForAcceptance` false for an excluded caller
+  - `src/api/order.controller.ts` — `POST /api/errands/:id/courier-cancel`
+  - `tests/integration/errands.spec.ts` — reopen with credits kept, exclusion, repeat, re-accept by another courier, other errands still allowed, 401/403/409
+- **Why:** a single statement means the status change, history and exclusion commit together or not at all; checking the exclusion in SQL as well as in the service keeps the rule even if a call slips past the friendly 403. A repeat by the released courier returns the current state, matching the other lifecycle actions (A-012).
+- **Verified:** `typecheck`, `lint` clean; `pnpm test` 344 passed; `pnpm test:integration` 48 passed.
+- **Follow-up:** Q-020 (courier cancel after pickup).

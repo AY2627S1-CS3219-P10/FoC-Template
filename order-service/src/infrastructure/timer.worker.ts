@@ -14,6 +14,24 @@ import { OrderService } from '../application/order.service';
 import { withCorrelationId } from './correlation';
 
 /**
+ * One BullMQ job per errand and timer. BullMQ rejects custom ids with a single ':'
+ * (it reserves them for repeatable jobs), so the parts are joined with '-'.
+ */
+export function timerJob(name: 'auto-complete', errandId: string) {
+  return {
+    name,
+    data: { errandId },
+    opts: {
+      jobId: `${name}-${errandId}`,
+      attempts: 5,
+      backoff: { type: 'exponential' as const, delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: true,
+    },
+  };
+}
+
+/**
  * Lifecycle timers (D-008). Postgres `delivered_at` is the truth: a sweeper finds due
  * errands and enqueues one job per errand (jobId dedupes across replicas); the job's
  * conditional UPDATE re-checks the deadline, so a lost Redis or a duplicate job only
@@ -55,18 +73,10 @@ export class TimerWorker implements OnModuleInit, OnModuleDestroy {
     if (this.sweeping) return;
     this.sweeping = true;
     try {
-      for (const errandId of await this.repository.dueAutoCompletions())
-        await this.queue!.add(
-          'auto-complete',
-          { errandId },
-          {
-            jobId: `auto-complete:${errandId}`,
-            attempts: 5,
-            backoff: { type: 'exponential', delay: 5000 },
-            removeOnComplete: true,
-            removeOnFail: true,
-          },
-        );
+      for (const errandId of await this.repository.dueAutoCompletions()) {
+        const job = timerJob('auto-complete', errandId);
+        await this.queue!.add(job.name, job.data, job.opts);
+      }
     } catch {
       this.logger.warn('Lifecycle timer sweep will retry.');
     } finally {
