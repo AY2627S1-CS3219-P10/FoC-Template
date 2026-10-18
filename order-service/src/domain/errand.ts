@@ -1,9 +1,28 @@
+/** Credit-service rejects amounts above its MAX_CREDIT_BALANCE (10,000,000). */
+export const MAX_OFFERED_CREDITS = 10_000_000;
+/**
+ * D-018: chosen by the requester at creation, never derived from the supplier. FOOD
+ * expires sooner so it does not spoil; 24 h is as long as a requester can wait.
+ */
+export const ITEM_TYPES = ['FOOD', 'NON_PERISHABLE'] as const;
+export type ItemType = (typeof ITEM_TYPES)[number];
+export const DEFAULT_ITEM_TYPE: ItemType = 'NON_PERISHABLE';
+export const EXPIRY_HOURS: Record<ItemType, number> = {
+  FOOD: 2,
+  NON_PERISHABLE: 24,
+};
+/** Computed once at creation; reopening never moves it (D-017). */
+export function expiryFor(createdAt: Date, itemType: ItemType) {
+  return new Date(createdAt.getTime() + EXPIRY_HOURS[itemType] * 3_600_000);
+}
 export interface CreateErrand {
   pickupLocationId: string;
   description: string;
   deliveryDestination: string;
   instructions: string;
   offeredCredits: number;
+  /** Optional on the wire; journal payloads from before D-018 lack it. */
+  itemType?: ItemType;
 }
 export interface EditErrand {
   expectedVersion: number;
@@ -17,6 +36,8 @@ export interface ErrandDetails extends CreateErrand {
   pickupLocationLabel: string;
 }
 export interface ErrandRecord extends ErrandDetails {
+  itemType: ItemType;
+  expiresAt: Date;
   id: string;
   requesterId: string;
   courierId: string | null;

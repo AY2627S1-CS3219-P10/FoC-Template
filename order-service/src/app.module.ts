@@ -1,6 +1,13 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { stdTimeFunctions } from 'pino';
+import type { IncomingMessage } from 'node:http';
+import { CorrelationMiddleware } from './api/correlation.middleware';
+import {
+  correlationIdFor,
+  currentCorrelationId,
+} from './infrastructure/correlation';
 import { AuthGuard } from './api/auth.guard';
 import { OrderController, OperationController } from './api/order.controller';
 import { HealthController } from './api/health.controller';
@@ -10,6 +17,8 @@ import { PrismaService } from './infrastructure/prisma.service';
 import { PrismaOrderRepository } from './infrastructure/order.repository';
 import { ServiceClients } from './infrastructure/service-clients';
 import { RecoveryWorker } from './infrastructure/recovery.worker';
+import { OutboxRelay } from './infrastructure/outbox.relay';
+import { TimerWorker } from './infrastructure/timer.worker';
 function validate(env: Record<string, unknown>) {
   for (const name of [
     'DATABASE_URL',
@@ -54,6 +63,15 @@ function validate(env: Record<string, unknown>) {
       pinoHttp: {
         level: process.env.LOG_LEVEL || 'info',
         redact: ['req.headers.authorization', 'req.headers.cookie'],
+        base: { service: 'order-service' },
+        timestamp: stdTimeFunctions.isoTime,
+        formatters: { level: (severity: string) => ({ severity }) },
+        // Request logs carry the id as req.id; every other line gets correlationId.
+        genReqId: (request: IncomingMessage) => correlationIdFor(request),
+        mixin: () => {
+          const correlationId = currentCorrelationId();
+          return correlationId ? { correlationId } : {};
+        },
       },
     }),
   ],
@@ -63,8 +81,16 @@ function validate(env: Record<string, unknown>) {
     AuthGuard,
     OrderService,
     RecoveryWorker,
+    OutboxRelay,
+    TimerWorker,
     { provide: ORDER_REPOSITORY, useClass: PrismaOrderRepository },
     { provide: SERVICE_CLIENTS, useClass: ServiceClients },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(CorrelationMiddleware)
+      .forRoutes(OrderController, OperationController, HealthController);
+  }
+}
