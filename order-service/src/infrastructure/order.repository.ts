@@ -4,9 +4,17 @@ import type { OrderRepository, OperationRecord } from '../application/ports';
 import type { ErrandSort } from '../application/ports';
 import { assertEditable, OrderError } from '../domain/errand';
 import type { EditErrand, ErrandDetails } from '../domain/errand';
-import { AUTO_COMPLETE_AFTER_HOURS } from '../domain/lifecycle';
-import type { LifecycleTimestamp, Transition } from '../domain/lifecycle';
-import { Prisma, type ErrandOperation } from '../generated/prisma/client';
+import { AUTO_COMPLETE_AFTER_HOURS, transition } from '../domain/lifecycle';
+import type {
+  ErrandStatus,
+  LifecycleTimestamp,
+  Transition,
+} from '../domain/lifecycle';
+import {
+  Prisma,
+  type Errand,
+  type ErrandOperation,
+} from '../generated/prisma/client';
 import { PrismaService } from './prisma.service';
 import { UpstreamFailure } from './service-clients';
 import {
@@ -38,6 +46,19 @@ function sortOrder(sort: ErrandSort): Prisma.ErrandOrderByWithRelationInput[] {
     ];
   return [{ createdAt: 'desc' }, { id: 'desc' }];
 }
+/** The snapshot a journal operation stores; the credit call uses its `offeredCredits`. */
+function details(errand: Errand): ErrandDetails {
+  return {
+    pickupLocationId: errand.pickupLocationId,
+    pickupSupplierName: errand.pickupSupplierName,
+    pickupLocationLabel: errand.pickupLocationLabel,
+    description: errand.description,
+    deliveryDestination: errand.deliveryDestination,
+    instructions: errand.instructions,
+    offeredCredits: errand.offeredCredits,
+  };
+}
+type Tx = Prisma.TransactionClient;
 const STAMP_COLUMNS: Record<LifecycleTimestamp, string> = {
   acceptedAt: 'accepted_at',
   pickedUpAt: 'picked_up_at',
@@ -123,9 +144,7 @@ export class PrismaOrderRepository implements OrderRepository {
           throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
         assertEditable(errand, requesterId, patch.expectedVersion);
         const payload: ErrandDetails = {
-          pickupLocationId: errand.pickupLocationId,
-          pickupSupplierName: errand.pickupSupplierName,
-          pickupLocationLabel: errand.pickupLocationLabel,
+          ...details(errand),
           description: patch.description ?? errand.description,
           deliveryDestination:
             patch.deliveryDestination ?? errand.deliveryDestination,
@@ -175,9 +194,10 @@ export class PrismaOrderRepository implements OrderRepository {
         const op = operationRecord(stored);
         if (op.status !== 'PENDING') return op;
         let creditOperation = op;
+        let errand: Errand | null = null;
         if (op.kind !== 'CREATE') {
           await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${op.errandId}::uuid FOR UPDATE`;
-          const errand = await tx.errand.findUniqueOrThrow({
+          errand = await tx.errand.findUniqueOrThrow({
             where: { id: op.errandId },
           });
           if (
@@ -235,6 +255,14 @@ export class PrismaOrderRepository implements OrderRepository {
               requesterId: op.requesterId,
             },
           });
+        else if (op.kind === 'CANCEL')
+          await this.close(
+            tx,
+            errand!,
+            transition(errand!.status, 'cancel', 'REQUESTER'),
+            op.requesterId,
+            stored.correlationId,
+          );
         else if (op.kind === 'DELETE')
           await tx.errand.update({
             where: { id: op.errandId },
@@ -262,6 +290,37 @@ export class PrismaOrderRepository implements OrderRepository {
       },
       { maxWait: 10000, timeout: 30000 },
     );
+  }
+  /**
+   * Applies a credit-releasing row after the release succeeded, inside the journal's
+   * transaction: clears the assignment and the lock, and writes the history row with
+   * the courier the errand had.
+   */
+  private async close(
+    tx: Tx,
+    errand: Errand,
+    row: Transition,
+    actorId: string | null,
+    correlationId: string | null,
+  ) {
+    await tx.$executeRaw`
+      WITH changed AS (
+        UPDATE "errands"
+        SET "status" = ${row.to}::"ErrandStatus",
+            ${Prisma.raw(`"${STAMP_COLUMNS[row.stamp!]}"`)} = CURRENT_TIMESTAMP,
+            "courier_id" = NULL,
+            "accepted_at" = NULL,
+            "version" = "version" + 1,
+            "pending_operation_id" = NULL,
+            "updated_at" = CURRENT_TIMESTAMP
+        WHERE "id" = ${errand.id}::uuid
+        RETURNING "id"
+      )
+      INSERT INTO "errand_history"
+        ("errand_id", "from_status", "to_status", "action", "actor_role", "actor_id", "courier_id", "correlation_id")
+      SELECT "id", ${row.from}::"ErrandStatus", ${row.to}::"ErrandStatus", ${row.action},
+             ${row.actor}::"ActorRole", ${actorId}::uuid, ${errand.courierId}::uuid, ${correlationId}
+      FROM changed`;
   }
   async operation(id: string, requesterId: string) {
     const op = await this.prisma.errandOperation.findFirst({
@@ -340,9 +399,9 @@ export class PrismaOrderRepository implements OrderRepository {
         RETURNING "id", "requester_id", "courier_id", "offered_credits"
       ), logged AS (
         INSERT INTO "errand_history"
-          ("errand_id", "from_status", "to_status", "action", "actor_role", "actor_id", "correlation_id")
+          ("errand_id", "from_status", "to_status", "action", "actor_role", "actor_id", "courier_id", "correlation_id")
         SELECT "id", ${row.from}::"ErrandStatus", ${row.to}::"ErrandStatus", ${row.action},
-               ${row.actor}::"ActorRole", ${actorId}::uuid, ${correlationId}
+               ${row.actor}::"ActorRole", ${actorId}::uuid, "courier_id", ${correlationId}
         FROM changed
       )${event}
       SELECT "id" FROM changed`;
@@ -378,13 +437,7 @@ export class PrismaOrderRepository implements OrderRepository {
       skip: offset,
     });
   }
-  async deleteIntent(
-    actorId: string,
-    admin: boolean,
-    id: string,
-    key: string,
-    digest: string,
-  ) {
+  async deleteIntent(actorId: string, id: string, key: string, digest: string) {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const prior = await tx.errandOperation.findUnique({
@@ -400,50 +453,13 @@ export class PrismaOrderRepository implements OrderRepository {
         const errand = await tx.errand.findUnique({ where: { id } });
         if (!errand || errand.deletedAt)
           throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
-        if (!admin && errand.requesterId !== actorId)
-          throw new OrderError(
-            'ERRAND_OWNER_REQUIRED',
-            'Only the requester or an administrator may delete this errand.',
-            403,
-          );
         if (errand.pendingOperationId)
           throw new OrderError(
             'ERRAND_OPERATION_PENDING',
             'Another change is still being processed.',
             409,
           );
-        if (!admin && (errand.status !== 'OPEN' || errand.courierId !== null))
-          throw new OrderError(
-            'ERRAND_NOT_DELETABLE',
-            'Only OPEN, unassigned requests can be deleted by their requester.',
-            409,
-          );
-        const payload: ErrandDetails = {
-          pickupLocationId: errand.pickupLocationId,
-          pickupSupplierName: errand.pickupSupplierName,
-          pickupLocationLabel: errand.pickupLocationLabel,
-          description: errand.description,
-          deliveryDestination: errand.deliveryDestination,
-          instructions: errand.instructions,
-          offeredCredits: errand.offeredCredits,
-        };
-        const op = await tx.errandOperation.create({
-          data: {
-            requesterId: actorId,
-            idempotencyKey: key,
-            inputDigest: digest,
-            correlationId: currentCorrelationId(),
-            errandId: id,
-            kind: 'DELETE',
-            expectedVersion: errand.version,
-            payload: payload as unknown as Prisma.InputJsonObject,
-          },
-        });
-        await tx.errand.update({
-          where: { id },
-          data: { pendingOperationId: op.id },
-        });
-        return operationRecord(op);
+        return this.lock(tx, errand, actorId, key, digest, 'DELETE');
       });
     } catch (error) {
       if (
@@ -455,5 +471,82 @@ export class PrismaOrderRepository implements OrderRepository {
       }
       throw error;
     }
+  }
+  async cancelIntent(
+    requesterId: string,
+    id: string,
+    key: string,
+    digest: string,
+  ) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const prior = await tx.errandOperation.findUnique({
+          where: {
+            requesterId_idempotencyKey: { requesterId, idempotencyKey: key },
+          },
+        });
+        if (prior) return sameInput(operationRecord(prior), digest);
+        await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const errand = await tx.errand.findUnique({ where: { id } });
+        if (!errand || errand.deletedAt)
+          throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
+        if (errand.requesterId !== requesterId)
+          throw new OrderError(
+            'ERRAND_OWNER_REQUIRED',
+            'Only the requester may cancel this errand.',
+            403,
+          );
+        if (errand.status === 'CANCELLED') {
+          const done = await tx.errandOperation.findFirst({
+            where: { errandId: id, kind: 'CANCEL', status: 'SUCCEEDED' },
+          });
+          if (done) return operationRecord(done);
+        }
+        transition(errand.status as ErrandStatus, 'cancel', 'REQUESTER');
+        if (errand.pendingOperationId)
+          throw new OrderError(
+            'ERRAND_OPERATION_PENDING',
+            'Another change is still being processed.',
+            409,
+          );
+        return this.lock(tx, errand, requesterId, key, digest, 'CANCEL');
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const prior = await this.findByKey(requesterId, key);
+        if (prior) return sameInput(prior, digest);
+      }
+      throw error;
+    }
+  }
+  /** Journals a release and locks the errand until `execute` finishes it. */
+  private async lock(
+    tx: Tx,
+    errand: Errand,
+    actorId: string,
+    key: string,
+    digest: string,
+    kind: 'DELETE' | 'CANCEL',
+  ) {
+    const op = await tx.errandOperation.create({
+      data: {
+        requesterId: actorId,
+        idempotencyKey: key,
+        inputDigest: digest,
+        correlationId: currentCorrelationId(),
+        errandId: errand.id,
+        kind,
+        expectedVersion: errand.version,
+        payload: details(errand) as unknown as Prisma.InputJsonObject,
+      },
+    });
+    await tx.errand.update({
+      where: { id: errand.id },
+      data: { pendingOperationId: op.id },
+    });
+    return operationRecord(op);
   }
 }

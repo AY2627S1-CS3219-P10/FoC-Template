@@ -41,6 +41,7 @@ enum OperationKind {
   CREATE
   EDIT
   DELETE
+  CANCEL
 }
 
 model Errand {
@@ -108,6 +109,7 @@ model ErrandHistory {
   action        String        @db.VarChar(40)
   actorRole     ActorRole     @map("actor_role")
   actorId       String?       @map("actor_id") @db.Uuid
+  courierId     String?       @map("courier_id") @db.Uuid
   correlationId String?       @map("correlation_id") @db.VarChar(128)
   occurredAt    DateTime      @default(now()) @map("occurred_at") @db.Timestamptz(3)
 

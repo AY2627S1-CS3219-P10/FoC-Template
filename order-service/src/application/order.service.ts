@@ -17,6 +17,14 @@ function digest(value: object) {
     .update(JSON.stringify(value, Object.keys(value).sort()))
     .digest('hex');
 }
+/**
+ * A stable idempotency key for requests that carry none, so repeating one finds the
+ * same journal operation (UUID-shaped, version nibble 8).
+ */
+export function derivedKey(...parts: string[]) {
+  const hex = createHash('sha256').update(parts.join(':')).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
 @Injectable()
 export class OrderService {
   constructor(
@@ -59,14 +67,37 @@ export class OrderService {
       ),
     );
   }
+  /**
+   * DELETE: administrators soft-delete and release in any state (unchanged, Q-011);
+   * for everyone else it is a requester cancel on the same route (D-014).
+   */
   async remove(actorId: string, token: string, id: string, key: string) {
+    if (!(await this.clients.isAdministrator(token)))
+      return this.cancel(actorId, id, key);
     return this.submit(
       await this.repository.deleteIntent(
         actorId,
-        await this.clients.isAdministrator(token),
         id,
         key,
         digest({ kind: 'DELETE', id }),
+      ),
+    );
+  }
+  /**
+   * D-015: the requester cancels an OPEN or ACCEPTED errand and the whole reservation
+   * is released over HTTP. A repeat returns the same operation.
+   */
+  async cancel(
+    requesterId: string,
+    id: string,
+    key = derivedKey('cancel', id),
+  ) {
+    return this.submit(
+      await this.repository.cancelIntent(
+        requesterId,
+        id,
+        key,
+        digest({ kind: 'CANCEL', id }),
       ),
     );
   }
@@ -78,7 +109,7 @@ export class OrderService {
           op.requesterId,
           op.payload.offeredCredits,
         );
-      else if (op.kind === 'DELETE')
+      else if (op.kind === 'DELETE' || op.kind === 'CANCEL')
         await this.clients.release(
           op.errandId,
           op.requesterId,

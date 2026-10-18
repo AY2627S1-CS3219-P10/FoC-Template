@@ -13,7 +13,7 @@ export interface OperationRecord {
   id: string;
   errandId: string;
   requesterId: string;
-  kind: 'CREATE' | 'EDIT' | 'DELETE';
+  kind: 'CREATE' | 'EDIT' | 'DELETE' | 'CANCEL';
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   inputDigest: string;
   payload: ErrandDetails;
@@ -23,9 +23,19 @@ export interface OperationRecord {
   errorStatus: number | null;
 }
 export interface OrderRepository {
+  /** Administrators only: soft-delete in any state and release (Q-011 parked). */
   deleteIntent(
     actorId: string,
-    admin: boolean,
+    id: string,
+    key: string,
+    digest: string,
+  ): Promise<OperationRecord>;
+  /**
+   * D-014/D-015: the requester cancels an OPEN or ACCEPTED errand. Returns the earlier
+   * succeeded operation when the errand is already CANCELLED.
+   */
+  cancelIntent(
+    requesterId: string,
     id: string,
     key: string,
     digest: string,
