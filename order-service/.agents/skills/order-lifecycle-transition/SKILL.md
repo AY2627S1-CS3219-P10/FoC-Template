@@ -24,6 +24,17 @@ Only implement rows that `docs/decisions.md` has decided. Open rows stay parked.
 - Per-state invariants are CHECKs (`migrations/202610180004_lifecycle_columns`); add one
   for the new state. A new enum value goes in its **own** migration.
 
+## 2b. Rows that release credits (`releasesCredits`: cancel, expire)
+- They cannot be one statement, because the release is an HTTP call (D-001). Use the
+  journal: an `…Intent` locks the row (`FOR UPDATE`), checks the state with the domain
+  row, writes an `ErrandOperation` and sets `pending_operation_id` (this lock is what
+  blocks a concurrent accept/pickup). `execute` releases, then `close()` applies the
+  status, stamp, history and courier release in one statement. `transition()` throws
+  for these rows.
+- Requests without an `Idempotency-Key` and system jobs use `derivedKey(action, id)`.
+- `releasesCourier` rows clear `courier_id`/`accepted_at` and record the courier in the
+  history row; `excludesCourier` also inserts `errand_excluded_couriers`.
+
 ## 3. Use case and route
 - User actions: `OrderService.act(id, action, userId, token)`. It reads, resolves the role,
   repeats once on a lost race, and returns the current state for repeats (`alreadyApplied`).
@@ -42,6 +53,8 @@ Only implement rows that `docs/decisions.md` has decided. Open rows stay parked.
 - The deadline is a Postgres column. Add a `due…()` query (partial index on the
   deadline) and enqueue one BullMQ job per errand on `order-timers` with a stable
   `jobId`. The job's conditional UPDATE re-checks the deadline.
+- Build jobs with `timerJob()`: BullMQ rejects custom ids with one `:`; a unit test runs
+  BullMQ's own validation (`tests/unit/timer-jobs.spec.ts`).
 - Override new workers with `{}` in the integration harness; test the service method
   directly and age timestamps with SQL (`age()` helper), never sleep.
 

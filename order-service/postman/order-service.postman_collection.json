@@ -1238,6 +1238,831 @@
           ]
         }
       ]
+    },
+    {
+      "name": "4 Cancel, courier cancel and item type (no web-app UI yet: manual)",
+      "description": "D-014..D-018. web-app has no control for these routes or for itemType, so they are tested here by hand. Timers: see docs/demo-timers.md.",
+      "item": [
+        {
+          "name": "Create FOOD errand (requester) \u2192 201, expires 2 h after creation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocationId\": \"{{pickupLocationId}}\",\n  \"description\": \"Pick up a chicken rice\",\n  \"deliveryDestination\": \"COM1 level 2 lounge\",\n  \"instructions\": \"Call on arrival\",\n  \"offeredCredits\": 5,\n  \"itemType\": \"FOOD\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const e = pm.response.json().errand;",
+                  "pm.test('itemType = FOOD', () => pm.expect(e.itemType).to.eql('FOOD'));",
+                  "pm.test('expiresAt = createdAt + 2 h', () => pm.expect((Date.parse(e.expiresAt) - Date.parse(e.createdAt)) / 3600000).to.eql(2));",
+                  "pm.collectionVariables.set('foodErrandId', e.id);",
+                  "pm.collectionVariables.set('foodExpiresAt', e.expiresAt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create without itemType (what web-app sends) \u2192 NON_PERISHABLE, 24 h",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocationId\": \"{{pickupLocationId}}\",\n  \"description\": \"Pick up a chicken rice\",\n  \"deliveryDestination\": \"COM1 level 2 lounge\",\n  \"instructions\": \"Call on arrival\",\n  \"offeredCredits\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const e = pm.response.json().errand;",
+                  "pm.test('itemType defaults to NON_PERISHABLE', () => pm.expect(e.itemType).to.eql('NON_PERISHABLE'));",
+                  "pm.test('expiresAt = createdAt + 24 h', () => pm.expect((Date.parse(e.expiresAt) - Date.parse(e.createdAt)) / 3600000).to.eql(24));",
+                  "pm.collectionVariables.set('plainErrandId', e.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create with an unknown itemType \u2192 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocationId\": \"{{pickupLocationId}}\",\n  \"description\": \"Pick up a chicken rice\",\n  \"deliveryDestination\": \"COM1 level 2 lounge\",\n  \"instructions\": \"Call on arrival\",\n  \"offeredCredits\": 5,\n  \"itemType\": \"PARCEL\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester edits itemType after creation \u2192 400 (fixed at creation)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{plainErrandId}}",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{plainErrandId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedVersion\": 0,\n  \"itemType\": \"FOOD\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Courier accepts the FOOD errand \u2192 200",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/accept",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "accept"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status = ACCEPTED', () => pm.expect(pm.response.json().status).to.eql(\"ACCEPTED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester calls courier-cancel \u2192 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/courier-cancel",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "courier-cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Courier gives it back (courier-cancel) \u2192 200 OPEN, deadline unchanged",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/courier-cancel",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "courier-cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status = OPEN', () => pm.expect(pm.response.json().status).to.eql(\"OPEN\"));",
+                  "pm.test('courierId = None', () => pm.expect(pm.response.json().courierId).to.eql(null));",
+                  "pm.test('availableForAcceptance = False', () => pm.expect(pm.response.json().availableForAcceptance).to.eql(false));",
+                  "pm.test('expiresAt did not move', () => pm.expect(pm.response.json().expiresAt).to.eql(pm.collectionVariables.get('foodExpiresAt')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Courier accepts it again \u2192 403 ERRAND_COURIER_EXCLUDED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/accept",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "accept"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('code = ERRAND_COURIER_EXCLUDED', () => pm.expect(pm.response.json().code).to.eql(\"ERRAND_COURIER_EXCLUDED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Another user (stranger) accepts it \u2192 200",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{strangerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/accept",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "accept"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status = ACCEPTED', () => pm.expect(pm.response.json().status).to.eql(\"ACCEPTED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The courier calls the requester's cancel \u2192 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{strangerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/cancel",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('code = ERRAND_OWNER_REQUIRED', () => pm.expect(pm.response.json().code).to.eql(\"ERRAND_OWNER_REQUIRED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester cancels the ACCEPTED errand \u2192 200 CANCELLED, credits released",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/cancel",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status = SUCCEEDED', () => pm.expect(pm.response.json().status).to.eql(\"SUCCEEDED\"));",
+                  "pm.test('errand.status = CANCELLED', () => pm.expect(pm.response.json().errand.status).to.eql(\"CANCELLED\"));",
+                  "pm.test('errand.courierId = None', () => pm.expect(pm.response.json().errand.courierId).to.eql(null));",
+                  "pm.collectionVariables.set('cancelOperationId', pm.response.json().operationId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester cancels again \u2192 200, same operation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}/cancel",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}",
+                "cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('same operationId', () => pm.expect(pm.response.json().operationId).to.eql(pm.collectionVariables.get('cancelOperationId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "The released courier can no longer read it \u2192 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{strangerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{foodErrandId}}",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{foodErrandId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester DELETE (web-app's route) on an OPEN errand \u2192 200 CANCELLED",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{plainErrandId}}",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{plainErrandId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('errand.status = CANCELLED', () => pm.expect(pm.response.json().errand.status).to.eql(\"CANCELLED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create an errand for the after-pickup checks \u2192 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocationId\": \"{{pickupLocationId}}\",\n  \"description\": \"Pick up a chicken rice\",\n  \"deliveryDestination\": \"COM1 level 2 lounge\",\n  \"instructions\": \"Call on arrival\",\n  \"offeredCredits\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('pickedErrandId', pm.response.json().errand.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Courier accepts \u2192 200",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{pickedErrandId}}/accept",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{pickedErrandId}}",
+                "accept"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Courier picks up \u2192 200",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{pickedErrandId}}/pickup",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{pickedErrandId}}",
+                "pickup"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status = PICKED_UP', () => pm.expect(pm.response.json().status).to.eql(\"PICKED_UP\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Courier cancel after pickup \u2192 409 (Q-020 parked)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{pickedErrandId}}/courier-cancel",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{pickedErrandId}}",
+                "courier-cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('code = ERRAND_INVALID_TRANSITION', () => pm.expect(pm.response.json().code).to.eql(\"ERRAND_INVALID_TRANSITION\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester cancel after pickup \u2192 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{pickedErrandId}}/cancel",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{pickedErrandId}}",
+                "cancel"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('code = ERRAND_INVALID_TRANSITION', () => pm.expect(pm.response.json().code).to.eql(\"ERRAND_INVALID_TRANSITION\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester DELETE after pickup \u2192 409",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{pickedErrandId}}",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{pickedErrandId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester confirms early \u2192 200 COMPLETED (courier paid)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{orderUrl}}/api/errands/{{pickedErrandId}}/confirm",
+              "host": [
+                "{{orderUrl}}"
+              ],
+              "path": [
+                "api",
+                "errands",
+                "{{pickedErrandId}}",
+                "confirm"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status = COMPLETED', () => pm.expect(pm.response.json().status).to.eql(\"COMPLETED\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -1287,6 +2112,26 @@
     },
     {
       "key": "operationId",
+      "value": ""
+    },
+    {
+      "key": "foodErrandId",
+      "value": ""
+    },
+    {
+      "key": "foodExpiresAt",
+      "value": ""
+    },
+    {
+      "key": "plainErrandId",
+      "value": ""
+    },
+    {
+      "key": "pickedErrandId",
+      "value": ""
+    },
+    {
+      "key": "cancelOperationId",
       "value": ""
     }
   ]

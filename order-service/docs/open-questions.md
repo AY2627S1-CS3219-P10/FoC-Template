@@ -29,6 +29,7 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 | Q-018 | compose.yaml: give order-service RabbitMQ | S6a end-to-end run | Teammate (compose) | OPEN |
 | Q-019 | Add dev dep `@testcontainers/rabbitmq@12.1.0` (lockfile `packages:` change)? | automated real-broker test | Nasif | OPEN |
 | Q-020 | May a courier cancel after pickup, and what happens to goods and credits? | courier cancel from PICKED_UP | Nasif | OPEN |
+| Q-021 | Must a courier cancel carry a mandatory reason (D1 FR9.1.1)? | reason field on courier cancel | Nasif | OPEN |
 
 ---
 
@@ -148,3 +149,13 @@ Docker; local dev can point `RABBITMQ_URL` at `127.0.0.1:5672`.
 - **Blocks:** only courier cancel from PICKED_UP.
 - **Done meanwhile:** courier cancel works from ACCEPTED; from PICKED_UP it returns 409
   `ERRAND_INVALID_TRANSITION`.
+
+### Q-021 — Reason for a courier cancel
+- **Status:** OPEN · **Related:** D-016, D1 FR9.1.1, Resp §5
+- **Question:** must `POST …/courier-cancel` require a reason, and who sees it?
+- **Options:** (A) required `reason` (1–500 chars) stored on the history row, shown to the
+  requester. (B) optional reason. (C) no reason.
+- **Recommendation:** A; D1 and the Responsibilities doc both ask for it. It would be a
+  required body on a new route, so web-app is unaffected.
+- **Blocks:** only the reason field.
+- **Done meanwhile:** courier cancel works without a body; the history row records who and when.

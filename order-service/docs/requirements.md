@@ -23,7 +23,7 @@ D1 reuses numbers (C15). These docs use aliases: **FR10-credit**, **FR10-notif**
 | FR5 | FR7 | Accept / assign |
 | FR6 | FR8 | Concurrent acceptance |
 | FR7 | FR9 | Courier lifecycle (+ confirm, dispute, 4 h — via D-005..D-008) |
-| FR8 | FR10 | Requester cancel, category expiry |
+| FR8 | FR10 | Requester cancel, item-type expiry |
 | FR9 | FR11 | Courier cancellation |
 | FR8.2 only | FR12 | Automatic transitions / timers |
 | FR10-credit | FR13 | Closed-credit economy |
@@ -104,28 +104,28 @@ selectable) through `ServiceClients.pickup`.
 | L-5 | Still DELIVERED after 4 h → COMPLETED (`AUTO_TIMEOUT`); race-safe vs confirm/dispute | D-008 | done | `OrderService.autoComplete` (DB-clock guard in `PrismaOrderRepository.transition`), `src/infrastructure/timer.worker.ts` `TimerWorker`; tests "S6b: …" |
 | L-6 | COMPLETED emits `errand.completed.v1` via outbox, exactly once per errand | D-001 | done | written in the same statement as the transition (`PrismaOrderRepository.transition`), partial unique index `outbox_events_one_completion_per_errand`; races "S6a race: …"; `OutboxRelay` tests "S6a relay: …" |
 | L-7 | Courier may hold only one active errand | Resp §5 | todo | C5 / Q-005 |
-| L-8 | 30-min ACCEPTED → OPEN, 1-h PICKED_UP → CANCELLED | Resp §7 | todo | C4 / Q-004 |
+| L-8 | 30-min ACCEPTED → OPEN (with exclusion); no 1-h timer | Resp §7, D-017 | done | `OrderService.reopen`, `REOPEN_DUE` + `dueReopens()` in `PrismaOrderRepository`, `TimerWorker` `reopen-<id>` jobs; tests "S8: an ACCEPTED errand not picked up within 30 minutes…", "F race: the 30-minute reopen vs a pickup…" |
 | L-9 | Dispute resolution | Resp §5 (partial) | todo | C14 / Q-014 |
 
-### FR8 — Requester cancel and category expiry (priority 1, sprint 4)
+### FR8 — Requester cancel and item-type expiry (priority 1, sprint 4)
 | ID | Requirement (D1) | Status | Notes |
 |---|---|---|---|
-| FR8.1 | Requester cancels only while OPEN | partial | owner `DELETE` exists (`PrismaOrderRepository.deleteIntent`, OPEN only) but soft-deletes instead of CANCELLED — C7 |
-| FR8.1.1 | Set CANCELLED and release credits | partial | release done via DELETE (test "owners delete requests, release credits exactly once and hide deleted records"); no CANCELLED status set |
-| FR8.1.2 | Reject cancel in ACCEPTED…EXPIRED | partial | `deleteIntent` rejects non-OPEN for owners (`ERRAND_NOT_DELETABLE`) |
-| FR8.2 | Auto-cancel OPEN errand after category period from creation | todo | S7; C6, C8 |
-| FR8.2.1 | 2 h food/beverages; 24 h parcels/fragiles | todo | S7; C8 |
-| FR8.2.2 | Remove from open list, release credits | todo | S7 |
-| FR8.2.3 | Never expire an accepted-or-later errand | todo | S7 (conditional UPDATE on status=OPEN) |
+| FR8.1 | Requester cancels while OPEN (amended by D-015: also ACCEPTED) | done | `POST …/cancel` and owner `DELETE` (D-014) → `PrismaOrderRepository.cancelIntent`; test "S7: owner DELETE cancels on the same route…" |
+| FR8.1.1 | Set CANCELLED and release credits | done | journal CANCEL op → `execute` + `close()`; one RELEASE ledger row; tests "S7: …" and "S7: cancelling an ACCEPTED errand releases the whole escrow and the courier (D-015)" |
+| FR8.1.2 | Reject cancel from PICKED_UP onward | done | `TRANSITIONS` has cancel rows for OPEN/ACCEPTED only → 409; test "S7: cancel is 409 from PICKED_UP onward…" |
+| FR8.2 | Expire an OPEN errand after its period from creation | done | `expires_at` fixed at create; `OrderService.expire`, `dueExpiries()`, `TimerWorker` `expire-<id>`; test "S7: an OPEN errand past its deadline expires once…" |
+| FR8.2.1 | 2 h food; 24 h other items (D-018: requester-chosen `itemType`, default NON_PERISHABLE) | done | `CreateErrandDto.itemType`, `expiryFor()`, CHECK `errands_expiry_deadline`; test "S7: the requester picks the item type…" |
+| FR8.2.2 | Remove from open list, release credits | done | EXPIRED is not OPEN; journal EXPIRE op releases (D-019) |
+| FR8.2.3 | Never expire an accepted-or-later errand | done | `expireIntent` requires OPEN + unassigned under the row lock; accept refuses past the deadline; "F race: expiry vs 10 accepts…" |
 
 ### FR9 — Courier cancellation (priority 1, sprint 4)
 | ID | Requirement (D1) | Status | Notes |
 |---|---|---|---|
-| FR9.1 | Courier-initiated cancellation of accepted errands | todo | S8; C3 |
-| FR9.1.1 | Assigned courier requests cancel of ACCEPTED with mandatory reason | todo | S8 |
-| FR9.1.2 | Notify requester; status CANCELLED | todo | S8; C3 (Resp says OPEN) |
-| FR9.1.3a | Release credits to requester; free courier | todo | S8; C3 |
-| FR9.1.3b | Cancelling courier cannot accept the same request if re-created/re-listed | todo | S8; implies a per-errand courier block-list |
+| FR9.1 | Courier-initiated cancellation of accepted errands | done | `POST …/courier-cancel` → `OrderService.courierCancel`; test "S8: the courier gives an ACCEPTED errand back…" |
+| FR9.1.1 | Assigned courier requests cancel of ACCEPTED with mandatory reason | partial | cancel works from ACCEPTED only (PICKED_UP → 409, Q-020); no reason field yet — Q-021 |
+| FR9.1.2 | Notify requester; status ~~CANCELLED~~ OPEN (D-016) | partial | status OPEN done; notification waits for Q-010 |
+| FR9.1.3a | ~~Release credits~~ credits stay reserved (D-016); free courier | done | courier/`accepted_at` cleared; balance unchanged in the S8 test |
+| FR9.1.3b | Cancelling courier cannot accept the same errand again | done | `errand_excluded_couriers`; accept → 403 `ERRAND_COURIER_EXCLUDED`, SQL guard in `actorGuard`; also after a missed 30-min pickup (D-017) |
 
 ### FR10-credit — Closed-credit economy (priority 1, sprints 2–4)
 | ID | Requirement (D1) | Status | Notes |
@@ -151,7 +151,7 @@ selectable) through `ServiceClients.pickup`.
 ### FR11 — History and reorder (priority 3, sprint 5)
 | ID | Requirement (D1) | Status | Notes |
 |---|---|---|---|
-| FR11.1 | Requester views past COMPLETED and CANCELLED errands | partial | `GET /api/errands/manage` (`PrismaOrderRepository.listManaged`) lists own errands, not filtered to terminal states; deleted ones vanish (C7) |
+| FR11.1 | Requester views past COMPLETED and CANCELLED errands | partial | `GET /api/errands/manage` (`PrismaOrderRepository.listManaged`) lists own errands incl. CANCELLED/EXPIRED (D-014: owner DELETE no longer hides them); not filtered to terminal states |
 | FR11.1.1 | Pickup, delivery, credits, final status, timestamps | partial | lifecycle timestamps missing (S3) |
 | FR11.1.2 | Reverse chronological by most recently updated | partial | sorts by `createdAt`, not `updatedAt` |
 | FR11.2, .2.1, .2.2 | Reorder from template: revalidate pickup/credits; new id, nothing inherited | todo | S10 — reuse the create journal |
@@ -176,12 +176,14 @@ selectable) through `ServiceClients.pickup`.
 | DELIVERED | confirm | REQUESTER | COMPLETED | as above | done (S6a, D-006) |
 | DELIVERED | dispute | REQUESTER | DISPUTED | disputedAt; no credit effect | done (S5, D-007) |
 | DELIVERED | auto-complete | SYSTEM | COMPLETED | AUTO_TIMEOUT; `errand.completed.v1` | done (S6b, D-008) |
-| OPEN | cancel | REQUESTER | CANCELLED | cancelledAt; release (HTTP journal) | FR8.1; route/semantics C7 |
-| OPEN | expire | SYSTEM | CANCELLED or EXPIRED | release (HTTP journal) | FR8.2; C6, C8 |
-| ACCEPTED | courier-cancel | COURIER (assigned) | OPEN or CANCELLED | reason, history | C3 |
-| ACCEPTED | 30-min timeout | SYSTEM | OPEN | history | C4 |
-| PICKED_UP | 1-h timeout | SYSTEM | CANCELLED | — | C4 |
-| DISPUTED | resolve | ADMIN? | COMPLETED or CANCELLED | settle or release | C14 |
+| OPEN | cancel | REQUESTER | CANCELLED | cancelledAt; release (HTTP journal) | done (S7, D-014, D-015) |
+| ACCEPTED | cancel | REQUESTER | CANCELLED | cancelledAt; courier released; release (HTTP journal) | done (S7, D-015) |
+| OPEN | expire | SYSTEM | EXPIRED | expiredAt at `expires_at` (createdAt + 2 h / 24 h, never reset); release (HTTP journal) | done (S7, D-013, D-017..D-019) |
+| ACCEPTED | courier-cancel | COURIER (assigned) | OPEN | courier released + excluded; credits stay | done (S8, D-016) |
+| ACCEPTED | reopen (30 min after acceptedAt) | SYSTEM | OPEN | as courier-cancel | done (S8, D-017) |
+| PICKED_UP… | cancel / courier-cancel | any | — | 409 | decided no (D-015); courier after pickup parked (Q-020) |
+| PICKED_UP | 1-h timeout | SYSTEM | — | not built | dropped (D-017) |
+| DISPUTED | resolve | ADMIN? | COMPLETED or CANCELLED | settle or release | C14 (DISPUTED is a dead end, D-020) |
 
 Rows whose status column names an OPEN conflict must **not** be implemented until the
 conflict is decided.
@@ -197,7 +199,7 @@ Implemented rows live in `src/domain/lifecycle.ts` `TRANSITIONS`.
 | NFR4 | No private data in listings/logs | partial | pino redacts auth/cookie headers (`src/app.module.ts`); events must carry ids only |
 | NFR5 | No permanent loss of critical state; resumable | partial | journal + `RecoveryWorker`; `outbox_events` + `OutboxRelay` (confirm-then-mark); deadlines in Postgres + `TimerWorker`; cancel/expiry timers blocked (S7, S8) |
 | NFR8 | Structured logs w/ correlationId; health endpoint | done | `src/infrastructure/correlation.ts`, `src/api/correlation.middleware.ts`; id on journal ops, `errand_history`, outbox `headers`/AMQP header; `HealthController` |
-| NFR9 | ≥80% coverage on critical logic; invalid-transition + concurrency tests | done | `test:coverage` (80% gate on domain/application; 96.7% statements, 92.2% branches); `tests/unit/lifecycle.spec.ts` matrix; race tests "S4 race…", "S5 race…", "S6a race…", "S6b race…" |
+| NFR9 | ≥80% coverage on critical logic; invalid-transition + concurrency tests | done | `test:coverage` (80% gate on domain/application; 96.7% statements, 92.2% branches); `tests/unit/lifecycle.spec.ts` matrix; race tests "S4 race…", "S5 race…", "S6a race…", "S6b race…", "F race: …" (cancel, courier cancel, reopen, expiry) |
 | NFR10 | Containerised, restart-safe | done | `Dockerfile`, `docker-entrypoint.sh` (`migrate deploy`); image verified 2026-10-18 (9 migrations, ready after restart). Compose RabbitMQ wiring: Q-018 |
 
 ## 5. Known defects and risks
@@ -208,6 +210,7 @@ Implemented rows live in `src/domain/lifecycle.ts` `TRANSITIONS`.
 | K3 | User Service `/me` called twice on some routes | `AuthGuard` + `ServiceClients.isAdministrator` | N2 |
 | K4 | No correlation id propagation | — | N1 (fixed, `f2c4b61`) |
 | K5 | Assigned courier cannot read their own errand | `OrderService.find` | S4 (fixed) |
+| K6 | Timer job ids `auto-complete:<id>` were rejected by BullMQ ("Custom Id cannot contain :"), so the 4 h auto-complete never ran outside tests | `TimerWorker.sweep` | fixed (`e298bb0`) |
 | R1 | Admin DELETE after acceptance can release credits before settlement | `deleteIntent` + `ServiceClients.release` ignoring `RESERVATION_STATE_CONFLICT` | S6a (C11) |
 | R2 | Courier with no credit account → `errand.completed.v1` requeued forever | credit consumer 404 handling | S4/S6a (C12) |
 | — | `dist/`, `coverage/`, `src/generated/` are stale local artefacts (gitignored) | — | run `db:generate`; ignore the others |
@@ -216,6 +219,7 @@ Implemented rows live in `src/domain/lifecycle.ts` `TRANSITIONS`.
 1. FR7.2 / FR7.2.1: the **courier** marks DELIVERED (D-005).
 2. Add a requester confirm step DELIVERED → COMPLETED and early confirm from PICKED_UP (D-006).
 3. Add DISPUTED and the requester dispute action (D-007); dispute resolution once C14 is decided.
-4. Add the 4-hour auto-complete (D-008), and the other timers once C4 is decided.
-5. FR9.1.2 wording vs FR9.1.3b once C3 is decided.
+4. Add the 4-hour auto-complete (D-008), the 30-minute reopen with exclusion and no 1-hour timer (D-017).
+5. FR9.1.2 / FR9.1.3a: courier cancel reopens the errand and keeps the credits reserved (D-016).
+7. FR8.1: requester may also cancel an ACCEPTED errand (D-015); FR8.2.1: expiry by requester-chosen item type FOOD 2 h / NON_PERISHABLE 24 h (D-018); expiry ends in EXPIRED (D-013).
 6. Renumber the second FR10 block and the second FR9.1.3 (C15).

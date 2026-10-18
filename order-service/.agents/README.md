@@ -58,7 +58,7 @@ Lifecycle, events and timers: `order-lifecycle-transition` (patterns) and `docs/
 | `src/infrastructure/service-clients.ts` | HTTP clients for user, supplier, credit (`UpstreamFailure`) |
 | `src/infrastructure/recovery.worker.ts` | BullMQ + sweeper that resumes PENDING operations |
 | `src/infrastructure/outbox.relay.ts` | publishes `outbox_events` to RabbitMQ (`ORDER_EVENTS_ENABLED`) |
-| `src/infrastructure/timer.worker.ts` | `order-timers` sweeper + BullMQ jobs (4 h auto-complete) |
+| `src/infrastructure/timer.worker.ts` | `order-timers` sweeper + BullMQ jobs (4 h auto-complete, 30-min reopen, expiry); demo: `docs/demo-timers.md` |
 | `postman/` | Postman collection proving API authorization |
 | `prisma/schema.prisma`, `migrations/` | schema; hand-written SQL migrations |
 | `tests/unit`, `tests/integration` | Jest; integration uses Testcontainers Postgres + in-process credit app |

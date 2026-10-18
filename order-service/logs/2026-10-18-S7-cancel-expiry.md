@@ -89,3 +89,11 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** expiry releases credits, so it uses the same journal as cancel (D-019) and its pending lock blocks a late accept. The CHECK makes "the deadline never moves" a database fact, not a convention. A failed (non-retryable) expiry release is skipped by the sweeper rather than retried every 30 s.
 - **Verified:** `typecheck`, `lint` clean; `pnpm test` 349 passed; `pnpm test:integration` 54 passed; migrations 8–11 applied by hand to a DB with existing rows → both rows NON_PERISHABLE, `expires_at - created_at = 1 day`.
 - **Follow-up:** web-app sends no `itemType`, so its errands are all 24 h until its owner adds a control.
+
+### 4f65762 test(order): race tests for cancel, courier cancel, reopen and expiry against accept, pickup and completion
+- **When:** 2026-10-18 15:23 · **Slice:** F · **Refs:** FR6, NFR9, D-015..D-019
+- **Changed:**
+  - `tests/integration/errands.spec.ts` — six races on real Postgres, 3–5 fresh rounds each: cancel vs 10 accepts; cancel vs pickup; courier cancel vs pickup; 30-min reopen vs pickup; expiry (×3) vs 10 accepts, plus the not-yet-due case; confirm vs dispute vs the 4 h job
+- **Why:** cancel vs accept can legitimately end with both succeeding (accept first, then a cancel from ACCEPTED is allowed by D-015), so that test checks for one consistent end state (CANCELLED, one release, courier recorded if one got in) rather than a single winner. The others check one winner, the loser's 403/409, one history row and the credit effect.
+- **Verified:** `pnpm test:integration` 60 passed twice in full (8–9 s); `-t race` 13 passed three times. One earlier filtered run reported the 6 new tests failed after more than 10 minutes, without a captured error; every run since passed, which points at Testcontainers startup rather than a race (risk noted).
+- **Follow-up:** none.
