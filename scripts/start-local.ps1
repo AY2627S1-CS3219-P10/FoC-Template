@@ -76,6 +76,12 @@ Save-Setting (Join-Path $repoPath 'web-app/.env.local') 'CREDIT_USER_SERVICE_TOK
 Save-Setting (Join-Path $repoPath 'order-service/.env') 'CREDIT_ORDER_SERVICE_TOKEN' $orderServiceToken
 
 $rootSettings = Read-Settings $rootEnv
+$localRabbitMqUrl = 'amqp://foc:foc_local_password@127.0.0.1:5672'
+$eventsExchange = if ($rootSettings['USER_EVENTS_EXCHANGE']) { $rootSettings['USER_EVENTS_EXCHANGE'] } elseif ($rootSettings['CREDIT_EVENTS_EXCHANGE']) { $rootSettings['CREDIT_EVENTS_EXCHANGE'] } else { 'foc.events' }
+Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_EVENTS_ENABLED' 'true'
+Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_EVENTS_EXCHANGE' $eventsExchange
+Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_OUTBOX_POLL_INTERVAL_MS' '1000'
+Save-Setting (Join-Path $repoPath 'user-service/.env') 'RABBITMQ_URL' $localRabbitMqUrl
 $creditPort = if ($rootSettings['CREDIT_DATABASE_PORT']) { $rootSettings['CREDIT_DATABASE_PORT'] } else { '5435' }
 $creditUser = if ($rootSettings['CREDIT_DATABASE_USER']) { $rootSettings['CREDIT_DATABASE_USER'] } else { 'foc_credit' }
 $creditPassword = if ($rootSettings['CREDIT_DATABASE_PASSWORD']) { $rootSettings['CREDIT_DATABASE_PASSWORD'] } else { 'local_credit_password' }
@@ -86,6 +92,9 @@ Save-Setting $creditEnv 'JWT_ACCESS_TOKEN_SECRET' $jwtSecret
 Save-Setting $creditEnv 'CREDIT_USER_SERVICE_TOKEN' $userServiceToken
 Save-Setting $creditEnv 'CREDIT_ORDER_SERVICE_TOKEN' $orderServiceToken
 Save-Setting $creditEnv 'CREDIT_MONITORING_TOKEN' $monitoringToken
+Save-Setting $creditEnv 'CREDIT_EVENTS_ENABLED' 'true'
+Save-Setting $creditEnv 'CREDIT_EVENTS_EXCHANGE' $eventsExchange
+Save-Setting $creditEnv 'RABBITMQ_URL' $localRabbitMqUrl
 foreach ($name in @('CREDIT_INITIAL_BALANCE','CREDIT_TRANSACTION_RETRIES','JWT_ISSUER','JWT_AUDIENCE','LOG_LEVEL')) {
     if ($rootSettings[$name]) { Save-Setting $creditEnv $name $rootSettings[$name] }
 }

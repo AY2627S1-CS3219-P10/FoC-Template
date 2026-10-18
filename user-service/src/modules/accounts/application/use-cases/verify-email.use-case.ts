@@ -3,6 +3,7 @@ import { NusEmail } from '../../domain/nus-email.js';
 import { EmailVerificationError } from '../errors/email-verification.error.js';
 import type { ClockPort } from '../ports/clock.port.js';
 import type { EmailVerificationRepositoryPort } from '../ports/email-verification-repository.port.js';
+import type { IdGeneratorPort } from '../ports/id-generator.port.js';
 import type { VerificationCodeHasherPort } from '../ports/verification-code-hasher.port.js';
 
 export const MAXIMUM_EMAIL_VERIFICATION_ATTEMPTS = 5;
@@ -10,6 +11,7 @@ export const MAXIMUM_EMAIL_VERIFICATION_ATTEMPTS = 5;
 export interface VerifyEmailDependencies {
   clock: ClockPort;
   codeHasher: VerificationCodeHasherPort;
+  idGenerator: IdGeneratorPort;
   repository: EmailVerificationRepositoryPort;
 }
 
@@ -27,6 +29,7 @@ export class VerifyEmailUseCase {
     const verified = await this.dependencies.repository.verifyAndActivate({
       candidateCodeHash: this.dependencies.codeHasher.hash(code.value),
       email: email.value,
+      eventId: this.dependencies.idGenerator.generate(),
       maximumAttempts: MAXIMUM_EMAIL_VERIFICATION_ATTEMPTS,
       now: this.dependencies.clock.now(),
     });
