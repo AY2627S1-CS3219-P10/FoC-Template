@@ -181,9 +181,9 @@ intercepted responses and do not change real users' passwords or phone numbers.
 Administrators land on `/admin` after login and can also open it from navigation
 or their account page. The dashboard supports all current administrative HTTP
 operations: create suppliers with a first pickup location, edit supplier names
-and categories, edit pickup details and hours, deactivate suppliers, search
+and categories, edit pickup details and hours, permanently delete suppliers, search
 accounts, and grant or remove administrator privileges. Privilege changes and
-deactivation require confirmation. Self privilege changes are disabled; the
+deletion require confirmation. Self privilege changes are disabled; the
 user service enforces the remaining administrator protections and revokes the
 affected account's sessions.
 
@@ -200,6 +200,7 @@ access checks. These UI contract tests do not replace live service integration
 tests or database tests.
 
 ## Errands
+
 The /errands page browses authenticated OPEN, unassigned requests from Order Service, including pickup, delivery, instructions and offered credits. Configure ORDER_SERVICE_URL (default http://127.0.0.1:3004). See ../order-service/README.md for PowerShell setup. Users can create errands from the Errands page. Choose a pickup location, complete delivery details and offer credits; successful creation updates the list and credit balance. Pending requests can be checked and uncertain requests retried safely. An empty database displays an empty state.
 
 Create errands at /errands/create. A floating Create errand shortcut appears on every page, supports mouse/touch dragging and arrow keys when focused, and remembers its position in browser storage. Guests are prompted to log in on the creation page.

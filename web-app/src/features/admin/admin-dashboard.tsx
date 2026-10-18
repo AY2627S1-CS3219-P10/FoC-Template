@@ -114,7 +114,9 @@ function SupplierManagement() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [deactivate, setDeactivate] = useState<Supplier | null>(null);
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const load = useCallback(async () => {
@@ -139,19 +141,23 @@ function SupplierManagement() {
     void Promise.resolve().then(load);
   }, [load]);
   async function remove() {
-    if (!deactivate) return;
+    if (!supplierToDelete) return;
     setBusy(true);
     setError("");
     setNotice("");
     try {
       await authenticatedRequest(
-        `admin/suppliers/${deactivate.id}`,
+        `admin/suppliers/${supplierToDelete.id}`,
         undefined,
         "DELETE",
       );
-      setSuppliers((current) => current.filter((s) => s.id !== deactivate.id));
-      setNotice(`${deactivate.name} and its pickup locations were deleted.`);
-      setDeactivate(null);
+      setSuppliers((current) =>
+        current.filter((supplier) => supplier.id !== supplierToDelete.id),
+      );
+      setNotice(
+        `${supplierToDelete.name} and its pickup locations were deleted.`,
+      );
+      setSupplierToDelete(null);
     } catch (failure) {
       setError(message(failure));
     } finally {
@@ -234,9 +240,9 @@ function SupplierManagement() {
           <button onClick={() => void load()}>Retry loading suppliers</button>
         </div>
       )}
-      {deactivate && (
-        <section className="admin-confirm" aria-label="Confirm deactivation">
-          <h3>Delete {deactivate.name} permanently?</h3>
+      {supplierToDelete && (
+        <section className="admin-confirm" aria-label="Confirm deletion">
+          <h3>Delete {supplierToDelete.name} permanently?</h3>
           <p>
             This permanently removes the supplier and all its pickup locations.
             You can create a new supplier with the same name afterwards.
@@ -252,7 +258,7 @@ function SupplierManagement() {
             <button
               className="button button-outline"
               disabled={busy}
-              onClick={() => setDeactivate(null)}
+              onClick={() => setSupplierToDelete(null)}
             >
               Cancel
             </button>
@@ -298,7 +304,7 @@ function SupplierManagement() {
                     disabled={busy}
                     onClick={() => {
                       setError("");
-                      setDeactivate(supplier);
+                      setSupplierToDelete(supplier);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >

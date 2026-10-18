@@ -6,6 +6,7 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AuthenticationError } from '../../../../../src/modules/accounts/application/errors/authentication.error.js';
+import { PUBLIC_ENDPOINT_RATE_LIMITER } from '../../../../../src/modules/accounts/application/ports/public-endpoint-rate-limiter.port.js';
 import type {
   AuthenticationResult,
   LoginInput,
@@ -69,17 +70,25 @@ describe('AuthenticationController', () => {
   let loginUseCase: StubLoginUseCase;
   let logoutUseCase: StubLogoutUseCase;
   let refreshSessionUseCase: StubRefreshSessionUseCase;
+  let rateLimitDecision: { allowed: boolean; retryAfterSeconds: number };
 
   beforeEach(async () => {
     loginUseCase = new StubLoginUseCase();
     logoutUseCase = new StubLogoutUseCase();
     refreshSessionUseCase = new StubRefreshSessionUseCase();
+    rateLimitDecision = { allowed: true, retryAfterSeconds: 0 };
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthenticationController],
       providers: [
         { provide: LoginUseCase, useValue: loginUseCase },
         { provide: LogoutUseCase, useValue: logoutUseCase },
         { provide: RefreshSessionUseCase, useValue: refreshSessionUseCase },
+        {
+          provide: PUBLIC_ENDPOINT_RATE_LIMITER,
+          useValue: {
+            consume: () => Promise.resolve(rateLimitDecision),
+          },
+        },
       ],
     }).compile();
 
@@ -126,6 +135,24 @@ describe('AuthenticationController', () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: 'INVALID_CREDENTIALS' });
+  });
+
+  it('rate-limits login before invoking the password verifier', async () => {
+    rateLimitDecision = { allowed: false, retryAfterSeconds: 61 };
+
+    const response = await app.inject({
+      method: 'POST',
+      payload: { email: 'student@u.nus.edu', password: 'Strong!Pass' },
+      url: '/api/auth/login',
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers['retry-after']).toBe('61');
+    expect(response.json()).toMatchObject({
+      code: 'PUBLIC_ENDPOINT_RATE_LIMIT_EXCEEDED',
+      retryAfterSeconds: 61,
+    });
+    expect(loginUseCase.inputs).toHaveLength(0);
   });
 
   it('maps a non-active account to HTTP 403', async () => {

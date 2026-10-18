@@ -120,13 +120,11 @@ export function errorResponse(error: unknown) {
 }
 
 export function requireSameOrigin(request: NextRequest, requireJson = true) {
-  // Next.js can normalize request.url to localhost behind its internal server.
-  // Host retains the actual browser-facing host/port for local development.
   const expected = process.env.APP_ORIGIN
     ? new URL(process.env.APP_ORIGIN).origin
-    : `${request.nextUrl.protocol}//${request.headers.get("host")}`;
+    : request.nextUrl.origin;
   if (
-    request.headers.get("origin") !== expected ||
+    !originsMatch(request.headers.get("origin"), expected) ||
     request.headers.get("sec-fetch-site") === "cross-site"
   ) {
     throw new BackendError(403, "This request must come from the application.");
@@ -136,6 +134,25 @@ export function requireSameOrigin(request: NextRequest, requireJson = true) {
     !request.headers.get("content-type")?.startsWith("application/json")
   ) {
     throw new BackendError(415, "A JSON request is required.");
+  }
+}
+
+function originsMatch(actual: string | null, expected: string): boolean {
+  if (actual === expected) return true;
+  if (!actual) return false;
+
+  try {
+    const actualUrl = new URL(actual);
+    const expectedUrl = new URL(expected);
+    const loopbackHosts = new Set(["127.0.0.1", "[::1]", "localhost"]);
+    return (
+      actualUrl.protocol === expectedUrl.protocol &&
+      actualUrl.port === expectedUrl.port &&
+      loopbackHosts.has(actualUrl.hostname) &&
+      loopbackHosts.has(expectedUrl.hostname)
+    );
+  } catch {
+    return false;
   }
 }
 

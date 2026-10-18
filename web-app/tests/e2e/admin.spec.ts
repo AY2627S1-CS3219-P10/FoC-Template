@@ -159,11 +159,11 @@ test("admin supplier workflows submit service contracts and show failures", asyn
     path: `/api/admin/suppliers/${supplier.id}/locations/${supplier.locations[0].id}`,
     body: { campusLocationId: campusLocations[2].id, imageUrl: null },
   });
-  await page.getByRole("button", { name: "Deactivate", exact: true }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   expect(writes).toHaveLength(4);
-  await page.getByRole("button", { name: "Deactivate", exact: true }).click();
-  await page.getByRole("button", { name: "Confirm deactivation" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm deletion" }).click();
   await expect(page.getByText("No suppliers found.")).toBeVisible();
   expect(writes[4].method).toBe("DELETE");
   expect(

@@ -130,17 +130,39 @@ describe('UserAccessTokenGuard', () => {
 
   it('rejects an expired token', async () => {
     const expired = jwt.sign(
-      { sid: 'session', isAdmin: false },
+      {
+        sid: '20000000-0000-4000-8000-000000000001',
+        isAdmin: false,
+      },
       {
         algorithm: 'HS256',
         audience: 'foc-api',
         expiresIn: -1,
         issuer: 'foc-user-service',
-        subject: 'user',
+        subject: '10000000-0000-4000-8000-000000000001',
       },
     );
     await expect(
       guard.canActivate(context(request(`Bearer ${expired}`))),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('rejects a token issued for the wrong audience', async () => {
+    const wrongAudience = jwt.sign(
+      {
+        sid: '20000000-0000-4000-8000-000000000001',
+        isAdmin: false,
+      },
+      {
+        algorithm: 'HS256',
+        audience: 'another-api',
+        expiresIn: 900,
+        issuer: 'foc-user-service',
+        subject: '10000000-0000-4000-8000-000000000001',
+      },
+    );
+    await expect(
+      guard.canActivate(context(request(`Bearer ${wrongAudience}`))),
     ).rejects.toThrow(UnauthorizedException);
   });
 });

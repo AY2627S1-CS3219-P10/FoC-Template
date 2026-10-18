@@ -25,5 +25,7 @@ COPY --from=build --chown=node:node /app/dist ./dist
 
 USER node
 EXPOSE 3001
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
+  CMD wget --spider --quiet http://127.0.0.1:3001/api/health/ready || exit 1
 
 CMD ["node", "dist/main.js"]

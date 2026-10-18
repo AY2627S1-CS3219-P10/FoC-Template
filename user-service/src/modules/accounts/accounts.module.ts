@@ -38,6 +38,8 @@ import { SmtpVerificationEmailSender } from './infrastructure/email/smtp-verific
 import { RedisVerificationEmailResendRateLimiter } from './infrastructure/messaging/redis-verification-email-resend-rate-limiter.js';
 import { UserOutboxRelayService } from './infrastructure/messaging/user-outbox-relay.service.js';
 import { RedisEmailAvailabilityRateLimiter } from './infrastructure/messaging/redis-email-availability-rate-limiter.js';
+import { RedisPublicEndpointRateLimiter } from './infrastructure/messaging/redis-public-endpoint-rate-limiter.js';
+import { PUBLIC_ENDPOINT_RATE_LIMITER } from './application/ports/public-endpoint-rate-limiter.port.js';
 import { BullMqVerificationEmailDelivery } from './infrastructure/messaging/verification-email.queue.js';
 import {
   VerificationEmailProcessor,
@@ -398,6 +400,16 @@ import { BearerAuthenticationGuard } from './presentation/http/security/bearer-a
         config: ConfigService<EnvironmentVariables, true>,
       ): RedisVerificationEmailResendRateLimiter =>
         new RedisVerificationEmailResendRateLimiter(
+          config.get('REDIS_URL', { infer: true }),
+        ),
+    },
+    {
+      inject: [ConfigService],
+      provide: PUBLIC_ENDPOINT_RATE_LIMITER,
+      useFactory: (
+        config: ConfigService<EnvironmentVariables, true>,
+      ): RedisPublicEndpointRateLimiter =>
+        new RedisPublicEndpointRateLimiter(
           config.get('REDIS_URL', { infer: true }),
         ),
     },
