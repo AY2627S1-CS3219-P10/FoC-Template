@@ -65,3 +65,15 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** BullMQ 6 throws "Custom Id cannot contain :" for ids with one colon. The sweep caught the error and only logged "will retry", so in the running service no DELIVERED errand was ever auto-completed. The integration tests missed it because they replace `TimerWorker` and call `autoComplete()` directly.
 - **Verified:** `typecheck`, `lint` clean; `pnpm test` 346 passed.
 - **Follow-up:** the reopen and expiry timers reuse `timerJob()`.
+
+### 9cff3e2 feat(order): reopen ACCEPTED errands not picked up within 30 minutes (D-017)
+- **When:** 2026-10-18 14:00 · **Slice:** D · **Refs:** D-017
+- **Changed:**
+  - `src/infrastructure/order.repository.ts` — `REOPEN_DUE` guard (DB clock, `accepted_at` + 30 min), `dueReopens()`
+  - `src/application/order.service.ts` — `reopen()`: reads the assigned courier, then the same single-statement row as courier cancel (OPEN, courier cleared, history, exclusion), guarded by that courier still being assigned
+  - `src/infrastructure/timer.worker.ts` — the sweeper enqueues `reopen-<id>` jobs next to auto-complete; the worker dispatches by job name
+  - `migrations/202610180010_reopen_index` — partial index on `accepted_at` for ACCEPTED rows
+  - tests — due vs 29 min, 5 parallel jobs → 1 reopen, exclusion, credits untouched, pickup or cancel first → no-op
+- **Why:** same pattern as the 4 h timer so there is one way timers work: the deadline lives in Postgres and the job re-checks it, so a duplicate job or a late Redis cannot reopen an errand the courier already picked up.
+- **Verified:** `typecheck`, `lint` clean; `pnpm test` 347 passed; `pnpm test:integration` 50 passed.
+- **Follow-up:** none.

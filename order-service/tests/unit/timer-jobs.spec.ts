@@ -16,7 +16,7 @@ function validate(job: { name: string; data: object; opts: object }) {
 }
 
 describe('lifecycle timer jobs', () => {
-  it.each(['auto-complete', 'reopen'] as const)(
+  it.each(['auto-complete', 'reopen', 'expire'] as const)(
     '%s jobs pass BullMQ validation with one stable id per errand',
     (name) => {
       const job = timerJob(name, errandId);

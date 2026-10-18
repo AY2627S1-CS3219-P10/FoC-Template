@@ -24,6 +24,7 @@ import { OutboxRelay } from '../../src/infrastructure/outbox.relay';
 import { TimerWorker } from '../../src/infrastructure/timer.worker';
 import type { ChannelModel } from 'amqplib';
 import { OrderService } from '../../src/application/order.service';
+import { expiryFor } from '../../src/domain/errand';
 import {
   ORDER_REPOSITORY,
   type OrderRepository,
@@ -1335,6 +1336,139 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       }),
     ).toMatchObject({ availableCredits: 120, reservedCredits: 0 });
   });
+  /** Moves an errand's creation and deadline into the past together (the CHECK keeps them 2 h / 24 h apart). */
+  const ageCreated = (id: string, interval: string) =>
+    prisma.$executeRaw`UPDATE "errands" SET "created_at" = "created_at" - ${interval}::interval, "expires_at" = "expires_at" - ${interval}::interval WHERE "id" = ${id}::uuid`;
+  const hours = (errand: { createdAt: Date; expiresAt: Date }) =>
+    (errand.expiresAt.getTime() - errand.createdAt.getTime()) / 3_600_000;
+  it('S7: the requester picks the item type; NON_PERISHABLE (default) expires after 24 h, FOOD after 2 h (D-018)', async () => {
+    const plain = await create();
+    expect(plain.statusCode).toBe(201);
+    expect(plain.json().errand).toMatchObject({
+      itemType: 'NON_PERISHABLE',
+      expiresAt: expect.any(String),
+    });
+    const food = await create({ ...input, itemType: 'FOOD' });
+    expect(food.json().errand).toMatchObject({ itemType: 'FOOD' });
+    const stored = await prisma.errand.findMany({
+      orderBy: { itemType: 'asc' },
+    });
+    expect(stored.map((errand) => [errand.itemType, hours(errand)])).toEqual([
+      ['FOOD', 2],
+      ['NON_PERISHABLE', 24],
+    ]);
+    for (const itemType of ['PARCEL', 'food', null, 7]) {
+      const response = await create({ ...input, itemType });
+      expect(response.statusCode).toBe(400);
+    }
+    // Fixed at creation (A-009): PATCH does not know the field.
+    expect(
+      (
+        await edit(plain.json().errand.id, {
+          expectedVersion: 0,
+          itemType: 'FOOD',
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(await prisma.errand.count()).toBe(2);
+    expect(await prisma.errandOperation.count()).toBe(2);
+  });
+  it('S7: an OPEN errand past its deadline expires once and releases its credits (D-017, D-019)', async () => {
+    const repository = app.get<OrderRepository>(ORDER_REPOSITORY);
+    const due = (await create({ ...input, itemType: 'FOOD' })).json().errand.id;
+    const early = (await create()).json().errand.id;
+    const taken = (await create({ ...input, itemType: 'FOOD' })).json().errand
+      .id;
+    await accept(taken);
+    await ageCreated(due, '2 hours 1 second');
+    await ageCreated(early, '23 hours 59 minutes');
+    await ageCreated(taken, '3 hours');
+    expect(await repository.dueExpiries()).toEqual([due]);
+    expect(await service.expire(early)).toBe(false);
+    // Only OPEN errands expire; the accepted one keeps going.
+    expect(await service.expire(taken)).toBe(false);
+    // Past the deadline but before the sweep, accept is already refused.
+    const late = await accept(due, 'courier-1');
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toMatchObject({ code: 'ERRAND_EXPIRED' });
+    expect((await read(due, 'courier-1')).json()).toMatchObject({
+      availableForAcceptance: false,
+    });
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => service.expire(due)),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(
+      await prisma.errand.findUnique({ where: { id: due } }),
+    ).toMatchObject({
+      status: 'EXPIRED',
+      expiredAt: expect.any(Date),
+      courierId: null,
+    });
+    expect(
+      await prisma.errandHistory.findFirst({
+        where: { errandId: due, action: 'expire' },
+      }),
+    ).toMatchObject({
+      fromStatus: 'OPEN',
+      toStatus: 'EXPIRED',
+      actorRole: 'SYSTEM',
+      actorId: null,
+    });
+    expect(await releases()).toBe(1);
+    expect(await requesterBalance()).toEqual({
+      availableCredits: 60,
+      reservedCredits: 40,
+    });
+    expect(await repository.dueExpiries()).toEqual([]);
+    expect((await cancel(due)).statusCode).toBe(409);
+    expect((await accept(due, 'courier-1')).statusCode).toBe(409);
+    expect((await read(due, 'requester')).json()).toMatchObject({
+      status: 'EXPIRED',
+    });
+  });
+  it('S7: a reopened errand keeps its original deadline and can still expire (D-017)', async () => {
+    const created = (await create({ ...input, itemType: 'FOOD' })).json()
+      .errand;
+    await accept(created.id);
+    await act(created.id, 'courier-cancel', 'courier');
+    await accept(created.id, 'courier-1');
+    await age(created.id, '31 minutes');
+    expect(await service.reopen(created.id)).toBe(true);
+    const reopened = await prisma.errand.findUniqueOrThrow({
+      where: { id: created.id },
+    });
+    expect(reopened.expiresAt.toISOString()).toBe(created.expiresAt);
+    expect(hours(reopened)).toBe(2);
+    await ageCreated(created.id, '2 hours');
+    expect(await service.expire(created.id)).toBe(true);
+    expect(await releases()).toBe(1);
+  });
+  it('S7: a lost release acknowledgement on expiry stays pending and locked until the journal finishes it', async () => {
+    const id = (await create()).json().errand.id;
+    await ageCreated(id, '24 hours 1 second');
+    loseAck = 'release';
+    expect(await service.expire(id)).toBe(false);
+    const op = await prisma.errandOperation.findFirstOrThrow({
+      where: { errandId: id, kind: 'EXPIRE' },
+    });
+    expect(op).toMatchObject({ status: 'PENDING', requesterId });
+    expect(
+      await app.get<OrderRepository>(ORDER_REPOSITORY).dueExpiries(),
+    ).toEqual([]);
+    expect((await accept(id)).statusCode).toBe(409);
+    // The sweeper running again changes nothing; the recovery worker completes it.
+    expect(await service.expire(id)).toBe(false);
+    expect((await service.process(op.id)).status).toBe('SUCCEEDED');
+    expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+      status: 'EXPIRED',
+      pendingOperationId: null,
+    });
+    expect(await releases()).toBe(1);
+    expect(
+      await prisma.errandOperation.count({ where: { kind: 'EXPIRE' } }),
+    ).toBe(1);
+  });
   it('reserves credits before publishing a uniquely identified OPEN errand and lists it', async () => {
     const response = await create();
     expect(response.statusCode).toBe(201);
@@ -1397,9 +1531,10 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     for (const [index, offeredCredits] of [10, 30, 20].entries()) {
       const id = (await create({ ...input, offeredCredits })).json().errand.id;
       ids.push(id);
+      const createdAt = new Date(`2026-10-0${index + 1}T00:00:00Z`);
       await prisma.errand.update({
         where: { id },
-        data: { createdAt: new Date(`2026-10-0${index + 1}T00:00:00Z`) },
+        data: { createdAt, expiresAt: expiryFor(createdAt, 'NON_PERISHABLE') },
       });
     }
     const expected = {

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { OrderRepository, OperationRecord } from '../application/ports';
 import type { ErrandSort } from '../application/ports';
 import { assertEditable, OrderError } from '../domain/errand';
+import { DEFAULT_ITEM_TYPE, expiryFor } from '../domain/errand';
 import type { EditErrand, ErrandDetails } from '../domain/errand';
 import {
   AUTO_COMPLETE_AFTER_HOURS,
@@ -60,6 +61,7 @@ function details(errand: Errand): ErrandDetails {
     deliveryDestination: errand.deliveryDestination,
     instructions: errand.instructions,
     offeredCredits: errand.offeredCredits,
+    itemType: errand.itemType,
   };
 }
 type Tx = Prisma.TransactionClient;
@@ -74,6 +76,7 @@ const STAMP_COLUMNS: Record<LifecycleTimestamp, string> = {
 };
 /** DB clock, so app-server clock skew cannot complete an errand early (D-008). */
 const AUTO_COMPLETE_DUE = Prisma.sql`"delivered_at" <= CURRENT_TIMESTAMP - make_interval(hours => ${AUTO_COMPLETE_AFTER_HOURS})`;
+const EXPIRY_DUE = Prisma.sql`"expires_at" <= CURRENT_TIMESTAMP`;
 const REOPEN_DUE = Prisma.sql`"accepted_at" <= CURRENT_TIMESTAMP - make_interval(mins => ${REOPEN_AFTER_MINUTES})`;
 /**
  * Who may apply a row: accept claims an unassigned errand for a non-requester who was
@@ -82,6 +85,7 @@ const REOPEN_DUE = Prisma.sql`"accepted_at" <= CURRENT_TIMESTAMP - make_interval
 function actorGuard(row: Transition, actorId: string | null) {
   if (row.action === 'accept')
     return Prisma.sql`"courier_id" IS NULL AND "requester_id" <> ${actorId}::uuid
+      AND NOT (${EXPIRY_DUE})
       AND NOT EXISTS (SELECT 1 FROM "errand_excluded_couriers" AS "x"
                       WHERE "x"."errand_id" = "errands"."id" AND "x"."courier_id" = ${actorId}::uuid)`;
   if (row.actor === 'COURIER')
@@ -256,14 +260,30 @@ export class PrismaOrderRepository implements OrderRepository {
             }),
           );
         }
-        if (op.kind === 'CREATE')
+        if (op.kind === 'CREATE') {
+          // The deadline is fixed from the DB clock at the moment the errand appears.
+          const [{ now }] = await tx.$queryRaw<
+            { now: Date }[]
+          >`SELECT CURRENT_TIMESTAMP AS "now"`;
+          const itemType = op.payload.itemType ?? DEFAULT_ITEM_TYPE;
           await tx.errand.create({
             data: {
               ...op.payload,
+              itemType,
+              createdAt: now,
+              expiresAt: expiryFor(now, itemType),
               id: op.errandId,
               requesterId: op.requesterId,
             },
           });
+        } else if (op.kind === 'EXPIRE')
+          await this.close(
+            tx,
+            errand!,
+            transition('OPEN', 'expire', 'SYSTEM'),
+            null,
+            stored.correlationId,
+          );
         else if (op.kind === 'CANCEL')
           await this.close(
             tx,
@@ -377,6 +397,39 @@ export class PrismaOrderRepository implements OrderRepository {
         where: { errandId, courierId },
       })) > 0
     );
+  }
+  async dueExpiries() {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "errands"
+      WHERE "status" = 'OPEN' AND "deleted_at" IS NULL
+        AND "pending_operation_id" IS NULL AND ${EXPIRY_DUE}
+        AND NOT EXISTS (SELECT 1 FROM "errand_operations" AS "o"
+                        WHERE "o"."errand_id" = "errands"."id"
+                          AND "o"."kind" = 'EXPIRE' AND "o"."status" = 'FAILED')
+      ORDER BY "expires_at" LIMIT 100`;
+    return rows.map((row) => row.id);
+  }
+  async expireIntent(id: string, key: string, digest: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const due = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM "errands"
+        WHERE "id" = ${id}::uuid AND "status" = 'OPEN' AND "courier_id" IS NULL
+          AND "deleted_at" IS NULL AND "pending_operation_id" IS NULL
+          AND ${EXPIRY_DUE}`;
+      if (due.length === 0) return null;
+      const errand = await tx.errand.findUniqueOrThrow({ where: { id } });
+      const prior = await tx.errandOperation.findUnique({
+        where: {
+          requesterId_idempotencyKey: {
+            requesterId: errand.requesterId,
+            idempotencyKey: key,
+          },
+        },
+      });
+      if (prior) return operationRecord(prior);
+      return this.lock(tx, errand, errand.requesterId, key, digest, 'EXPIRE');
+    });
   }
   async dueReopens() {
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
@@ -568,7 +621,7 @@ export class PrismaOrderRepository implements OrderRepository {
     actorId: string,
     key: string,
     digest: string,
-    kind: 'DELETE' | 'CANCEL',
+    kind: 'DELETE' | 'CANCEL' | 'EXPIRE',
   ) {
     const op = await tx.errandOperation.create({
       data: {

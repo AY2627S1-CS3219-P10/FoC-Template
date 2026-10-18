@@ -3,7 +3,12 @@ import { createHash } from 'node:crypto';
 import { ORDER_REPOSITORY, SERVICE_CLIENTS } from './ports';
 import type { OrderRepository, ErrandServices, OperationRecord } from './ports';
 import type { ErrandSort } from './ports';
-import { assertEditFields, normalized, OrderError } from '../domain/errand';
+import {
+  assertEditFields,
+  DEFAULT_ITEM_TYPE,
+  normalized,
+  OrderError,
+} from '../domain/errand';
 import type { CreateErrand, EditErrand, ErrandRecord } from '../domain/errand';
 import { alreadyApplied, transition } from '../domain/lifecycle';
 import type {
@@ -37,7 +42,10 @@ export class OrderService {
     key: string,
     raw: CreateErrand,
   ) {
-    const input = normalized(raw);
+    const input = {
+      ...normalized(raw),
+      itemType: raw.itemType ?? DEFAULT_ITEM_TYPE,
+    };
     const hash = digest({ kind: 'CREATE', ...input });
     const prior = await this.repository.findByKey(requesterId, key);
     if (prior && prior.inputDigest !== hash)
@@ -109,7 +117,7 @@ export class OrderService {
           op.requesterId,
           op.payload.offeredCredits,
         );
-      else if (op.kind === 'DELETE' || op.kind === 'CANCEL')
+      else if (op.kind !== 'EDIT')
         await this.clients.release(
           op.errandId,
           op.requesterId,
@@ -244,6 +252,25 @@ export class OrderService {
     );
   }
   /**
+   * D-017/D-019: an OPEN errand past `expiresAt` becomes EXPIRED and its whole
+   * reservation is released through the journal. Safe to run any number of times;
+   * false when it is not due or the release is still in doubt (the recovery worker
+   * finishes it).
+   */
+  async expire(id: string) {
+    const op = await this.repository.expireIntent(
+      id,
+      derivedKey('expire', id),
+      digest({ kind: 'EXPIRE', id }),
+    );
+    if (!op) return false;
+    try {
+      return (await this.process(op.id)).status === 'SUCCEEDED';
+    } catch {
+      return false; /* journal survives; the recovery worker resumes it */
+    }
+  }
+  /**
    * D-017: reopens an ACCEPTED errand nobody picked up within 30 minutes, with the
    * same effect as a courier cancel. A no-op (false) once the courier picked up, the
    * requester cancelled, or the errand changed hands.
@@ -304,6 +331,13 @@ export class OrderService {
     const participant = role === 'REQUESTER' || errand.courierId === userId;
     if (participant && alreadyApplied(status, action, role)) return null;
     const row = transition(status, action, role);
+    // Message only: the conditional UPDATE re-checks the deadline with the DB clock.
+    if (action === 'accept' && errand.expiresAt <= new Date())
+      throw new OrderError(
+        'ERRAND_EXPIRED',
+        'This errand expired before anyone accepted it.',
+        409,
+      );
     if (errand.pendingOperationId)
       throw new OrderError(
         'ERRAND_OPERATION_PENDING',
@@ -334,6 +368,7 @@ export class OrderService {
       availableForAcceptance:
         errand.status === 'OPEN' &&
         errand.courierId === null &&
+        errand.expiresAt > new Date() &&
         !(await this.repository.isExcluded(errand.id, requesterId)),
       requesterUsername: token
         ? await this.clients.username(errand.requesterId, token)

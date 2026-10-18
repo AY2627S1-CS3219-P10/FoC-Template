@@ -13,11 +13,11 @@ import type { OrderRepository } from '../application/ports';
 import { OrderService } from '../application/order.service';
 import { withCorrelationId } from './correlation';
 
+export type TimerName = 'auto-complete' | 'reopen' | 'expire';
 /**
  * One BullMQ job per errand and timer. BullMQ rejects custom ids with a single ':'
  * (it reserves them for repeatable jobs), so the parts are joined with '-'.
  */
-export type TimerName = 'auto-complete' | 'reopen';
 export function timerJob(name: TimerName, errandId: string) {
   return {
     name,
@@ -33,10 +33,10 @@ export function timerJob(name: TimerName, errandId: string) {
 }
 
 /**
- * Lifecycle timers: 4 h auto-complete (D-008) and 30-minute reopen (D-017). Postgres
- * timestamps are the truth: a sweeper finds due errands and enqueues one job per
- * errand (jobId dedupes across replicas); the job's conditional UPDATE re-checks the
- * deadline, so a lost Redis or a duplicate job only delays a transition, never
+ * Lifecycle timers: 4 h auto-complete (D-008), 30-minute reopen and expiry (D-017).
+ * Postgres timestamps are the truth: a sweeper finds due errands and enqueues one job
+ * per errand (jobId dedupes across replicas); the job re-checks the deadline with the
+ * DB clock, so a lost Redis or a duplicate job only delays a transition, never
  * repeats it.
  */
 @Injectable()
@@ -57,6 +57,7 @@ export class TimerWorker implements OnModuleInit, OnModuleDestroy {
     const run: Record<TimerName, (errandId: string) => Promise<boolean>> = {
       'auto-complete': (errandId) => this.service.autoComplete(errandId),
       reopen: (errandId) => this.service.reopen(errandId),
+      expire: (errandId) => this.service.expire(errandId),
     };
     this.worker = new Worker(
       'order-timers',
@@ -82,6 +83,7 @@ export class TimerWorker implements OnModuleInit, OnModuleDestroy {
       const due: [TimerName, string[]][] = [
         ['auto-complete', await this.repository.dueAutoCompletions()],
         ['reopen', await this.repository.dueReopens()],
+        ['expire', await this.repository.dueExpiries()],
       ];
       for (const [name, errandIds] of due)
         for (const errandId of errandIds) {

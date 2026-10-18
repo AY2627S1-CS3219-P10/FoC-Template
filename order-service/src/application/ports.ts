@@ -13,7 +13,7 @@ export interface OperationRecord {
   id: string;
   errandId: string;
   requesterId: string;
-  kind: 'CREATE' | 'EDIT' | 'DELETE' | 'CANCEL';
+  kind: 'CREATE' | 'EDIT' | 'DELETE' | 'CANCEL' | 'EXPIRE';
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   inputDigest: string;
   payload: ErrandDetails;
@@ -97,6 +97,20 @@ export interface OrderRepository {
   dueAutoCompletions(): Promise<string[]>;
   /** Up to 100 ACCEPTED errands not picked up 30 minutes after `acceptedAt` (DB clock). */
   dueReopens(): Promise<string[]>;
+  /**
+   * Up to 100 OPEN errands past `expiresAt` (DB clock), skipping ones whose expiry
+   * release already failed for good.
+   */
+  dueExpiries(): Promise<string[]>;
+  /**
+   * D-017/D-019: journals the release for an OPEN errand past `expiresAt` and locks it.
+   * Null when it is not due (accepted, cancelled, pending, or not yet expired).
+   */
+  expireIntent(
+    id: string,
+    key: string,
+    digest: string,
+  ): Promise<OperationRecord | null>;
 }
 export interface ErrandServices {
   username(userId: string, token: string): Promise<string | null>;

@@ -11,7 +11,8 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import { MAX_OFFERED_CREDITS } from '../domain/errand';
+import { ITEM_TYPES, MAX_OFFERED_CREDITS } from '../domain/errand';
+import type { ItemType } from '../domain/errand';
 import { ERRAND_STATUSES } from '../domain/lifecycle';
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -40,6 +41,15 @@ export class CreateErrandDto {
   @Min(1)
   @Max(MAX_OFFERED_CREDITS)
   offeredCredits!: number;
+  @ApiPropertyOptional({
+    enum: ITEM_TYPES,
+    default: 'NON_PERISHABLE',
+    description:
+      'D-018: FOOD expires 2 h after creation, NON_PERISHABLE 24 h. Cannot be edited later.',
+  })
+  @ValidateIf((_o, value) => value !== undefined)
+  @IsIn(ITEM_TYPES)
+  itemType?: ItemType;
 }
 export class EditErrandDto {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) expectedVersion!: number;
@@ -130,6 +140,12 @@ export class ErrandResponse extends CreateErrandDto {
   cancelledAt?: string | null;
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   expiredAt?: string | null;
+  @ApiProperty({
+    format: 'date-time',
+    description:
+      'createdAt + 2 h (FOOD) or 24 h (NON_PERISHABLE); never moves, even when the errand reopens',
+  })
+  expiresAt!: string;
   @ApiPropertyOptional({
     enum: ['REQUESTER_CONFIRMED', 'AUTO_TIMEOUT'],
     nullable: true,
