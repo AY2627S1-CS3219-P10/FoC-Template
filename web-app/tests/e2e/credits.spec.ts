@@ -34,12 +34,20 @@ test("balances refresh and recover from service failures", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("unprovisioned accounts do not show an invented balance", async ({ page }) => {
-  await page.route("**/api/credits", (route) => route.fulfill({ status: 404, json: { code: "ACCOUNT_NOT_FOUND", message: "Account not found" } }));
+test("provisions an unprovisioned verified account exactly once", async ({ page }) => {
+  const methods: string[] = [];
+  await page.route("**/api/credits", (route) => {
+    const method = route.request().method();
+    methods.push(method);
+    return method === "GET"
+      ? route.fulfill({ status: 404, json: { code: "ACCOUNT_NOT_FOUND", message: "Account not found" } })
+      : route.fulfill({ json: { availableCredits: 100, reservedCredits: 0 } });
+  });
   await page.goto("/credits");
   const credits = page.getByRole("region", { name: "Your credits" });
-  await expect(credits.getByRole("alert")).toContainText("has not been set up yet");
-  await expect(credits.locator("dd")).toHaveCount(0);
+  await expect(credits.locator("dd")).toHaveText(["100", "0"]);
+  await expect(credits.getByRole("alert")).toHaveCount(0);
+  expect(methods).toEqual(["GET", "POST"]);
 });
 
 test("service authorization failures do not rotate a valid session", async ({ page }) => {

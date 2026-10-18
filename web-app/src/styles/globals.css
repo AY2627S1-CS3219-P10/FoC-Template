@@ -1688,13 +1688,224 @@ hr {
     padding: 14px;
   }
 }
-.create-errand { margin: 1.5rem 0 2rem; padding: 1.5rem; border: 1px solid #e7e5e4; border-radius: 16px; background: white; }
-.create-errand h2 { margin-bottom: .5rem; }
-.create-errand .account-form { max-width: 720px; margin-top: 1rem; }
-.create-errand fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 1rem; min-width: 0; }
-.create-errand label { display: grid; gap: .5rem; }
-.create-errand input, .create-errand select, .create-errand textarea { width: 100%; min-width: 0; padding: .75rem; border: 1px solid #d6d3d1; border-radius: 8px; font: inherit; }
-.create-errand textarea { resize: vertical; }
+.create-errand {
+  margin: 1.5rem 0 3rem;
+}
+.create-errand-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+.create-errand-heading h2 {
+  margin-top: 8px;
+  font-size: clamp(28px, 3.2vw, 42px);
+  letter-spacing: -1.2px;
+}
+.create-errand-heading > p {
+  max-width: 470px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.create-errand-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.75fr);
+  gap: 24px;
+  align-items: start;
+}
+.create-errand-fields,
+.credit-preview {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 14px 34px rgb(34 55 46 / 5%);
+}
+.create-errand-fields {
+  padding: 28px;
+}
+.create-errand fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.create-errand label,
+.credit-offer-field {
+  display: grid;
+  gap: 8px;
+}
+.create-errand label > span,
+.credit-offer-field > span {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 14px;
+}
+.create-errand input,
+.create-errand select,
+.create-errand textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #cfd8d2;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.create-errand input:focus,
+.create-errand select:focus,
+.create-errand textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgb(34 83 71 / 12%);
+  outline: none;
+}
+.create-errand textarea {
+  resize: vertical;
+}
+.credit-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(72px, 100px) 44px max-content;
+  align-items: center;
+  gap: 10px;
+}
+.credit-stepper button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #cfd8d2;
+  border-radius: 9px;
+  background: #f8faf8;
+  color: var(--green);
+  font: inherit;
+  font-size: 21px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.credit-stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.credit-stepper input {
+  height: 44px;
+  padding-inline: 8px;
+  text-align: center;
+  font-weight: 700;
+}
+.credit-stepper > span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.credit-preview {
+  position: sticky;
+  top: 104px;
+  padding: 26px;
+}
+.credit-preview h3 {
+  margin-bottom: 22px;
+  font-size: 21px;
+}
+.credit-preview-totals {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+}
+.credit-preview-totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.credit-preview-totals dt {
+  color: var(--muted);
+}
+.credit-preview-totals dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.credit-preview-totals .credit-preview-remaining {
+  margin-top: 2px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 17px;
+}
+.credit-preview-remaining dt,
+.credit-preview-remaining dd {
+  color: var(--green);
+  font-weight: 700;
+}
+.credit-preview-reserve {
+  color: #b4533e;
+}
+.credit-preview-current {
+  font-size: 13px;
+}
+.credit-preview-note,
+.credit-preview-warning,
+.credit-preview-error {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: 9px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+.credit-preview-note {
+  display: flex;
+  gap: 10px;
+  background: #edf7f3;
+  color: #245348;
+  border: 1px solid #c9e6dc;
+}
+.credit-preview-note > span {
+  display: grid;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 800;
+}
+.credit-preview-warning,
+.credit-preview-error {
+  background: #fff3ed;
+  color: #8f3529;
+  border: 1px solid #efcabe;
+}
+.credit-preview > .button {
+  width: 100%;
+  margin-top: 20px;
+}
+.credit-preview > .button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+@media (max-width: 850px) {
+  .create-errand-heading {
+    display: block;
+  }
+  .create-errand-heading > p {
+    margin-top: 12px;
+  }
+  .create-errand-layout {
+    grid-template-columns: 1fr;
+  }
+  .credit-preview {
+    position: static;
+  }
+}
+@media (max-width: 520px) {
+  .create-errand-fields,
+  .credit-preview {
+    padding: 20px;
+  }
+  .credit-stepper {
+    grid-template-columns: 42px minmax(62px, 90px) 42px max-content;
+    gap: 8px;
+  }
+}
 .create-errand-shortcut { position: fixed; right: 20px; bottom: 24px; z-index: 50; border: 0; border-radius: 999px; background: #243c30; color: white; padding: 14px 20px; font: inherit; font-weight: 600; box-shadow: 0 4px 18px #0003; cursor: grab; touch-action: none; user-select: none; max-width: calc(100vw - 16px); }
 .create-errand-shortcut:active { cursor: grabbing; }
 .create-errand-shortcut:focus-visible { outline: 3px solid #d1a942; outline-offset: 3px; }

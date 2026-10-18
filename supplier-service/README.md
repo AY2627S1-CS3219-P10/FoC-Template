@@ -178,3 +178,15 @@ and `GET /api/health/ready` (database readiness).
 
 The order service may store supplier and pickup-location identifiers needed for
 an errand, but this service remains the authority for their availability.
+
+## Reimport the complete CSV
+
+From the Supplier Service directory:
+
+```powershell
+$env:NODE_OPTIONS = "--use-system-ca"
+node scripts/seed-csv-locations.mjs --check
+pnpm db:seed:csv
+```
+
+The import validates every row of data/csv/supplier-seed-data.csv before opening a transaction, upserts suppliers by name, and reuses pickup IDs by supplier/building/floor/description (including unknown floors). Missing floors/coordinates stay null. Repeat imports create no duplicate pickup points; custom records and existing availability settings are preserved. CSV metadata is authoritative for matching records. Back up the database before intentionally replacing catalog metadata.
