@@ -4,7 +4,11 @@ import type { OrderRepository, OperationRecord } from '../application/ports';
 import type { ErrandSort } from '../application/ports';
 import { assertEditable, OrderError } from '../domain/errand';
 import type { EditErrand, ErrandDetails } from '../domain/errand';
-import { AUTO_COMPLETE_AFTER_HOURS, transition } from '../domain/lifecycle';
+import {
+  AUTO_COMPLETE_AFTER_HOURS,
+  REOPEN_AFTER_MINUTES,
+  transition,
+} from '../domain/lifecycle';
 import type {
   ErrandStatus,
   LifecycleTimestamp,
@@ -70,9 +74,10 @@ const STAMP_COLUMNS: Record<LifecycleTimestamp, string> = {
 };
 /** DB clock, so app-server clock skew cannot complete an errand early (D-008). */
 const AUTO_COMPLETE_DUE = Prisma.sql`"delivered_at" <= CURRENT_TIMESTAMP - make_interval(hours => ${AUTO_COMPLETE_AFTER_HOURS})`;
+const REOPEN_DUE = Prisma.sql`"accepted_at" <= CURRENT_TIMESTAMP - make_interval(mins => ${REOPEN_AFTER_MINUTES})`;
 /**
- * Who may apply a row: accept claims an unassigned errand for a non-requester; the
- * system may only auto-complete once the deadline has passed.
+ * Who may apply a row: accept claims an unassigned errand for a non-requester who was
+ * never released from it; the system acts only once a deadline has passed.
  */
 function actorGuard(row: Transition, actorId: string | null) {
   if (row.action === 'accept')
@@ -84,6 +89,7 @@ function actorGuard(row: Transition, actorId: string | null) {
   if (row.actor === 'REQUESTER')
     return Prisma.sql`"requester_id" = ${actorId}::uuid`;
   if (row.action === 'auto-complete') return AUTO_COMPLETE_DUE;
+  if (row.action === 'reopen') return REOPEN_DUE;
   throw new Error(`No guard for system action ${row.action}`);
 }
 @Injectable()
@@ -371,6 +377,14 @@ export class PrismaOrderRepository implements OrderRepository {
         where: { errandId, courierId },
       })) > 0
     );
+  }
+  async dueReopens() {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "errands"
+      WHERE "status" = 'ACCEPTED' AND "deleted_at" IS NULL
+        AND "pending_operation_id" IS NULL AND ${REOPEN_DUE}
+      ORDER BY "accepted_at" LIMIT 100`;
+    return rows.map((row) => row.id);
   }
   async transition(
     id: string,

@@ -56,3 +56,12 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** a single statement means the status change, history and exclusion commit together or not at all; checking the exclusion in SQL as well as in the service keeps the rule even if a call slips past the friendly 403. A repeat by the released courier returns the current state, matching the other lifecycle actions (A-012).
 - **Verified:** `typecheck`, `lint` clean; `pnpm test` 344 passed; `pnpm test:integration` 48 passed.
 - **Follow-up:** Q-020 (courier cancel after pickup).
+
+### e298bb0 fix(order): use BullMQ-valid timer job ids so the 4 h auto-complete is enqueued
+- **When:** 2026-10-18 13:58 · **Slice:** D (pre-fix) · **Refs:** D-008, A-008
+- **Changed:**
+  - `src/infrastructure/timer.worker.ts` — `timerJob()` builds the job; id `auto-complete-<errandId>` instead of `auto-complete:<errandId>`
+  - `tests/unit/timer-jobs.spec.ts` — runs BullMQ's own `validateOptions` on the job; regression case for the old id
+- **Why:** BullMQ 6 throws "Custom Id cannot contain :" for ids with one colon. The sweep caught the error and only logged "will retry", so in the running service no DELIVERED errand was ever auto-completed. The integration tests missed it because they replace `TimerWorker` and call `autoComplete()` directly.
+- **Verified:** `typecheck`, `lint` clean; `pnpm test` 346 passed.
+- **Follow-up:** the reopen and expiry timers reuse `timerJob()`.

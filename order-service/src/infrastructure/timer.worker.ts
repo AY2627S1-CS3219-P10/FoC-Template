@@ -17,7 +17,8 @@ import { withCorrelationId } from './correlation';
  * One BullMQ job per errand and timer. BullMQ rejects custom ids with a single ':'
  * (it reserves them for repeatable jobs), so the parts are joined with '-'.
  */
-export function timerJob(name: 'auto-complete', errandId: string) {
+export type TimerName = 'auto-complete' | 'reopen';
+export function timerJob(name: TimerName, errandId: string) {
   return {
     name,
     data: { errandId },
@@ -32,10 +33,11 @@ export function timerJob(name: 'auto-complete', errandId: string) {
 }
 
 /**
- * Lifecycle timers (D-008). Postgres `delivered_at` is the truth: a sweeper finds due
- * errands and enqueues one job per errand (jobId dedupes across replicas); the job's
- * conditional UPDATE re-checks the deadline, so a lost Redis or a duplicate job only
- * delays completion, never repeats it.
+ * Lifecycle timers: 4 h auto-complete (D-008) and 30-minute reopen (D-017). Postgres
+ * timestamps are the truth: a sweeper finds due errands and enqueues one job per
+ * errand (jobId dedupes across replicas); the job's conditional UPDATE re-checks the
+ * deadline, so a lost Redis or a duplicate job only delays a transition, never
+ * repeats it.
  */
 @Injectable()
 export class TimerWorker implements OnModuleInit, OnModuleDestroy {
@@ -52,11 +54,15 @@ export class TimerWorker implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     const connection = { url: this.config.getOrThrow<string>('REDIS_URL') };
     this.queue = new Queue('order-timers', { connection });
+    const run: Record<TimerName, (errandId: string) => Promise<boolean>> = {
+      'auto-complete': (errandId) => this.service.autoComplete(errandId),
+      reopen: (errandId) => this.service.reopen(errandId),
+    };
     this.worker = new Worker(
       'order-timers',
       (job) =>
         withCorrelationId(randomUUID(), () =>
-          this.service.autoComplete(String(job.data.errandId)),
+          run[job.name as TimerName](String(job.data.errandId)),
         ),
       { connection, concurrency: 4 },
     );
@@ -73,10 +79,15 @@ export class TimerWorker implements OnModuleInit, OnModuleDestroy {
     if (this.sweeping) return;
     this.sweeping = true;
     try {
-      for (const errandId of await this.repository.dueAutoCompletions()) {
-        const job = timerJob('auto-complete', errandId);
-        await this.queue!.add(job.name, job.data, job.opts);
-      }
+      const due: [TimerName, string[]][] = [
+        ['auto-complete', await this.repository.dueAutoCompletions()],
+        ['reopen', await this.repository.dueReopens()],
+      ];
+      for (const [name, errandIds] of due)
+        for (const errandId of errandIds) {
+          const job = timerJob(name, errandId);
+          await this.queue!.add(job.name, job.data, job.opts);
+        }
     } catch {
       this.logger.warn('Lifecycle timer sweep will retry.');
     } finally {

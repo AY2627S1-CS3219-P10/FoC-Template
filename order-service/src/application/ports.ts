@@ -95,6 +95,8 @@ export interface OrderRepository {
   isExcluded(errandId: string, courierId: string): Promise<boolean>;
   /** Up to 100 DELIVERED errands whose auto-complete deadline has passed (DB clock). */
   dueAutoCompletions(): Promise<string[]>;
+  /** Up to 100 ACCEPTED errands not picked up 30 minutes after `acceptedAt` (DB clock). */
+  dueReopens(): Promise<string[]>;
 }
 export interface ErrandServices {
   username(userId: string, token: string): Promise<string | null>;

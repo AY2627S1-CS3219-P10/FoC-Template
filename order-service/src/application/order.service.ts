@@ -244,6 +244,21 @@ export class OrderService {
     );
   }
   /**
+   * D-017: reopens an ACCEPTED errand nobody picked up within 30 minutes, with the
+   * same effect as a courier cancel. A no-op (false) once the courier picked up, the
+   * requester cancelled, or the errand changed hands.
+   */
+  async reopen(id: string) {
+    const errand = await this.repository.find(id);
+    if (errand?.status !== 'ACCEPTED' || !errand.courierId) return false;
+    return this.repository.transition(
+      id,
+      transition('ACCEPTED', 'reopen', 'SYSTEM'),
+      null,
+      errand.courierId,
+    );
+  }
+  /**
    * Resolves the transition from a fresh read and applies it as one conditional
    * UPDATE. If a concurrent change wins in between, the second read explains why.
    */

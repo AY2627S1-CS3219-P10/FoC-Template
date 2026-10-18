@@ -1146,6 +1146,76 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     });
     expect(await prisma.errandExcludedCourier.count()).toBe(0);
   });
+  it('S8: an ACCEPTED errand not picked up within 30 minutes reopens and excludes that courier (D-017)', async () => {
+    const repository = app.get<OrderRepository>(ORDER_REPOSITORY);
+    const due = (await create()).json().errand.id;
+    const early = (await create()).json().errand.id;
+    await accept(due);
+    await accept(early);
+    await age(due, '30 minutes 1 second');
+    await age(early, '29 minutes');
+    expect(await service.reopen(early)).toBe(false);
+    expect(await repository.dueReopens()).toEqual([due]);
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => service.reopen(due)),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(
+      await prisma.errand.findUnique({ where: { id: due } }),
+    ).toMatchObject({
+      status: 'OPEN',
+      courierId: null,
+      acceptedAt: null,
+      version: 2,
+    });
+    expect(
+      await prisma.errandHistory.findFirst({
+        where: { errandId: due, action: 'reopen' },
+      }),
+    ).toMatchObject({
+      fromStatus: 'ACCEPTED',
+      toStatus: 'OPEN',
+      actorRole: 'SYSTEM',
+      actorId: null,
+      courierId,
+    });
+    expect(await repository.dueReopens()).toEqual([]);
+    expect((await accept(due)).json()).toMatchObject({
+      code: 'ERRAND_COURIER_EXCLUDED',
+    });
+    expect((await accept(due, 'courier-1')).statusCode).toBe(200);
+    expect(
+      await prisma.errand.findUnique({ where: { id: early } }),
+    ).toMatchObject({ status: 'ACCEPTED', courierId });
+    // Reopening never touches the reservation.
+    expect(await requesterBalance()).toEqual({
+      availableCredits: 60,
+      reservedCredits: 40,
+    });
+  });
+  it('S8: a pickup or a requester cancel before the job runs makes the reopen a no-op', async () => {
+    const picked = (await create()).json().errand.id;
+    const cancelled = (await create()).json().errand.id;
+    for (const id of [picked, cancelled]) {
+      await accept(id);
+      await age(id, '29 minutes 59 seconds');
+    }
+    expect((await act(picked, 'pickup', 'courier')).statusCode).toBe(200);
+    expect((await cancel(cancelled)).statusCode).toBe(200);
+    for (const id of [picked, cancelled]) await age(id, '1 minute');
+    expect(
+      await app.get<OrderRepository>(ORDER_REPOSITORY).dueReopens(),
+    ).toEqual([]);
+    expect(await service.reopen(picked)).toBe(false);
+    expect(await service.reopen(cancelled)).toBe(false);
+    expect(
+      await prisma.errand.findUnique({ where: { id: picked } }),
+    ).toMatchObject({ status: 'PICKED_UP', courierId });
+    expect(
+      await prisma.errand.findUnique({ where: { id: cancelled } }),
+    ).toMatchObject({ status: 'CANCELLED' });
+    expect(await prisma.errandExcludedCourier.count()).toBe(0);
+  });
   it('admins can inspect/manage/delete all requests and edit only their own', async () => {
     const id = (await create()).json().errand.id;
     await prisma.errand.update({

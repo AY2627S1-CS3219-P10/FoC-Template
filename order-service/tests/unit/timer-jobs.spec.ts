@@ -16,12 +16,15 @@ function validate(job: { name: string; data: object; opts: object }) {
 }
 
 describe('lifecycle timer jobs', () => {
-  it('pass BullMQ validation with one stable id per errand', () => {
-    const job = timerJob('auto-complete', errandId);
-    expect(() => validate(job)).not.toThrow();
-    expect(job.opts.jobId).toBe(`auto-complete-${errandId}`);
-    expect(job.data).toEqual({ errandId });
-  });
+  it.each(['auto-complete', 'reopen'] as const)(
+    '%s jobs pass BullMQ validation with one stable id per errand',
+    (name) => {
+      const job = timerJob(name, errandId);
+      expect(() => validate(job)).not.toThrow();
+      expect(job.opts.jobId).toBe(`${name}-${errandId}`);
+      expect(job.data).toEqual({ errandId });
+    },
+  );
 
   it('regression: the earlier "name:id" job id is rejected by BullMQ', () =>
     expect(() =>
