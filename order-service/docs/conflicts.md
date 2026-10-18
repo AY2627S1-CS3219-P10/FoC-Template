@@ -14,12 +14,12 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
 |---|---|---|---|
 | C1 | Who marks DELIVERED | DECIDED → D-005 | — |
 | C2 | Does DISPUTED exist | DECIDED → D-007 | — |
-| C3 | Courier cancellation outcome | OPEN | Q-003 |
-| C4 | Timers | PARTIAL (4h → D-008) | Q-004 |
+| C3 | Courier cancellation outcome | DECIDED → D-016 | — |
+| C4 | Timers | DECIDED → D-008, D-017 | — |
 | C5 | One active errand per courier | OPEN | Q-005 |
-| C6 | Existing status enum vs new lifecycle | OPEN (narrowed) | Q-006 |
-| C7 | Existing DELETE vs FR8 cancel | OPEN | Q-007 |
-| C8 | Errand categories vs supplier categories | OPEN | Q-008 |
+| C6 | Existing status enum vs new lifecycle | DECIDED → D-013 | — |
+| C7 | Existing DELETE vs FR8 cancel | DECIDED → D-014, D-015 | — |
+| C8 | Errand categories vs supplier categories | DECIDED → D-018 | — |
 | C9 | Pickup-location filter fields | OPEN (re-check) | Q-009 |
 | C10 | Who owns notifications | OPEN | Q-010 |
 | C11 | Admin DELETE beyond OPEN vs settlement | OPEN | Q-011 |
@@ -40,7 +40,9 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
 - **Resp §2, §5:** DELIVERED → DISPUTED by the requester; no automatic settle/release.
 - **Decision:** yes (D-007). Resolution rules are C14.
 
-## C3 — Courier cancellation outcome · OPEN
+## C3 — Courier cancellation outcome · DECIDED → D-016
+- **Decision:** ACCEPTED → OPEN, the courier is excluded from re-accepting this errand,
+  credits stay reserved. Courier cancel after pickup is parked (Q-020).
 - **D1 FR9.1.2:** a courier cancellation request sets the errand to **CANCELLED**.
   FR9.1.3 (first) releases credits to the requester and frees the courier.
 - **D1 FR9.1.3 (second):** the cancelling courier may not accept "that same request if
@@ -53,7 +55,9 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
   the requester can then cancel via FR8 if they want their credits back. It satisfies
   both "re-listed" and Resp, and avoids an unrequested refund.
 
-## C4 — Timers · PARTIAL
+## C4 — Timers · DECIDED → D-008, D-017
+- **Decision:** adopt the 30-minute reopen (with exclusion), drop the 1-hour cancel,
+  expiry counted from `createdAt` and never reset.
 - **4-hour DELIVERED → COMPLETED:** DECIDED → D-008.
 - **Still OPEN:**
   - Resp §7 "30-min no pickup": ACCEPTED → OPEN after 30 minutes. Not in D1.
@@ -75,7 +79,8 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
 - **Impact:** S4 (a partial unique index on `courier_id` for active statuses).
 - **Recommendation:** adopt it; enforce with a partial unique index, not app logic.
 
-## C6 — Existing status enum vs new lifecycle · OPEN (narrowed)
+## C6 — Existing status enum vs new lifecycle · DECIDED → D-013
+- **Decision:** IN_PROGRESS removed (rows → PICKED_UP); expiry ends in EXPIRED.
 - **Current code** (`prisma/schema.prisma` `enum ErrandStatus`): OPEN, ACCEPTED,
   IN_PROGRESS, DELIVERED, COMPLETED, CANCELLED, EXPIRED.
 - **Needed regardless:** PICKED_UP and DISPUTED must be added (D-005..D-007). Adding
@@ -90,7 +95,9 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
   terminal status for system expiry (it is what D1 names and it keeps history clear),
   treated like CANCELLED for credit release and history.
 
-## C7 — Existing DELETE vs FR8 cancel · OPEN
+## C7 — Existing DELETE vs FR8 cancel · DECIDED → D-014, D-015
+- **Decision:** option (b): owner DELETE sets CANCELLED (same route and response), plus
+  `POST …/cancel`; cancel allowed from OPEN and ACCEPTED. Admin DELETE unchanged (C11).
 - **Current code:** `DELETE /api/errands/:id` soft-deletes (`deletedAt`) and releases
   credits (`PrismaOrderRepository.deleteIntent`, `OrderService.remove`). Owners: OPEN
   only. Admins: any state. The record disappears from all reads.
@@ -106,7 +113,10 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
   are satisfied), plus `POST …/cancel` as the canonical route; admin hard-hide stays
   but is governed by C11.
 
-## C8 — Errand categories vs supplier categories · OPEN
+## C8 — Errand categories vs supplier categories · DECIDED → D-018
+- **Decision:** neither (a) nor a derived default: the requester picks `itemType`
+  (FOOD 2 h / NON_PERISHABLE 24 h, default NON_PERISHABLE). Errand item type is
+  independent of the supplier categories, which play no part in expiry.
 - **D1 FR8.2.1:** auto-cancel after 2 h for **food and beverages**, 24 h for **parcels and
   fragiles**.
 - **Supplier service** (`supplier-service/prisma/schema.prisma` `enum SupplierCategory`):

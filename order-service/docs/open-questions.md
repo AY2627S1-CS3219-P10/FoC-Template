@@ -12,12 +12,12 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 
 | Q | Question | Blocks | Owner | Status |
 |---|---|---|---|---|
-| Q-003 | Courier cancel → CANCELLED or back to OPEN? | S8 | Nasif | OPEN |
-| Q-004 | 30-min reopen, 1-h pickup cancel, expiry clock | S8 | Nasif | OPEN |
+| Q-003 | Courier cancel → CANCELLED or back to OPEN? | S8 | Nasif | ANSWERED → D-016 |
+| Q-004 | 30-min reopen, 1-h pickup cancel, expiry clock | S8 | Nasif | ANSWERED → D-017 |
 | Q-005 | One active errand per courier? | S4 (constraint only) | Nasif | OPEN |
-| Q-006 | Rename IN_PROGRESS; expiry → EXPIRED or CANCELLED? | S3 (rename), S7 | Nasif | OPEN |
-| Q-007 | What does owner DELETE do once CANCELLED exists? | S7, S10 | Nasif | OPEN |
-| Q-008 | How is the errand category derived? | S7 | Nasif | OPEN |
+| Q-006 | Rename IN_PROGRESS; expiry → EXPIRED or CANCELLED? | S3 (rename), S7 | Nasif | ANSWERED → D-013 |
+| Q-007 | What does owner DELETE do once CANCELLED exists? | S7, S10 | Nasif | ANSWERED → D-014, D-015 |
+| Q-008 | How is the errand category derived? | S7 | Nasif | ANSWERED → D-018 |
 | Q-009 | Which pickup-location filters? | S2 (filter part) | Nasif | OPEN |
 | Q-010 | Does order-service own notifications? | S9 | Nasif | OPEN |
 | Q-011 | What may admin DELETE do after acceptance? | S6a (guard) | Nasif | OPEN |
@@ -28,16 +28,19 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 | Q-017 | Correlation-ID header name across services | N1 | Nasif / team | OPEN |
 | Q-018 | compose.yaml: give order-service RabbitMQ | S6a end-to-end run | Teammate (compose) | OPEN |
 | Q-019 | Add dev dep `@testcontainers/rabbitmq@12.1.0` (lockfile `packages:` change)? | automated real-broker test | Nasif | OPEN |
+| Q-020 | May a courier cancel after pickup, and what happens to goods and credits? | courier cancel from PICKED_UP | Nasif | OPEN |
 
 ---
 
 ### Q-003 — Courier cancellation outcome (C3)
+- **Status:** ANSWERED → D-016 (option A, plus: courier cancel from PICKED_UP is 409, see Q-020).
 - **Options:** (A) ACCEPTED → OPEN, reason + history, the cancelling courier is blocked
   from re-accepting (Resp). (B) ACCEPTED → CANCELLED + credit release (D1 FR9.1.2).
 - **Recommendation:** A.
 - **Blocks:** S8. **Meanwhile:** nothing built for courier cancel.
 
 ### Q-004 — Remaining timers (C4)
+- **Status:** ANSWERED → D-017 (30-min reopen with exclusion, no 1-h timer, expiry from `createdAt`, never reset).
 - **Options:** for each — 30-min ACCEPTED → OPEN: adopt / drop; 1-h PICKED_UP →
   CANCELLED: adopt / drop; FR8.2 expiry measured from `createdAt` / from last reopen.
 - **Recommendation:** adopt 30-min, drop 1-h, measure from `createdAt`.
@@ -51,6 +54,7 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
   without it; the rule stays one isolated check.
 
 ### Q-006 — Status enum (C6)
+- **Status:** ANSWERED → D-013 (rename to PICKED_UP; expiry ends in EXPIRED).
 - **Options:** (1) rename `IN_PROGRESS` → `PICKED_UP` / keep both; (2) expiry ends in
   `EXPIRED` / `CANCELLED`.
 - **Recommendation:** rename; `EXPIRED`.
@@ -58,12 +62,14 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
   new values.
 
 ### Q-007 — DELETE vs cancel (C7)
+- **Status:** ANSWERED → D-014 (option B), D-015 (cancel from OPEN and ACCEPTED).
 - **Options:** (A) keep DELETE as soft-delete, add `POST …/cancel`. (B) owner DELETE sets
   CANCELLED (same route/response), plus `POST …/cancel`.
 - **Recommendation:** B.
 - **Blocks:** S7, S10.
 
 ### Q-008 — Category (C8)
+- **Status:** ANSWERED → D-018 (option B: requester-chosen `itemType`, FOOD 2 h / NON_PERISHABLE 24 h, default NON_PERISHABLE; not derived from supplier category).
 - **Options:** (A) derive from supplier category (FOOD, FOOD_COFFEE → 2 h; PRINTING,
   SHOPPING → 24 h) and snapshot it. (B) new optional request field.
 - **Recommendation:** A now.
@@ -130,3 +136,15 @@ Docker; local dev can point `RABBITMQ_URL` at `127.0.0.1:5672`.
   confirm-before-mark, retry with the same eventId); verified once by hand against
   `rabbitmq:4.2-management-alpine`.
 
+### Q-020 — Courier cancel after pickup
+- **Status:** OPEN · **Related:** D-016, Q-014
+- **Question:** may the assigned courier cancel a PICKED_UP errand, and if so what happens
+  to the goods already collected and to the reserved credits?
+- **Options:** (A) never; the courier must deliver, and problems go through a dispute.
+  (B) allow PICKED_UP → OPEN with exclusion, credits stay reserved (goods problem left to
+  the users). (C) allow PICKED_UP → CANCELLED with a full release to the requester.
+- **Recommendation:** A until dispute resolution (Q-014) exists; B and C both move goods
+  or credits without anyone confirming what happened.
+- **Blocks:** only courier cancel from PICKED_UP.
+- **Done meanwhile:** courier cancel works from ACCEPTED; from PICKED_UP it returns 409
+  `ERRAND_INVALID_TRANSITION`.

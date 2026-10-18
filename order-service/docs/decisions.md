@@ -95,3 +95,72 @@ Source: user answer on 2026-10-18.
 verified) to the pass log in `order-service/logs/`; the end-of-pass summary is written at
 the top of the same file (`order-commit-log`, `order-change-summary`). Replaces the
 `docs/changes/` location from D-010. Source: user request on 2026-10-18.
+
+### D-013 · 2026-10-18 · ACCEPTED
+**There is no IN_PROGRESS state; expiry ends in EXPIRED.** `IN_PROGRESS` is removed from
+the `ErrandStatus` enum, code, tests, DTOs and docs; any row in it moves to `PICKED_UP`.
+An errand nobody accepts in time ends as `EXPIRED`, a terminal state distinct from
+`CANCELLED`. User: "there is no IN_PROGRESS state. Rename it to PICKED_UP … An errand
+nobody accepts in time ends as EXPIRED." Resolves C6 / Q-006.
+
+### D-014 · 2026-10-18 · ACCEPTED
+**Owner DELETE cancels; `POST /api/errands/:id/cancel` is the canonical route.** When the
+requester calls `DELETE /api/errands/:id`, the errand becomes `CANCELLED` on the same
+route with the same response shape (web-app keeps working and keeps showing its own
+"Errand deleted" text); the record stays visible to the requester. `POST …/cancel` does
+the same. Admin DELETE is unchanged (still soft-delete, Q-011 parked). User: Q-007
+"option B". Resolves C7 / Q-007.
+
+### D-015 · 2026-10-18 · ACCEPTED
+**Requester cancel is allowed from OPEN and ACCEPTED only.** From PICKED_UP onward it is
+409. Cancel releases the whole reserved amount to the requester over HTTP through the
+`ErrandOperation` journal (D-001). Cancelling an ACCEPTED errand also releases the
+courier: `courier_id`/`accepted_at` are cleared so they can no longer act on it, and the
+history row keeps who they were. User: "a requester can cancel after acceptance but not
+after PICKED_UP"; asked to clarify, chose "OPEN and ACCEPTED" and "full release to
+requester". Overrides the earlier default of cancelling from OPEN only. Amends D1 FR8.1
+(OPEN only).
+
+### D-016 · 2026-10-18 · ACCEPTED
+**Courier cancel: ACCEPTED → OPEN, and that courier can never accept this errand again.**
+The credit reservation stays (the errand is still open). The courier is recorded in
+`errand_excluded_couriers`; they can still accept other errands. Courier cancel from
+PICKED_UP is 409 and the rules after pickup are parked as Q-020. User: "if the assigned
+courier cancels, the errand goes back to OPEN and that courier can never accept this
+errand again." Resolves C3 / Q-003. Amends D1 FR9.1.2 (which says CANCELLED).
+
+### D-017 · 2026-10-18 · ACCEPTED
+**Timers.**
+- An ACCEPTED errand not picked up within **30 minutes** of `accepted_at` reopens (back
+  to OPEN). It has the same effect as a courier cancel, including the exclusion. User:
+  "30 minute reopening does in fact block that particular courier from taking that
+  particular errand again, but they can pick other errands".
+- Expiry deadlines are counted from `createdAt` and **never reset** on reopen; a reopened
+  errand has less time left. Only OPEN errands expire.
+- There is **no 1-hour** PICKED_UP timer.
+- The 4-hour DELIVERED auto-complete (D-008) is unchanged.
+Resolves C4 / Q-004.
+
+### D-018 · 2026-10-18 · ACCEPTED
+**Errand item type, chosen by the requester at creation, sets the expiry length.**
+`itemType` ∈ `FOOD` (perishable, expires 2 h after `createdAt`) | `NON_PERISHABLE`
+(generic item, 24 h). Optional on create; default `NON_PERISHABLE`. Stored on the errand
+with `expires_at` computed once at creation. It is **not** derived from the supplier
+category anywhere. User: "the 2 hour and 24 hour split is based on user input for the
+errand type (and this is decided by the user when they are making the item, they get to
+choose an option on whether it is food, or whether it is just a generic non-perishable
+item, default is the non perishable item, so the default expiry is 24 hours)". Resolves
+C8 / Q-008 (option B). The 2 h exists so food does not spoil; 24 h because a requester
+cannot wait longer.
+
+### D-019 · 2026-10-18 · ACCEPTED
+**Cancel and expiry release credits over HTTP; settlement stays outbox-only.** Expiry
+releases the whole reservation the same way as cancel (journal, HTTP). User: "Expiry
+does in fact release credits". Cancellation releases credits "for now" (user wording).
+D-001 is unchanged: never both paths for one errand.
+
+### D-020 · 2026-10-18 · ACCEPTED
+**Dispute only from DELIVERED; DISPUTED stays a dead end.** Confirm and dispute both
+happen within the 4 h window; if neither happens the errand auto-completes. DISPUTED
+holds the credits and has no way out until Q-014 is answered. No resolution is built.
+Restates D-007/D-008 for this pass.

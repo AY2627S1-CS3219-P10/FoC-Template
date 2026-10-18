@@ -28,8 +28,8 @@ answered, re-evaluate every slice that lists it.
 | 13 | N3 Latency review | READY | analysis, tx-across-HTTP fix proposal | — |
 | 14 | N4 Coverage gate | after S1 | everything | — |
 | 15 | Postman authorization collection | DONE | — | live run needs all four services and test accounts |
-| — | S7 Requester cancel + expiry | BLOCKED | — | Q-006, Q-007, Q-008 |
-| — | S8 Courier cancel + 30 min / 1 h timers | BLOCKED | — | Q-003, Q-004 |
+| — | S7 Requester cancel + expiry | READY (D-013..D-019) | — | — |
+| — | S8 Courier cancel + 30 min reopen (no 1 h timer) | PARTIAL (D-016, D-017) | — | after pickup: Q-020 |
 | — | S9 Notifications + Socket.IO | BLOCKED | — | Q-010 |
 | — | S12 Dispute resolution | BLOCKED | — | Q-014 |
 
@@ -100,8 +100,8 @@ Docs and `.agents/` tooling. No code. Log: `logs/2026-10-18-S0-agent-docs.md`.
 - **Acceptance:** dispute at 3h59m → job no-op; job twice → one event; Redis wiped → sweeper
   recovers.
 
-### S7 — Requester cancel + category expiry (FR8) — BLOCKED (Q-006, Q-007, Q-008)
-### S8 — Courier cancel + timers (FR9, C4) — BLOCKED (Q-003, Q-004)
+### S7 — Requester cancel + item-type expiry (FR8) — READY (D-013..D-015, D-018, D-019)
+### S8 — Courier cancel + 30-min reopen (FR9, C4) — PARTIAL (D-016, D-017; after pickup Q-020)
 ### S9 — Notifications + Socket.IO (FR10-notif) — BLOCKED (Q-010)
 
 ### S10 — History + reorder (FR11)
