@@ -41,6 +41,28 @@ describe('CreditEventsController acknowledgements', () => {
     expect(channel.nack).not.toHaveBeenCalled();
   });
 
+  it('ACKs a duplicate settlement that credit already applied', async () => {
+    handler.handleErrandCompleted.mockResolvedValue({
+      data: {},
+      replayed: true,
+    } as never);
+    await controller.consumeErrandCompleted(
+      {
+        eventId: randomUUID(),
+        eventType: ERRAND_COMPLETED_EVENT,
+        data: {
+          errandId: randomUUID(),
+          requesterId: randomUUID(),
+          courierId: randomUUID(),
+          amount: 10,
+        },
+      },
+      context,
+    );
+    expect(channel.ack).toHaveBeenCalledWith(message);
+    expect(channel.nack).not.toHaveBeenCalled();
+  });
+
   it('requests redelivery after a transient failure', async () => {
     handler.handleErrandCompleted.mockRejectedValue(new Error('DB unavailable'));
     await controller.consumeErrandCompleted(

@@ -54,9 +54,19 @@ export class CreditEventsController {
     const channel = context.getChannelRef();
     const message = context.getMessage();
     try {
-      await operation();
+      const result = await operation();
       // ACK only after the database transaction has committed.
       channel.ack(message);
+      this.logger.log(
+        {
+          eventId:
+            typeof event?.eventId === 'string' ? event.eventId : undefined,
+          eventType:
+            typeof event?.eventType === 'string' ? event.eventType : undefined,
+          replayed: this.isReplayed(result),
+        },
+        'Credit event processed',
+      );
     } catch (error) {
       const permanent =
         (error instanceof CreditDomainError &&
@@ -83,5 +93,13 @@ export class CreditEventsController {
       // remain unacknowledged and are redelivered.
       channel.nack(message, false, !permanent);
     }
+  }
+
+  private isReplayed(result: unknown): boolean {
+    return (
+      typeof result === 'object' &&
+      result !== null &&
+      (result as { replayed?: unknown }).replayed === true
+    );
   }
 }
