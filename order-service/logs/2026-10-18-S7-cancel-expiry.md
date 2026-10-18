@@ -32,3 +32,15 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** the brief asked for `RENAME VALUE`, but PICKED_UP already exists, so Postgres would refuse it; rebuilding the type is the only way to remove IN_PROGRESS (A-010). All rows go in the domain table first so later slices only add persistence.
 - **Verified:** `typecheck`, `lint` clean; `pnpm test` 344 passed; `pnpm test:integration` 43 passed; migration applied by hand to a Postgres 17 DB holding an OPEN row, an IN_PROGRESS row and its history row → PICKED_UP, constraints and indexes recreated.
 - **Follow-up:** none.
+
+### 6d61f77 feat(order): requester cancel via DELETE and POST /cancel from OPEN or ACCEPTED (D-014, D-015)
+- **When:** 2026-10-18 13:56 · **Slice:** B · **Refs:** D-014, D-015, D-019, Q-011
+- **Changed:**
+  - `src/infrastructure/order.repository.ts` — `cancelIntent` journals a CANCEL operation under the row lock; `execute` releases, then `close()` sets CANCELLED, clears courier/`accepted_at` and writes history with the released courier in one statement; `deleteIntent` is now admin-only (behaviour unchanged)
+  - `src/application/order.service.ts` — non-admin DELETE → `cancel()`; POST without a header uses `derivedKey('cancel', id)` so repeats find the same operation
+  - `src/api/order.controller.ts` — `POST /api/errands/:id/cancel` (200 / 202 `ErrandOperation`)
+  - `migrations/202610180008_cancel_operations`, `prisma/schema.prisma` — `OperationKind.CANCEL`, `errand_history.courier_id`
+  - `tests/integration/errands.spec.ts` — OPEN and ACCEPTED cancel, idempotent repeats on both routes, 401/403/404/409, lost release ack; the old "owners delete" test now expects CANCELLED
+- **Why:** cancel releases credits, so it goes through the journal like the old delete (D-001): the pending lock stops accept and pickup while the release is in doubt. That lock is also what makes cancel vs accept and cancel vs pickup race-safe. Admin DELETE stays a soft delete because Q-011 is still open (A-011).
+- **Verified:** `typecheck`, `lint` clean; `pnpm test` 344 passed; `pnpm test:integration` 46 passed.
+- **Follow-up:** web-app contract and Postman requests are updated at the end of the pass.

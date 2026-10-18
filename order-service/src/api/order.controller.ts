@@ -182,7 +182,8 @@ export class OrderController {
   })
   @ApiOkResponse({ type: ErrandResponse })
   @ApiForbiddenResponse({
-    description: 'Requesters cannot accept their own errand',
+    description:
+      'Requesters cannot accept their own errand; ERRAND_COURIER_EXCLUDED after a courier cancel or missed pickup',
   })
   @ApiNotFoundResponse({ description: 'Missing or deleted errand' })
   @ApiConflictResponse({
@@ -256,6 +257,24 @@ export class OrderController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.service.confirm(id, request.userId, request.accessToken);
+  }
+  @Post(':id/courier-cancel')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Assigned courier: give an ACCEPTED errand back; it reopens and you cannot accept it again',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the assigned courier' })
+  @ApiConflictResponse({
+    description: 'Errand is not ACCEPTED (after pickup: Q-020)',
+  })
+  courierCancel(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.courierCancel(id, request.userId, request.accessToken);
   }
   @Post(':id/cancel')
   @Header('Cache-Control', 'no-store')

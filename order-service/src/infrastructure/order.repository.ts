@@ -76,12 +76,15 @@ const AUTO_COMPLETE_DUE = Prisma.sql`"delivered_at" <= CURRENT_TIMESTAMP - make_
  */
 function actorGuard(row: Transition, actorId: string | null) {
   if (row.action === 'accept')
-    return Prisma.sql`"courier_id" IS NULL AND "requester_id" <> ${actorId}::uuid`;
+    return Prisma.sql`"courier_id" IS NULL AND "requester_id" <> ${actorId}::uuid
+      AND NOT EXISTS (SELECT 1 FROM "errand_excluded_couriers" AS "x"
+                      WHERE "x"."errand_id" = "errands"."id" AND "x"."courier_id" = ${actorId}::uuid)`;
   if (row.actor === 'COURIER')
     return Prisma.sql`"courier_id" = ${actorId}::uuid`;
   if (row.actor === 'REQUESTER')
     return Prisma.sql`"requester_id" = ${actorId}::uuid`;
-  return AUTO_COMPLETE_DUE;
+  if (row.action === 'auto-complete') return AUTO_COMPLETE_DUE;
+  throw new Error(`No guard for system action ${row.action}`);
 }
 @Injectable()
 export class PrismaOrderRepository implements OrderRepository {
@@ -362,7 +365,19 @@ export class PrismaOrderRepository implements OrderRepository {
       ORDER BY "delivered_at" LIMIT 100`;
     return rows.map((row) => row.id);
   }
-  async transition(id: string, row: Transition, actorId: string | null) {
+  async isExcluded(errandId: string, courierId: string) {
+    return (
+      (await this.prisma.errandExcludedCourier.count({
+        where: { errandId, courierId },
+      })) > 0
+    );
+  }
+  async transition(
+    id: string,
+    row: Transition,
+    actorId: string | null,
+    courierId: string | null = actorId,
+  ) {
     if (row.releasesCredits)
       throw new Error(
         `${row.action} releases credits and must use the journal`,
@@ -380,6 +395,13 @@ export class PrismaOrderRepository implements OrderRepository {
             FROM changed
           )`
         : Prisma.empty;
+    const exclusion = row.excludesCourier
+      ? Prisma.sql`, excluded AS (
+            INSERT INTO "errand_excluded_couriers" ("errand_id", "courier_id")
+            SELECT "id", ${courierId}::uuid FROM changed
+            ON CONFLICT DO NOTHING
+          )`
+      : Prisma.empty;
     // One statement: concurrent callers serialise on the row lock and every loser
     // re-evaluates the WHERE clause against the winner's committed row (FR6).
     const changed = await this.prisma.$queryRaw<{ id: string }[]>`
@@ -391,19 +413,22 @@ export class PrismaOrderRepository implements OrderRepository {
             "updated_at" = CURRENT_TIMESTAMP
             ${row.action === 'accept' ? Prisma.sql`, "courier_id" = ${actorId}::uuid` : Prisma.empty}
             ${row.completionMethod ? Prisma.sql`, "completion_method" = ${row.completionMethod}::"CompletionMethod"` : Prisma.empty}
+            ${row.releasesCourier ? Prisma.sql`, "courier_id" = NULL, "accepted_at" = NULL` : Prisma.empty}
         WHERE "id" = ${id}::uuid
           AND "status" = ${row.from}::"ErrandStatus"
           AND "deleted_at" IS NULL
           AND "pending_operation_id" IS NULL
           AND ${actorGuard(row, actorId)}
+          ${row.releasesCourier ? Prisma.sql`AND "courier_id" = ${courierId}::uuid` : Prisma.empty}
         RETURNING "id", "requester_id", "courier_id", "offered_credits"
       ), logged AS (
         INSERT INTO "errand_history"
           ("errand_id", "from_status", "to_status", "action", "actor_role", "actor_id", "courier_id", "correlation_id")
         SELECT "id", ${row.from}::"ErrandStatus", ${row.to}::"ErrandStatus", ${row.action},
-               ${row.actor}::"ActorRole", ${actorId}::uuid, "courier_id", ${correlationId}
+               ${row.actor}::"ActorRole", ${actorId}::uuid,
+               COALESCE("courier_id", ${row.releasesCourier ? courierId : null}::uuid), ${correlationId}
         FROM changed
-      )${event}
+      )${event}${exclusion}
       SELECT "id" FROM changed`;
     return changed.length === 1;
   }

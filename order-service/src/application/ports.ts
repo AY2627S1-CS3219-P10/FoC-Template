@@ -82,12 +82,17 @@ export interface OrderRepository {
    * Applies one lifecycle transition as a single conditional UPDATE plus its history
    * row. Returns false, changing nothing, when the errand is not in `row.from`, is
    * deleted, has a pending operation, or `actorId` does not hold the row's role.
+   * `courierId` (default `actorId`) is the courier a `releasesCourier` row must still
+   * find assigned; it is recorded in the history and, if the row says so, excluded.
    */
   transition(
     id: string,
     row: Transition,
     actorId: string | null,
+    courierId?: string | null,
   ): Promise<boolean>;
+  /** D-016/D-017: true when this courier was released from this errand before. */
+  isExcluded(errandId: string, courierId: string): Promise<boolean>;
   /** Up to 100 DELIVERED errands whose auto-complete deadline has passed (DB clock). */
   dueAutoCompletions(): Promise<string[]>;
 }

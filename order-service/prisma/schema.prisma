@@ -71,6 +71,7 @@ model Errand {
   expiredAt           DateTime?         @map("expired_at") @db.Timestamptz(3)
   completionMethod    CompletionMethod? @map("completion_method")
   history             ErrandHistory[]
+  excludedCouriers    ErrandExcludedCourier[]
 
   @@index([status, courierId, createdAt, id])
   @@index([requesterId, createdAt])
@@ -115,6 +116,16 @@ model ErrandHistory {
 
   @@index([errandId, occurredAt])
   @@map("errand_history")
+}
+
+model ErrandExcludedCourier {
+  errandId  String   @map("errand_id") @db.Uuid
+  errand    Errand   @relation(fields: [errandId], references: [id], onDelete: Restrict)
+  courierId String   @map("courier_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([errandId, courierId])
+  @@map("errand_excluded_couriers")
 }
 
 model OutboxEvent {

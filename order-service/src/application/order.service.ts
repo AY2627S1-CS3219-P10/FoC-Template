@@ -196,10 +196,25 @@ export class OrderService {
     return this.repository.listAssigned(userId, limit, offset, sort);
   }
   /** FR5/FR6: claim an OPEN errand; exactly one concurrent courier wins. */
-  accept(id: string, userId: string, token: string) {
+  async accept(id: string, userId: string, token: string) {
     // Q-005 (one active errand) and Q-012 (courier credit account) are parked; their
     // checks go here, before the conditional UPDATE.
+    if (await this.repository.isExcluded(id, userId))
+      throw new OrderError(
+        'ERRAND_COURIER_EXCLUDED',
+        'You were released from this errand and cannot accept it again.',
+        403,
+      );
     return this.act(id, 'accept', userId, token);
+  }
+  /**
+   * D-016: the assigned courier gives an ACCEPTED errand back; it reopens, credits stay
+   * reserved, and this courier is excluded from it. A repeat returns the current state.
+   */
+  async courierCancel(id: string, userId: string, token: string) {
+    if (await this.repository.isExcluded(id, userId))
+      return this.find(id, userId, token);
+    return this.act(id, 'courier-cancel', userId, token);
   }
   /** FR7.1: the assigned courier collected the item. */
   pickup(id: string, userId: string, token: string) {
@@ -302,7 +317,9 @@ export class OrderService {
     return {
       ...errand,
       availableForAcceptance:
-        errand.status === 'OPEN' && errand.courierId === null,
+        errand.status === 'OPEN' &&
+        errand.courierId === null &&
+        !(await this.repository.isExcluded(errand.id, requesterId)),
       requesterUsername: token
         ? await this.clients.username(errand.requesterId, token)
         : null,

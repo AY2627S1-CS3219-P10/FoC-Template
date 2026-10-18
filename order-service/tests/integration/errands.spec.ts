@@ -1061,6 +1061,91 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       reservedCredits: 0,
     });
   });
+  it('S8: the courier gives an ACCEPTED errand back; it reopens with credits reserved and that courier excluded (D-016)', async () => {
+    const id = (await create()).json().errand.id;
+    await accept(id);
+    const response = await act(id, 'courier-cancel', 'courier');
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id,
+      status: 'OPEN',
+      courierId: null,
+      acceptedAt: null,
+      version: 2,
+      availableForAcceptance: false,
+    });
+    expect(await requesterBalance()).toEqual({
+      availableCredits: 80,
+      reservedCredits: 20,
+    });
+    expect(await releases()).toBe(0);
+    expect(
+      await prisma.errandHistory.findFirst({
+        where: { errandId: id, action: 'courier-cancel' },
+      }),
+    ).toMatchObject({
+      fromStatus: 'ACCEPTED',
+      toStatus: 'OPEN',
+      actorRole: 'COURIER',
+      actorId: courierId,
+      courierId,
+    });
+    expect(await prisma.errandExcludedCourier.findMany()).toEqual([
+      expect.objectContaining({ errandId: id, courierId }),
+    ]);
+    // A repeat returns the current state; nothing else is written.
+    expect((await act(id, 'courier-cancel', 'courier')).json()).toMatchObject({
+      status: 'OPEN',
+      version: 2,
+    });
+    expect(await prisma.errandHistory.count({ where: { errandId: id } })).toBe(
+      2,
+    );
+    const again = await accept(id);
+    expect(again.statusCode).toBe(403);
+    expect(again.json()).toMatchObject({ code: 'ERRAND_COURIER_EXCLUDED' });
+    // Back on the board for everyone else, and editable by the requester again.
+    expect(
+      (await list('/api/errands', 'courier-1')).json<{ id: string }[]>(),
+    ).toEqual([expect.objectContaining({ id })]);
+    expect((await read(id, 'courier-1')).json()).toMatchObject({
+      availableForAcceptance: true,
+    });
+    expect(
+      (await edit(id, { expectedVersion: 2, description: 'Reopened' }))
+        .statusCode,
+    ).toBe(200);
+    expect((await accept(id, 'courier-1')).statusCode).toBe(200);
+    // Excluded from this errand only.
+    const other = (await create()).json().errand.id;
+    expect((await accept(other)).statusCode).toBe(200);
+  });
+  it('S8: courier cancel is for the assigned courier only, and 409 after pickup (Q-020)', async () => {
+    const id = (await create()).json().errand.id;
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/errands/${id}/courier-cancel`,
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect((await act(id, 'courier-cancel', 'courier')).statusCode).toBe(403);
+    await accept(id);
+    expect((await act(id, 'courier-cancel', 'requester')).json()).toMatchObject(
+      { code: 'ERRAND_ACTION_FORBIDDEN' },
+    );
+    expect((await act(id, 'courier-cancel', 'courier-1')).statusCode).toBe(403);
+    await act(id, 'pickup', 'courier');
+    const late = await act(id, 'courier-cancel', 'courier');
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toMatchObject({ code: 'ERRAND_INVALID_TRANSITION' });
+    expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+      status: 'PICKED_UP',
+      courierId,
+    });
+    expect(await prisma.errandExcludedCourier.count()).toBe(0);
+  });
   it('admins can inspect/manage/delete all requests and edit only their own', async () => {
     const id = (await create()).json().errand.id;
     await prisma.errand.update({
