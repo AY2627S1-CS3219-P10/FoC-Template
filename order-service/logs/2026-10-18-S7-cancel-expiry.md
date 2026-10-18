@@ -6,7 +6,46 @@ cancel + exclusions, D 30-minute reopen, E item type + expiry, F race tests, plu
 Postman requests and `docs/demo-timers.md` for the manual D3 demo.
 
 ## Summary
-_Written at the end of the pass by `order-change-summary`._
+### Questions for you
+New this pass:
+1. **Q-020** May a courier cancel after pickup? — A) never, problems go through a dispute; B) PICKED_UP → OPEN with exclusion, credits stay; C) PICKED_UP → CANCELLED with a full release · **Recommend:** A until dispute resolution (Q-014) exists.
+2. **Q-021** Must a courier cancel carry a reason (D1 FR9.1.1)? — A) required, stored on the history row; B) optional; C) none · **Recommend:** A (D1 and Resp both ask for it; new route, web-app unaffected).
+Still open from before (unchanged): **Q-012** courier credit account at accept (rec A) · **Q-011** admin DELETE after acceptance (rec A) · **Q-019** RabbitMQ testcontainer dep (rec A) · **Q-005** one active errand per courier (rec A) · **Q-014** dispute resolution (rec C) · **Q-009** pickup filter (rec A) · **Q-010** notifications owner (rec A) · **Q-017** keep `x-correlation-id` (rec yes). Team: Q-015, Q-016, Q-018.
+Please also check the assumptions A-009…A-018 below; any veto becomes a question.
+
+### What changed
+Errands can now end without completing. The requester cancels an OPEN or ACCEPTED errand (`POST …/cancel`, or web-app's existing DELETE), which releases the whole escrow and frees the courier. The courier can give an ACCEPTED errand back (`POST …/courier-cancel`): it reopens with credits still reserved, and that courier can never take it again. An ACCEPTED errand nobody picks up within 30 minutes reopens the same way. At creation the requester picks `itemType` FOOD (2 h) or NON_PERISHABLE (default, 24 h); an OPEN errand past that deadline becomes EXPIRED and its credits are released. IN_PROGRESS is gone. FR8, FR9 (except the reason, Q-021) and L-8 are done. Also fixed: the 4 h auto-complete had never run outside tests, because BullMQ rejected its job id.
+
+### How it works
+- [lifecycle.ts](../src/domain/lifecycle.ts) `TRANSITIONS` has every row, with flags: `releasesCredits` (cancel, expire), `releasesCourier`, `excludesCourier` (courier cancel, reopen).
+- Rows that release credits use the journal ([order.repository.ts](../src/infrastructure/order.repository.ts) `cancelIntent` / `expireIntent` → `execute` → `close`). The intent locks the row and sets `pending_operation_id`, which is what makes a concurrent accept or pickup lose. After credit-service confirms the release, one statement sets the status and clears the courier, and the history row keeps who the courier was.
+- Courier cancel and reopen are one conditional UPDATE in `transition()`. Status, history and the `errand_excluded_couriers` row commit together. Accept's SQL guard skips excluded couriers and errands past `expires_at`.
+- [timer.worker.ts](../src/infrastructure/timer.worker.ts) sweeps every 30 s for auto-complete, reopen and expiry deadlines in Postgres and enqueues `<name>-<errandId>` jobs; each job re-checks with the DB clock.
+- `expires_at` is fixed at creation from the DB clock; the CHECK `errands_expiry_deadline` stops it ever moving.
+
+### Try it
+Postman folder 4 (`postman/README.md`), or by hand with a requester JWT `$R` and courier JWT `$C`:
+`POST /api/errands` with `"itemType":"FOOD"` → `expiresAt` is 2 h after `createdAt` · `POST /api/errands/{id}/accept` ($C) → `/courier-cancel` ($C) → OPEN · `/accept` again ($C) → 403 `ERRAND_COURIER_EXCLUDED` · `POST /api/errands/{id}/cancel` ($R) → CANCELLED, credits back. Timers: [demo-timers.md](../docs/demo-timers.md) (SQL ageing; the sweeper applies the change within 30 s).
+
+### Tests
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check` clean · `pnpm test` 349 passed · `pnpm test:integration` 60 passed (full suite twice; `-t race` 13 passed three times) · `pnpm test:coverage` 409 passed, domain/application 96.68% statements, 93.49% branches · `prisma migrate diff` (fresh DB with all 15 migrations → schema) empty · migrations 0007–0011 applied by hand to a DB with existing rows (IN_PROGRESS row → PICKED_UP; backfill NON_PERISHABLE, +24 h) · compiled `TimerWorker` against a real Redis 7: all three job kinds enqueued and dispatched. Postman collection **not run live**. One filtered run failed all 6 new race tests after more than 10 minutes, with no error captured; every run since passed.
+
+### Assumptions and risks
+- A-009 `itemType` is create-only, so `expires_at` never moves (alternative: editable; would become a question).
+- A-010 IN_PROGRESS removed by rebuilding the enum, because `RENAME VALUE` fails when PICKED_UP already exists (brief said RENAME VALUE).
+- A-011 Admin DELETE keeps the old soft delete, also on an admin's own errand (alternative: owners who are admins cancel).
+- A-012 A repeat courier cancel by the released courier returns 200 with the current state (alternative: 403).
+- A-013 `POST …/cancel` needs no `Idempotency-Key`; the key is derived from the errand id. A permanently failed release via POST repeats the same failure; DELETE with a new key retries.
+- A-014 Accept is refused (409 `ERRAND_EXPIRED`) once past `expires_at`, even before the sweep; the open list may still show the errand for ≤ 30 s.
+- A-015 Cancel by a non-requester → 403 `ERRAND_OWNER_REQUIRED`; owner DELETE after pickup → 409 `ERRAND_INVALID_TRANSITION` (was `ERRAND_NOT_DELETABLE`; web-app does not branch on codes).
+- A-016 If an expiry release fails for good, the errand stays OPEN past its deadline (accept refused) and the sweeper skips it; needs a manual fix.
+- A-017 New `errand_history.courier_id` keeps the released courier on cancel and reopen rows.
+- A-018 `GET /api/errands` is not filtered per caller: an excluded courier still sees the errand there; details say `availableForAcceptance: false`.
+- Risk: web-app has no UI for `itemType`, cancel of an ACCEPTED errand, courier cancel or the courier actions, so all its errands are 24 h and D3 shows these with Postman. Its "The request has been removed" text no longer fits (the errand stays visible as CANCELLED).
+- Risk: K2 still applies; the journal holds the row lock during the release HTTP call.
+
+### Next
+Answer Q-020/Q-021 (small additions to S8). Ready without answers: N2 (single `/me` call, K3), S10 history + reorder, S11 live tracking.
 
 ## Commits
 
@@ -97,3 +136,16 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** cancel vs accept can legitimately end with both succeeding (accept first, then a cancel from ACCEPTED is allowed by D-015), so that test checks for one consistent end state (CANCELLED, one release, courier recorded if one got in) rather than a single winner. The others check one winner, the loser's 403/409, one history row and the credit effect.
 - **Verified:** `pnpm test:integration` 60 passed twice in full (8–9 s); `-t race` 13 passed three times. One earlier filtered run reported the 6 new tests failed after more than 10 minutes, without a captured error; every run since passed, which points at Testcontainers startup rather than a race (risk noted).
 - **Follow-up:** none.
+
+### 2800a47 docs(order): Postman requests, timer demo SQL, contract and requirements for cancel and expiry
+- **When:** 2026-10-18 15:24 · **Slice:** — · **Refs:** D-013..D-020, Q-020, Q-021
+- **Changed:**
+  - `postman/order-service.postman_collection.json`, `postman/README.md` — folder 4 (21 requests): item type, courier cancel + exclusion, requester cancel of an ACCEPTED errand, DELETE as cancel, 409s after pickup; table of what is tested manually because web-app has no UI for it
+  - `docs/demo-timers.md` — copy-paste SQL to age `accepted_at`, `created_at`/`expires_at` and the delivery stamps so reopen, expiry and auto-complete show live within one sweep
+  - `docs/contracts/web-app.md` — new routes, `itemType`/`expiresAt`, DELETE now cancels, no `itemType` control in web-app yet (all its errands are 24 h)
+  - `docs/requirements.md`, `docs/roadmap.md` — FR8/FR9/L-8 rows with evidence, lifecycle table, K6, D1 amendments; S7 DONE, S8 DONE except parked parts
+  - `docs/open-questions.md` — Q-021 (courier cancel reason, D1 FR9.1.1)
+  - `.agents/` — lifecycle skill: journal pattern for credit-releasing rows, `timerJob()`; code map
+- **Why:** D3 is partly shown by hand, so every route web-app cannot reach needs a ready request and every timer needs a way to show it without waiting and without a bypass endpoint.
+- **Verified:** docs only; the demo SQL was run against a Postgres 17 DB with the full schema (all three updates accepted; moving `expires_at` alone rejected by `errands_expiry_deadline`). The Postman collection was **not** run live.
+- **Follow-up:** Q-021.
