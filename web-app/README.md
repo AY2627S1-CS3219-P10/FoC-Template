@@ -210,3 +210,9 @@ Errand browse cards show only the title, pickup location and delivery destinatio
 Administrator creators can edit their own OPEN unassigned requests. Requester usernames come from User Service. Edit/save buttons are green; delete/confirm buttons are red.
 
 Catalogue cards show offered credits using the header balance gold coin badge. Sort errands offers latest/oldest creation time and highest/lowest credits; changing the sort returns to page 1.
+
+## Courier lifecycle
+
+The catalogue shows status badges and a My deliveries tab backed by GET /api/errands/assigned. Detail pages expose only the current participant's actions: accept an available OPEN errand, mark ACCEPTED as picked up, mark PICKED_UP as delivered, or release an ACCEPTED errand. Released/timed-out couriers cannot reaccept the same errand. Requesters can confirm receipt from PICKED_UP/DELIVERED, dispute DELIVERED requests, or cancel before pickup. Cancellation supports the backend's pending-operation polling.
+
+Status and lifecycle timestamps refresh every 20 seconds. Detail polling pauses during editing and pending changes. Refresh status is also available. The API authenticates the actor from the session cookie and forwards only allowlisted lifecycle actions; the Order Service remains authoritative for permissions, concurrent acceptance, expiry and credit transfers. No background/system lifecycle actions are exposed to browsers. Disputed errands have no resolution action until the backend supports it.

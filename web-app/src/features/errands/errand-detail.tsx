@@ -5,6 +5,8 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { useCredits } from "@/features/credits/credit-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import type { Errand, ErrandOperation } from "@/services/contracts";
+import { ErrandStatus } from "./errand-status";
+import { ErrandActions } from "./errand-actions";
 type Mutation = { method: "PATCH" | "DELETE"; body: Record<string, unknown>; operationId?: string };
 export function ErrandDetail({ id }: { id: string }) {
   const auth = useAuth();
@@ -16,10 +18,15 @@ function ErrandDetailContent({ id }: { id: string }) {
   const [attempt, setAttempt] = useState(0); const [editing, setEditing] = useState(false); const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false); const locked = useRef(false); const [mutation, setMutation] = useState<Mutation | null>(null); const [message, setMessage] = useState(""); const [error, setError] = useState(""); const [deleted, setDeleted] = useState(false);
   useEffect(() => {
-    if (!userId) return; let active = true;
+    if (!userId || busy || mutation || editing || confirmDelete || deleted) return; let active = true;
     authenticatedRequest<Errand>(`errands/${id}`).then((errand) => { if (active) setState({ userId, errand, error: "", loading: false }); }).catch((failure) => { if (active) setState({ userId, errand: null, error: failure instanceof Error ? failure.message : "Unable to load this errand.", loading: false }); });
     return () => { active = false; };
-  }, [userId, id, attempt]);
+  }, [userId, id, attempt, busy, mutation, editing, confirmDelete, deleted]);
+  useEffect(() => {
+    if (!userId || busy || mutation || editing || confirmDelete || deleted) return;
+    const timer = setInterval(() => setAttempt((value) => value + 1), 20_000);
+    return () => clearInterval(timer);
+  }, [userId, busy, mutation, editing, confirmDelete, deleted]);
   const current = state.userId === userId ? state : { errand: null, error: "", loading: true };
   const errand = current.errand; const owner = errand?.requesterId === userId; const admin = auth.user?.isAdmin === true;
   const editable = owner && errand?.status === "OPEN" && !errand.courierId;
@@ -30,7 +37,7 @@ function ErrandDetailContent({ id }: { id: string }) {
       const result = input.operationId ? await authenticatedRequest<ErrandOperation>(`errand-operations/${input.operationId}`) : await authenticatedRequest<ErrandOperation>(`errands/${id}`, input.body, input.method);
       if (result.status === "PENDING") { setMutation({ ...input, operationId: result.operationId }); setMessage("Your change is still being processed. Check its status shortly."); }
       else if (result.status === "FAILED") { setMutation(null); setError("The change could not be completed. No changes were applied. Reload the errand before trying again."); credits.refresh(); }
-      else { setMutation(null); setEditing(false); setConfirmDelete(false); credits.refresh(); if (input.method === "DELETE") setDeleted(true); else { if (result.errand) setState({ userId, errand: result.errand, error: "", loading: false }); setMessage("Errand updated."); } }
+      else { setMutation(null); setEditing(false); setConfirmDelete(false); credits.refresh(); if (input.method === "DELETE" && result.errand?.status !== "CANCELLED") setDeleted(true); else if (input.method === "DELETE") { if (result.errand) setState({ userId, errand: result.errand, error: "", loading: false }); setMessage("Request cancelled. Reserved credits have been released."); } else { if (result.errand) setState({ userId, errand: result.errand, error: "", loading: false }); setMessage("Errand updated."); } }
     } catch (failure) {
       if (failure instanceof ApiError && failure.status >= 400 && failure.status < 500 && ![408, 429].includes(failure.status)) setMutation(null);
       setError(failure instanceof Error ? failure.message : "Unable to save your change.");
@@ -46,14 +53,19 @@ function ErrandDetailContent({ id }: { id: string }) {
         <div><dt>Errand ID</dt><dd>{errand.id}</dd></div>
         <div><dt>Pickup location</dt><dd>{errand.pickupLocationLabel}</dd></div>
         <div><dt>Deliver to</dt><dd>{errand.deliveryDestination}</dd></div><div><dt>Instructions</dt><dd>{errand.instructions}</dd></div>
-        <div><dt>Offered credits</dt><dd>{errand.offeredCredits.toLocaleString()} credits</dd></div><div><dt>Status</dt><dd>{errand.status}</dd></div>
+        <div><dt>Offered credits</dt><dd>{errand.offeredCredits.toLocaleString()} credits</dd></div><div><dt>Status</dt><dd><ErrandStatus status={errand.status} /></dd></div>
         <div><dt>Requester</dt><dd>{owner ? auth.user.username : errand.requesterUsername || "Unavailable user"}</dd></div>{errand.courierId && <div><dt>Courier</dt><dd>{errand.courierId}</dd></div>}
         <div><dt>Created</dt><dd>{new Date(errand.createdAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</dd></div><div><dt>Last updated</dt><dd>{new Date(errand.updatedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</dd></div>
       </dl>
+      <div className="errand-lifecycle-dates">{([
+        ["Accepted", errand.acceptedAt], ["Picked up", errand.pickedUpAt], ["Delivered", errand.deliveredAt], ["Disputed", errand.disputedAt], ["Completed", errand.completedAt], ["Cancelled", errand.cancelledAt], ["Expired", errand.expiredAt], ["Expires", errand.expiresAt],
+      ] as const).filter(([, value]) => value).map(([label, value]) => <p key={label}>{label}: <time dateTime={value!}>{new Date(value!).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</time></p>)}</div>
+      <button className="button button-light" disabled={busy || !!mutation || editing} onClick={() => setAttempt((value) => value + 1)}>Refresh status</button>
+      <ErrandActions errand={errand} userId={auth.user.id} disabled={!!mutation || editing || confirmDelete} onBusy={setBusy} onRefresh={() => setAttempt((value) => value + 1)} onUpdated={(next) => { setState({ userId, errand: next, error: "", loading: false }); setEditing(false); setConfirmDelete(false); }} />
       {message && <p role="status">{message}</p>}{error && <p role="alert">{error}</p>}
       {mutation ? <button className="button button-dark" disabled={busy} onClick={() => void apply(mutation)}>{busy ? "Processing…" : mutation.operationId ? "Check change status" : "Retry this change"}</button> : <>
-        {editable && !editing && <button className="button button-edit" onClick={() => { setEditing(true); setConfirmDelete(false); }}>Edit errand</button>}
-        {deletable && !confirmDelete && <button className="button button-delete" onClick={() => { setConfirmDelete(true); setEditing(false); }}>Delete errand</button>}
+        {editable && !editing && <button className="button button-edit" disabled={busy} onClick={() => { setEditing(true); setConfirmDelete(false); }}>Edit errand</button>}
+        {deletable && !confirmDelete && <button className="button button-delete" disabled={busy} onClick={() => { setConfirmDelete(true); setEditing(false); }}>Delete errand</button>}
       </>}
       {confirmDelete && !mutation && <div className="errand-delete-confirm"><p>Delete this request? Reserved credits will be returned. This cannot be undone.</p><button className="button button-delete" disabled={busy} onClick={() => void apply({ method: "DELETE", body: { idempotencyKey: crypto.randomUUID() } })}>Confirm delete</button><button className="button button-light" onClick={() => setConfirmDelete(false)}>Keep errand</button></div>}
       {editing && <form className="account-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const description = String(data.get("description")).trim(), deliveryDestination = String(data.get("deliveryDestination")).trim(), instructions = String(data.get("instructions")).trim(); if (!description || !deliveryDestination || !instructions) { setError("Complete all required fields."); return; } void apply({ method: "PATCH", body: { idempotencyKey: crypto.randomUUID(), expectedVersion: errand.version, description, deliveryDestination, instructions, offeredCredits: Number(data.get("offeredCredits")) } }); }}>

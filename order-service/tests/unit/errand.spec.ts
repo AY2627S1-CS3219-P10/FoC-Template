@@ -1,6 +1,8 @@
 import {
   assertEditable,
   assertEditFields,
+  EXPIRY_HOURS,
+  expiryFor,
   normalized,
 } from '../../src/domain/errand';
 import type { ErrandRecord } from '../../src/domain/errand';
@@ -18,9 +20,23 @@ const errand: ErrandRecord = {
   deliveryDestination: 'Library',
   instructions: 'Call on arrival',
   offeredCredits: 10,
+  itemType: 'NON_PERISHABLE',
+  expiresAt: new Date(),
   createdAt: new Date(),
   updatedAt: new Date(),
 };
+describe('D-018 item type expiry', () => {
+  it('gives FOOD 2 h and NON_PERISHABLE 24 h from creation', () => {
+    const created = new Date('2026-10-18T10:00:00.123Z');
+    expect(expiryFor(created, 'FOOD').toISOString()).toBe(
+      '2026-10-18T12:00:00.123Z',
+    );
+    expect(expiryFor(created, 'NON_PERISHABLE').toISOString()).toBe(
+      '2026-10-19T10:00:00.123Z',
+    );
+    expect(EXPIRY_HOURS).toEqual({ FOOD: 2, NON_PERISHABLE: 24 });
+  });
+});
 describe('FR4 edit rules', () => {
   it('allows only the requester to edit an OPEN unassigned errand at the current version', () => {
     expect(() => assertEditable(errand, 'requester', 0)).not.toThrow();
@@ -28,8 +44,9 @@ describe('FR4 edit rules', () => {
   });
   it.each([
     'ACCEPTED',
-    'IN_PROGRESS',
+    'PICKED_UP',
     'DELIVERED',
+    'DISPUTED',
     'COMPLETED',
     'CANCELLED',
     'EXPIRED',

@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { isUUID } from 'class-validator';
 import { OrderError } from '../domain/errand';
 import type { ErrandDetails } from '../domain/errand';
+import { CORRELATION_HEADER, currentCorrelationId } from './correlation';
+
+function correlationHeader(): Record<string, string> {
+  const id = currentCorrelationId();
+  return id ? { [CORRELATION_HEADER]: id } : {};
+}
 
 export class UpstreamFailure extends Error {
   constructor(
@@ -29,6 +35,7 @@ export class ServiceClients {
         method: body ? 'POST' : 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
+          ...correlationHeader(),
           ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
         body: body ? JSON.stringify(body) : undefined,

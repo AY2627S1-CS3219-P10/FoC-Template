@@ -6,6 +6,7 @@ import {
   Get,
   Header,
   Headers,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -22,7 +23,9 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -36,6 +39,7 @@ import {
   EditErrandDto,
   ErrandResponse,
   ListErrandsDto,
+  ManageErrandsDto,
   OperationResponse,
 } from './dto';
 
@@ -59,16 +63,35 @@ export class OrderController {
   @Get('manage')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({
-    summary: 'List your requests, or all requests for administrators',
+    summary:
+      "List your requests, or all requests (or one requester's via requesterId) for administrators",
   })
   @ApiOkResponse({ type: [ErrandResponse] })
   managed(
-    @Query() query: ListErrandsDto,
+    @Query() query: ManageErrandsDto,
     @Req() request: AuthenticatedRequest,
   ) {
     return this.service.managed(
       request.userId,
       request.accessToken,
+      query.limit ?? 50,
+      query.offset ?? 0,
+      query.sort,
+      query.requesterId,
+    );
+  }
+  @Get('assigned')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'List errands you accepted as courier, in any status',
+  })
+  @ApiOkResponse({ type: [ErrandResponse] })
+  assigned(
+    @Query() query: ListErrandsDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.assigned(
+      request.userId,
       query.limit ?? 50,
       query.offset ?? 0,
       query.sort,
@@ -150,6 +173,133 @@ export class OrderController {
     reply.status(result.status === 'SUCCEEDED' ? 200 : 202);
     return result;
   }
+  @Post(':id/accept')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Accept an OPEN, unassigned errand as its courier; one winner under concurrency',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({
+    description:
+      'Requesters cannot accept their own errand; ERRAND_COURIER_EXCLUDED after a courier cancel or missed pickup',
+  })
+  @ApiNotFoundResponse({ description: 'Missing or deleted errand' })
+  @ApiConflictResponse({
+    description:
+      'Already accepted by someone else, not OPEN, or a change is pending',
+  })
+  accept(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.accept(id, request.userId, request.accessToken);
+  }
+  @Post(':id/pickup')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Assigned courier: mark an ACCEPTED errand as PICKED_UP',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the assigned courier' })
+  @ApiConflictResponse({ description: 'Errand is not ACCEPTED' })
+  pickup(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.pickup(id, request.userId, request.accessToken);
+  }
+  @Post(':id/deliver')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Assigned courier: mark a PICKED_UP errand as DELIVERED',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the assigned courier' })
+  @ApiConflictResponse({ description: 'Errand is not PICKED_UP' })
+  deliver(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.deliver(id, request.userId, request.accessToken);
+  }
+  @Post(':id/dispute')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Requester: dispute a DELIVERED errand; credits stay reserved until resolved',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the requester' })
+  @ApiConflictResponse({ description: 'Errand is not DELIVERED' })
+  dispute(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.dispute(id, request.userId, request.accessToken);
+  }
+  @Post(':id/confirm')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Requester: confirm a DELIVERED (or early, PICKED_UP) errand; pays the courier via errand.completed.v1',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the requester' })
+  @ApiConflictResponse({ description: 'Errand is not PICKED_UP or DELIVERED' })
+  confirm(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.confirm(id, request.userId, request.accessToken);
+  }
+  @Post(':id/courier-cancel')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Assigned courier: give an ACCEPTED errand back; it reopens and you cannot accept it again',
+  })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the assigned courier' })
+  @ApiConflictResponse({
+    description: 'Errand is not ACCEPTED (after pickup: Q-020)',
+  })
+  courierCancel(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.courierCancel(id, request.userId, request.accessToken);
+  }
+  @Post(':id/cancel')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Requester: cancel an OPEN or ACCEPTED errand and release the reserved credits',
+  })
+  @ApiOkResponse({ type: OperationResponse })
+  @ApiAcceptedResponse({
+    type: OperationResponse,
+    description: 'The release continues durably; poll the operation.',
+  })
+  @ApiForbiddenResponse({ description: 'Not the requester' })
+  @ApiConflictResponse({
+    description: 'Picked up or later, or another change is pending',
+  })
+  async cancel(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const result = await this.service.cancel(request.userId, id);
+    reply.status(result.status === 'SUCCEEDED' ? 200 : 202);
+    return result;
+  }
   @Delete(':id')
   @Header('Cache-Control', 'no-store')
   @ApiHeader({
@@ -159,7 +309,7 @@ export class OrderController {
   })
   @ApiOperation({
     summary:
-      'Delete your request, or any request as administrator; release reserved credits',
+      'Cancel your OPEN or ACCEPTED request (same as POST …/cancel), or delete any request as administrator; release reserved credits',
   })
   @ApiOkResponse({ type: OperationResponse })
   @ApiAcceptedResponse({ type: OperationResponse })

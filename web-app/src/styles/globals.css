@@ -1931,3 +1931,11 @@ hr {
 .errand-card-heading .header-credits { justify-self: end; height: 28px; min-height: 28px; padding: 3px 8px; }
 .errand-sort { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 18px 0; font-weight: 600; }
 .errand-sort select { max-width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
+.errand-status { display: inline-flex; align-items: center; padding: 4px 10px; margin-bottom: 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #f1f1ee; color: #41483f; }
+.errand-status-open, .errand-status-completed { background: #e6f4e9; color: #215b35; }
+.errand-status-accepted, .errand-status-picked_up { background: #e6eefb; color: #254c87; }
+.errand-status-delivered { background: #fff3d6; color: #765400; }
+.errand-status-disputed, .errand-status-cancelled { background: #fce8e8; color: #972c2c; }
+.errand-actions { margin: 16px 0; }
+.errand-action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.errand-lifecycle-dates { margin: 12px 0; font-size: 14px; color: var(--muted); }
