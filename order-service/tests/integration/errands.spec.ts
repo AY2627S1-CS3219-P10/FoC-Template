@@ -1469,6 +1469,192 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       await prisma.errandOperation.count({ where: { kind: 'EXPIRE' } }),
     ).toBe(1);
   });
+  const statusOf = async (id: string) =>
+    (await prisma.errand.findUniqueOrThrow({ where: { id } })).status;
+  const historyOf = (id: string) =>
+    prisma.errandHistory.findMany({
+      where: { errandId: id },
+      orderBy: { occurredAt: 'asc' },
+    });
+  it('F race: cancel vs 10 accepts always ends CANCELLED with one release; at most one courier got in first', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = (await create()).json().errand.id;
+      const before = await releases();
+      const [cancelled, ...accepts] = await Promise.all([
+        cancel(id),
+        ...Array.from({ length: 10 }, (_, n) => accept(id, `courier-${n + 1}`)),
+      ]);
+      expect(cancelled.statusCode).toBe(200);
+      const won = accepts.filter((response) => response.statusCode === 200);
+      expect(won.length).toBeLessThanOrEqual(1);
+      expect(
+        accepts.every((response) => [200, 409].includes(response.statusCode)),
+      ).toBe(true);
+      expect(await prisma.errand.findUnique({ where: { id } })).toMatchObject({
+        status: 'CANCELLED',
+        courierId: null,
+        pendingOperationId: null,
+      });
+      expect(await releases()).toBe(before + 1);
+      const history = await historyOf(id);
+      expect(history.map((row) => row.action)).toEqual(
+        won.length ? ['accept', 'cancel'] : ['cancel'],
+      );
+      if (won.length)
+        expect(history[1].courierId).toBe(won[0].json().courierId);
+    }
+    expect(await requesterBalance()).toEqual({
+      availableCredits: 100,
+      reservedCredits: 0,
+    });
+  });
+  it('F race: requester cancel vs courier pickup on ACCEPTED has exactly one winner', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = (await create()).json().errand.id;
+      await accept(id);
+      const before = await releases();
+      const [cancelled, picked] = await Promise.all([
+        cancel(id),
+        act(id, 'pickup', 'courier'),
+      ]);
+      const status = await statusOf(id);
+      if (status === 'CANCELLED') {
+        expect(cancelled.statusCode).toBe(200);
+        expect([403, 409]).toContain(picked.statusCode);
+        expect(await releases()).toBe(before + 1);
+      } else {
+        expect(status).toBe('PICKED_UP');
+        expect(picked.statusCode).toBe(200);
+        expect(cancelled.statusCode).toBe(409);
+        expect(await releases()).toBe(before);
+        expect(
+          await prisma.errandOperation.count({
+            where: { errandId: id, kind: 'CANCEL' },
+          }),
+        ).toBe(0);
+      }
+      // accept plus exactly one of cancel / pickup.
+      expect(await historyOf(id)).toHaveLength(2);
+    }
+  });
+  it('F race: courier cancel vs pickup by the same courier has exactly one winner', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = (await create({ ...input, offeredCredits: 5 })).json().errand
+        .id;
+      await accept(id);
+      const [given, picked] = await Promise.all([
+        act(id, 'courier-cancel', 'courier'),
+        act(id, 'pickup', 'courier'),
+      ]);
+      const errand = await prisma.errand.findUniqueOrThrow({ where: { id } });
+      const excluded = await prisma.errandExcludedCourier.count({
+        where: { errandId: id },
+      });
+      if (errand.status === 'OPEN') {
+        expect(given.statusCode).toBe(200);
+        expect([403, 409]).toContain(picked.statusCode);
+        expect(errand.courierId).toBeNull();
+        expect(excluded).toBe(1);
+      } else {
+        expect(errand).toMatchObject({ status: 'PICKED_UP', courierId });
+        expect(picked.statusCode).toBe(200);
+        expect(given.statusCode).toBe(409);
+        expect(excluded).toBe(0);
+      }
+      expect(errand.version).toBe(2);
+      expect(await historyOf(id)).toHaveLength(2);
+    }
+    expect(await releases()).toBe(0);
+  });
+  it('F race: the 30-minute reopen vs a pickup has exactly one winner', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = (await create({ ...input, offeredCredits: 5 })).json().errand
+        .id;
+      await accept(id);
+      await age(id, '31 minutes');
+      const [picked, reopened] = await Promise.all([
+        act(id, 'pickup', 'courier'),
+        service.reopen(id),
+      ]);
+      const errand = await prisma.errand.findUniqueOrThrow({ where: { id } });
+      if (reopened) {
+        expect(errand).toMatchObject({ status: 'OPEN', courierId: null });
+        expect([403, 409]).toContain(picked.statusCode);
+        expect(
+          await prisma.errandExcludedCourier.count({ where: { errandId: id } }),
+        ).toBe(1);
+      } else {
+        expect(errand).toMatchObject({ status: 'PICKED_UP', courierId });
+        expect(picked.statusCode).toBe(200);
+      }
+      expect(errand.version).toBe(2);
+      expect(await historyOf(id)).toHaveLength(2);
+    }
+  });
+  it('F race: expiry vs 10 accepts past the deadline ends EXPIRED with one release; before it, accept wins and expiry is a no-op', async () => {
+    for (let round = 0; round < 3; round++) {
+      const id = (await create({ ...input, itemType: 'FOOD' })).json().errand
+        .id;
+      await ageCreated(id, '2 hours 1 second');
+      const before = await releases();
+      const results = await Promise.all([
+        ...Array.from({ length: 3 }, () => service.expire(id)),
+        ...Array.from({ length: 10 }, (_, n) => accept(id, `courier-${n + 1}`)),
+      ]);
+      const expired = results.slice(0, 3);
+      const accepts = results.slice(3) as Awaited<ReturnType<typeof accept>>[];
+      expect(expired.filter(Boolean)).toHaveLength(1);
+      expect(accepts.every((response) => response.statusCode === 409)).toBe(
+        true,
+      );
+      expect(await statusOf(id)).toBe('EXPIRED');
+      expect(await releases()).toBe(before + 1);
+      expect((await historyOf(id)).map((row) => row.action)).toEqual([
+        'expire',
+      ]);
+    }
+    const fresh = (await create({ ...input, itemType: 'FOOD' })).json().errand
+      .id;
+    const [expired, accepted] = await Promise.all([
+      service.expire(fresh),
+      accept(fresh),
+    ]);
+    expect(expired).toBe(false);
+    expect(accepted.statusCode).toBe(200);
+    expect(await statusOf(fresh)).toBe('ACCEPTED');
+  });
+  it('F race: confirm vs dispute vs the 4 h job on DELIVERED still has exactly one winner', async () => {
+    for (let round = 0; round < 5; round++) {
+      const id = await errandIn('DELIVERED');
+      await age(id, '5 hours');
+      const [confirmed, disputed, timed] = await Promise.all([
+        act(id, 'confirm', 'requester'),
+        act(id, 'dispute', 'requester'),
+        service.autoComplete(id),
+      ]);
+      const errand = await prisma.errand.findUniqueOrThrow({ where: { id } });
+      const events = await prisma.outboxEvent.count({
+        where: { aggregateId: id },
+      });
+      if (errand.status === 'DISPUTED') {
+        expect(disputed.statusCode).toBe(200);
+        expect(confirmed.statusCode).toBe(409);
+        expect(timed).toBe(false);
+        expect(events).toBe(0);
+      } else {
+        expect(errand.status).toBe('COMPLETED');
+        expect(disputed.statusCode).toBe(409);
+        // A confirm after the job is a repeat of the same outcome, so it is 200 too.
+        expect(confirmed.statusCode).toBe(200);
+        expect(errand.completionMethod).toBe(
+          timed ? 'AUTO_TIMEOUT' : 'REQUESTER_CONFIRMED',
+        );
+        expect(events).toBe(1);
+      }
+      // accept, pickup, deliver and exactly one of the three.
+      expect(await historyOf(id)).toHaveLength(4);
+    }
+  });
   it('reserves credits before publishing a uniquely identified OPEN errand and lists it', async () => {
     const response = await create();
     expect(response.statusCode).toBe(201);

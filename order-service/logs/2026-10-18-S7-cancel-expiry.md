@@ -77,3 +77,15 @@ _Written at the end of the pass by `order-change-summary`._
 - **Why:** same pattern as the 4 h timer so there is one way timers work: the deadline lives in Postgres and the job re-checks it, so a duplicate job or a late Redis cannot reopen an errand the courier already picked up.
 - **Verified:** `typecheck`, `lint` clean; `pnpm test` 347 passed; `pnpm test:integration` 50 passed.
 - **Follow-up:** none.
+
+### 24294b4 feat(order): requester-chosen item type with fixed expiry; OPEN errands expire and release credits (D-018, D-019)
+- **When:** 2026-10-18 14:51 · **Slice:** E · **Refs:** D-017, D-018, D-019, A-009
+- **Changed:**
+  - `migrations/202610180011_item_type_expiry`, `prisma/schema.prisma` — enum `ErrandItemType`, `item_type` (default NON_PERISHABLE), `expires_at` backfilled as `created_at + 24 h`, CHECK `errands_expiry_deadline`, partial index for the sweep, `OperationKind.EXPIRE`
+  - `src/domain/errand.ts`, `src/api/dto.ts` — `itemType` optional on create only (400 on bad values, PATCH rejects it), `expiresAt` in responses, `expiryFor()`
+  - `src/infrastructure/order.repository.ts` — create fixes `created_at`/`expires_at` from the DB clock; `expireIntent()` journals an EXPIRE release under the row lock only when due; `dueExpiries()`; accept refuses errands past the deadline
+  - `src/application/order.service.ts`, `timer.worker.ts` — `expire()` and an `expire-<id>` timer job; 409 `ERRAND_EXPIRED`; `availableForAcceptance` false once past the deadline
+  - tests — default 24 h / FOOD 2 h / invalid 400, expiry once with one release, ACCEPTED never expires, reopen keeps the deadline, lost release ack
+- **Why:** expiry releases credits, so it uses the same journal as cancel (D-019) and its pending lock blocks a late accept. The CHECK makes "the deadline never moves" a database fact, not a convention. A failed (non-retryable) expiry release is skipped by the sweeper rather than retried every 30 s.
+- **Verified:** `typecheck`, `lint` clean; `pnpm test` 349 passed; `pnpm test:integration` 54 passed; migrations 8–11 applied by hand to a DB with existing rows → both rows NON_PERISHABLE, `expires_at - created_at = 1 day`.
+- **Follow-up:** web-app sends no `itemType`, so its errands are all 24 h until its owner adds a control.
