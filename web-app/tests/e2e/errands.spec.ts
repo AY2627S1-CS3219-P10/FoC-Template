@@ -16,11 +16,13 @@ test("create an errand and refresh its listing and credit balance", async ({ pag
     created = true; return route.fulfill({ status: 201, json: { status: "SUCCEEDED", operationId: "operation", errand } });
   });
   await page.goto("/errands/create");
-  await expect(page.getByRole("option", { name: "Cafe", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: /Cafe · Library · Floor 1/ })).toHaveCount(1);
   await page.getByRole("combobox", { name: "Pickup location" }).selectOption("10000000-0000-4000-8000-000000000002");
   await page.getByLabel("Errand description").fill("Pick up my coffee"); await page.getByLabel("Delivery destination").fill("UTown entrance"); await page.getByLabel("Pickup or delivery instructions").fill("Meet downstairs"); await page.getByLabel("Offered credits").fill("20");
+  const preview = page.getByRole("complementary", { name: "Credit preview" });
+  await expect(preview).toContainText("Available now100"); await expect(preview).toContainText("Will reserve20"); await expect(preview).toContainText("Remaining80");
   await page.locator("form").getByRole("button", { name: "Create errand", exact: true }).click();
-  await expect(page.getByText("Errand created. Your offered credits have been reserved.")).toBeVisible(); await expect(page.getByLabel("Errand description")).toHaveValue(""); expect(creditCalls).toBeGreaterThan(1); await page.getByRole("link", { name: "Browse errands" }).click(); await expect(page.getByRole("article")).toContainText("Pick up my coffee");
+  await expect(page.getByText("Errand created. Your offered credits have been reserved.")).toBeVisible(); await expect(page.getByLabel("Errand description")).toHaveValue(""); expect(creditCalls).toBeGreaterThan(1); await expect(preview).toContainText("Available now80"); await expect(preview).toContainText("Already reserved20"); await page.getByRole("link", { name: "Browse errands" }).click(); await expect(page.getByRole("article")).toContainText("Pick up my coffee");
 });
 test("uncertain creation retries the identical request and pending creation can be checked", async ({ page }) => {
   await page.route("**/api/errands?*", (route) => route.fulfill({ json: [] }));
