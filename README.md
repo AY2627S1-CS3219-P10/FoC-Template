@@ -89,3 +89,23 @@ share its domain. Add another top-level service only when it has independent
 data ownership and deployment needs.
 
 Order Service FR4 implementation and manual PowerShell launch commands: [order-service/README.md](order-service/README.md).
+
+## Windows pnpm lockfile troubleshooting
+
+Use the repository-pinned pnpm version (currently 12.11.2) and Windows system certificates:
+
+```powershell
+$env:NODE_OPTIONS = "--use-system-ca"
+pnpm --version
+pnpm install --frozen-lockfile
+```
+
+If a merge left missing dependency snapshots or manifest/lock mismatches, repair from the repository root, then verify reproducibility:
+
+```powershell
+$env:NODE_OPTIONS = "--use-system-ca"
+pnpm install --fix-lockfile
+pnpm install --frozen-lockfile
+```
+
+User Service and Supplier Service have independent lockfiles; run their frozen installs from their respective directories. Keep the root pnpm-lock.yaml changes in source control. Its package-manager environment and application dependency data are separate YAML documents in the same file; both are required. Do not disable certificate or package-manager signature verification to work around verification errors.

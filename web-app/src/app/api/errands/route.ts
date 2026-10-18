@@ -5,7 +5,8 @@ export async function GET(request: NextRequest) {
   try {
     const query = new URLSearchParams();
     for (const key of ["limit", "offset", "sort"]) { const value = request.nextUrl.searchParams.get(key); if (value !== null) query.set(key, value); }
-    const path = request.nextUrl.searchParams.get("scope") === "manage" ? "errands/manage" : "errands";
+    const scope = request.nextUrl.searchParams.get("scope");
+    const path = scope === "manage" ? "errands/manage" : scope === "assigned" ? "errands/assigned" : "errands";
     return json(await backend<Errand[]>("order", `${path}?${query}`, { token: accessToken(request) }));
   } catch (error) { return errorResponse(error); }
 }

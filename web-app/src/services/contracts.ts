@@ -6,6 +6,17 @@ export interface ErrandOperation {
   errorCode?: string;
 }
 export interface Errand {
+  availableForAcceptance?: boolean;
+  acceptedAt?: string | null;
+  pickedUpAt?: string | null;
+  deliveredAt?: string | null;
+  disputedAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
+  expiredAt?: string | null;
+  expiresAt?: string;
+  completionMethod?: "REQUESTER_CONFIRMED" | "AUTO_TIMEOUT" | null;
+  itemType?: "FOOD" | "NON_PERISHABLE";
   requesterUsername?: string | null;
   id: string; requesterId: string; courierId: string | null; status: string;
   pickupLocationId: string; pickupSupplierName: string; pickupLocationLabel: string;
