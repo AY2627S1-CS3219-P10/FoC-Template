@@ -40,8 +40,10 @@ database. No other service should access that database directly.
   own balance, while administrators may read any balance.
 - Requester and courier identities must differ. This is enforced in both domain
   logic and PostgreSQL as defense in depth.
-- Database startup and migration retries are bounded to 55 seconds, keeping the
-  service within the 60-second recovery objective when PostgreSQL returns.
+- Container migration retries and application database-connection retries each
+  use the configured startup timeout independently. Because these phases run
+  sequentially and individual connection or migration attempts also take time,
+  this does not guarantee recovery within 60 seconds.
 
 ## API
 
@@ -73,7 +75,7 @@ whether an errand is completed or cancelled; Credit Service only validates and
 applies the corresponding credit state transition.
 
 Order Service (or the API gateway acting as a trusted backend) invokes the
-three mutation endpoints below over HTTP. The Web App must call them through
+four mutation endpoints below over HTTP. The Web App must call them through
 that trusted backend and must not settle or release credits directly:
 
 | Caller action | Endpoint | JSON body |
@@ -152,11 +154,16 @@ return the identifier in their JSON body and logs are structured JSON.
 
 ### Authentication
 
-Reservation `POST` endpoints require this internal service header:
+Internal mutation `POST` endpoints require a caller-scoped service token.
+Reservation, adjustment, settlement, and release requests use:
 
 ```http
 Authorization: Bearer <CREDIT_ORDER_SERVICE_TOKEN>
 ```
+
+Account initialization uses the same header format with
+`CREDIT_USER_SERVICE_TOKEN`. The guard verifies that each credential is used
+only for its designated caller and endpoint.
 
 Use independently generated random secrets of at least 32 characters and inject
 them through the deployment secret manager. A valid credential for the wrong
@@ -169,7 +176,8 @@ signature, issuer, audience, expiry, `sub`, `sid`, and `isAdmin` claims. A
 student may read only the account identified by their `sub`; an administrator
 may read any account. History is ordered newest first and accepts bounded
 `limit` (1-100) and `offset` (0-100,000) query parameters. Health checks remain
-public.
+public. Reads intentionally use local JWT validation, so revocation and role
+changes may be stale for the token's accepted 15-minute lifetime.
 
 ### Database indexes and expected scale
 

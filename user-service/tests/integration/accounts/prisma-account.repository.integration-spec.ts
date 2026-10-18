@@ -16,6 +16,8 @@ import { PrismaClient } from '../../../src/generated/prisma/client.js';
 
 import { MIGRATION_PATHS } from './migration-paths.js';
 const NOW = new Date('2026-09-20T02:00:00.000Z');
+const VERIFIED_EVENT_ID = '44190d22-9ee2-4655-b236-451afb0cb225';
+const SECOND_EVENT_ID = '12d316aa-4b82-4a06-b125-4c976a9b446f';
 
 const ACCOUNT: NewAccountRecord = {
   email: 'student@u.nus.edu',
@@ -60,6 +62,7 @@ describe('PrismaAccountRepository', () => {
   });
 
   beforeEach(async () => {
+    await prisma.outboxEvent.deleteMany();
     await prisma.user.deleteMany();
   });
 
@@ -136,7 +139,7 @@ describe('PrismaAccountRepository', () => {
     ]);
   });
 
-  it('atomically consumes a valid code and activates the account', async () => {
+  it('atomically activates the account and writes one user verified event', async () => {
     await repository.create(ACCOUNT);
     await verificationRepository.issueCode({
       codeHash: 'valid-code-hash',
@@ -151,6 +154,7 @@ describe('PrismaAccountRepository', () => {
       verificationRepository.verifyAndActivate({
         candidateCodeHash: 'valid-code-hash',
         email: ACCOUNT.email,
+        eventId: VERIFIED_EVENT_ID,
         maximumAttempts: 5,
         now: verificationTime,
       }),
@@ -161,6 +165,16 @@ describe('PrismaAccountRepository', () => {
       emailVerifiedAt: verificationTime,
       status: 'ACTIVE',
     });
+    await expect(prisma.outboxEvent.findMany()).resolves.toEqual([
+      expect.objectContaining({
+        aggregateId: ACCOUNT.id,
+        aggregateType: 'user',
+        eventType: 'user.verified.v1',
+        id: VERIFIED_EVENT_ID,
+        payload: { userId: ACCOUNT.id },
+        published: false,
+      }),
+    ]);
     await expect(
       verificationRepository.findPendingAccountByEmail(ACCOUNT.email),
     ).resolves.toBeNull();
@@ -168,10 +182,53 @@ describe('PrismaAccountRepository', () => {
       verificationRepository.verifyAndActivate({
         candidateCodeHash: 'valid-code-hash',
         email: ACCOUNT.email,
+        eventId: SECOND_EVENT_ID,
         maximumAttempts: 5,
         now: verificationTime,
       }),
     ).resolves.toBe(false);
+    await expect(prisma.outboxEvent.count()).resolves.toBe(1);
+  });
+
+  it('rolls back activation when the outbox insert fails', async () => {
+    await repository.create(ACCOUNT);
+    await verificationRepository.issueCode({
+      codeHash: 'valid-code-hash',
+      createdAt: NOW,
+      expiresAt: new Date(NOW.getTime() + 600_000),
+      id: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e',
+      userId: ACCOUNT.id,
+    });
+    await prisma.outboxEvent.create({
+      data: {
+        aggregateId: '77af9009-08e1-42f5-91d3-516920f0c571',
+        aggregateType: 'test',
+        eventType: 'test.event.v1',
+        id: VERIFIED_EVENT_ID,
+        payload: {},
+      },
+    });
+
+    await expect(
+      verificationRepository.verifyAndActivate({
+        candidateCodeHash: 'valid-code-hash',
+        email: ACCOUNT.email,
+        eventId: VERIFIED_EVENT_ID,
+        maximumAttempts: 5,
+        now: new Date(NOW.getTime() + 1_000),
+      }),
+    ).rejects.toBeDefined();
+    await expect(
+      prisma.user.findUnique({ where: { id: ACCOUNT.id } }),
+    ).resolves.toMatchObject({
+      emailVerifiedAt: null,
+      status: 'PENDING_VERIFICATION',
+    });
+    await expect(
+      prisma.emailVerificationCode.findUnique({
+        where: { id: '9fa02524-f606-4e1d-8cef-bfa0cf884e3e' },
+      }),
+    ).resolves.toMatchObject({ usedAt: null });
   });
 
   it('blocks verification after five incorrect attempts', async () => {
@@ -185,6 +242,7 @@ describe('PrismaAccountRepository', () => {
     });
     const input = {
       email: ACCOUNT.email,
+      eventId: VERIFIED_EVENT_ID,
       maximumAttempts: 5,
       now: new Date(NOW.getTime() + 1_000),
     };
@@ -212,5 +270,6 @@ describe('PrismaAccountRepository', () => {
     await expect(
       prisma.user.findUnique({ where: { id: ACCOUNT.id } }),
     ).resolves.toMatchObject({ status: 'PENDING_VERIFICATION' });
+    await expect(prisma.outboxEvent.count()).resolves.toBe(0);
   });
 });

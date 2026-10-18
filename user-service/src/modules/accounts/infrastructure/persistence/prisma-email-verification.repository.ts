@@ -4,6 +4,7 @@ import type {
   VerifyEmailInput,
 } from '../../application/ports/email-verification-repository.port.js';
 import {
+  type Prisma,
   type PrismaClient,
   UserStatus,
 } from '../../../../generated/prisma/client.js';
@@ -117,6 +118,16 @@ export class PrismaEmailVerificationRepository implements EmailVerificationRepos
           status: UserStatus.ACTIVE,
         },
         where: { id: account.id },
+      });
+      await transaction.outboxEvent.create({
+        data: {
+          aggregateId: account.id,
+          aggregateType: 'user',
+          createdAt: input.now,
+          eventType: 'user.verified.v1',
+          id: input.eventId,
+          payload: { userId: account.id } satisfies Prisma.InputJsonObject,
+        },
       });
 
       return true;

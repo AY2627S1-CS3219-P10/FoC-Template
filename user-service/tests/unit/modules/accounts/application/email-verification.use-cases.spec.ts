@@ -19,6 +19,7 @@ import {
 import { AccountValidationError } from '../../../../../src/modules/accounts/domain/account-validation.error.js';
 
 const NOW = new Date('2026-09-20T02:00:00.000Z');
+const VERIFIED_EVENT_ID = '44190d22-9ee2-4655-b236-451afb0cb225';
 
 class FixedClock implements ClockPort {
   now(): Date {
@@ -44,6 +45,15 @@ class StubCodeHasher implements VerificationCodeHasherPort {
 class StubIdGenerator implements IdGeneratorPort {
   generate(): string {
     return 'a23394c1-c131-4b77-bf0d-c39bc11bf81e';
+  }
+}
+
+class StubEventIdGenerator implements IdGeneratorPort {
+  calls = 0;
+
+  generate(): string {
+    this.calls += 1;
+    return VERIFIED_EVENT_ID;
   }
 }
 
@@ -121,9 +131,11 @@ describe('email verification use cases', () => {
 
   it('verifies a normalized NUS email with the configured attempt limit', async () => {
     const repository = new StubEmailVerificationRepository();
+    const idGenerator = new StubEventIdGenerator();
     const useCase = new VerifyEmailUseCase({
       clock: new FixedClock(),
       codeHasher: new StubCodeHasher(),
+      idGenerator,
       repository,
     });
 
@@ -137,10 +149,12 @@ describe('email verification use cases', () => {
       {
         candidateCodeHash: 'hashed:042731',
         email: 'student@u.nus.edu',
+        eventId: VERIFIED_EVENT_ID,
         maximumAttempts: MAXIMUM_EMAIL_VERIFICATION_ATTEMPTS,
         now: NOW,
       },
     ]);
+    expect(idGenerator.calls).toBe(1);
   });
 
   it('returns one generic error for invalid, expired, or exhausted codes', async () => {
@@ -149,6 +163,7 @@ describe('email verification use cases', () => {
     const useCase = new VerifyEmailUseCase({
       clock: new FixedClock(),
       codeHasher: new StubCodeHasher(),
+      idGenerator: new StubEventIdGenerator(),
       repository,
     });
 
@@ -164,6 +179,7 @@ describe('email verification use cases', () => {
     const useCase = new VerifyEmailUseCase({
       clock: new FixedClock(),
       codeHasher: new StubCodeHasher(),
+      idGenerator: new StubEventIdGenerator(),
       repository,
     });
 

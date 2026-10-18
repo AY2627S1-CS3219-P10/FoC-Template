@@ -4,6 +4,8 @@ import { SupplierLocationNotFoundError } from '../../application/errors/supplier
 import { SupplierNotFoundError } from '../../application/errors/supplier-not-found.error.js';
 import type {
   CreateSupplierRecord,
+  FindSupplierDuplicatesInput,
+  PossibleSupplierDuplicate,
   SupplierManagementRepositoryPort,
   UpdateSupplierLocationRecord,
   UpdateSupplierRecord,
@@ -14,11 +16,40 @@ import type {
   SupplierLocationCatalogEntry,
 } from '../../domain/supplier-catalog.js';
 import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
+import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
+import { PossibleSupplierDuplicateError } from '../../application/errors/possible-supplier-duplicate.error.js';
 
 type SupplierWithLocations = Prisma.SupplierGetPayload<{
   include: { locations: true };
 }>;
 type SupplierLocationRecord = SupplierWithLocations['locations'][number];
+
+function isTransactionWriteConflict(error: unknown): boolean {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2034'
+  )
+    return true;
+  // The pg adapter can surface a commit conflict directly rather than wrapping it in P2034.
+  return (
+    error instanceof Error &&
+    error.name === 'DriverAdapterError' &&
+    typeof error.cause === 'object' &&
+    error.cause !== null &&
+    'kind' in error.cause &&
+    error.cause.kind === 'TransactionWriteConflict'
+  );
+}
+
+function uniqueConstraintTarget(
+  error: Prisma.PrismaClientKnownRequestError,
+): string {
+  const adapterError = error.meta?.driverAdapterError as
+    { cause?: { constraint?: unknown } } | undefined;
+  return JSON.stringify(
+    error.meta?.target ?? adapterError?.cause?.constraint ?? '',
+  ).toLowerCase();
+}
 
 const ACTIVE_CATALOG_QUERY = {
   include: {
@@ -62,12 +93,18 @@ export class PrismaSupplierCatalogRepository
       },
     });
 
-    return locations.map((location) => ({
-      building: location.building,
-      id: location.id,
-      latitude: location.latitude.toNumber(),
-      longitude: location.longitude.toNumber(),
-    }));
+    return locations.flatMap((location) =>
+      location.latitude === null || location.longitude === null
+        ? []
+        : [
+            {
+              building: location.building,
+              id: location.id,
+              latitude: location.latitude.toNumber(),
+              longitude: location.longitude.toNumber(),
+            },
+          ],
+    );
   }
 
   async findCampusLocationById(
@@ -83,7 +120,7 @@ export class PrismaSupplierCatalogRepository
       where: { id: campusLocationId },
     });
 
-    return location
+    return location && location.latitude !== null && location.longitude !== null
       ? {
           building: location.building,
           id: location.id,
@@ -96,35 +133,115 @@ export class PrismaSupplierCatalogRepository
   async createSupplier(
     record: CreateSupplierRecord,
   ): Promise<SupplierCatalogEntry> {
-    try {
-      const supplier = await this.prisma.supplier.create({
-        data: {
-          category: record.category,
-          locations: {
-            create: record.location,
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const supplier = await this.prisma.$transaction(
+          async (transaction) => {
+            await this.assertLocationAvailable(
+              transaction,
+              record.category,
+              record.location.building,
+              record.location.floor,
+              undefined,
+              undefined,
+              {
+                confirmed: record.confirmDistinctOutlet,
+                description: record.location.locationDescription,
+              },
+            );
+            // The case-insensitive name identifies the brand; building and floor identify an outlet.
+            const owner = await transaction.supplier.upsert({
+              where: { name: record.name },
+              create: { name: record.name, category: record.category },
+              update: {},
+            });
+            if (owner.category !== record.category) {
+              throw new SupplierValidationError(
+                'category',
+                'SUPPLIER_CATEGORY_MISMATCH',
+                `This supplier already exists with category ${owner.category}. Use its existing category when adding an outlet.`,
+              );
+            }
+            if (!owner.isActive) {
+              throw new SupplierValidationError(
+                'supplier',
+                'SUPPLIER_INACTIVE',
+                'Cannot add an outlet to an inactive supplier.',
+              );
+            }
+            return transaction.supplier.update({
+              where: { id: owner.id },
+              data: {
+                locations: {
+                  create: {
+                    ...record.location,
+                    supplierAtLocation: `${owner.name}@${record.location.building}`,
+                  },
+                },
+              },
+              include: { locations: true },
+            });
           },
-          name: record.name,
-        },
-        include: { locations: true },
-      });
-
-      return this.mapSupplier(supplier);
-    } catch (error: unknown) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        const target = JSON.stringify(error.meta?.target ?? '').toLowerCase();
-
-        throw new SupplierAlreadyExistsError(
-          target.includes('supplier_at_location')
-            ? 'supplierAtLocation'
-            : 'name',
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
-      }
+        return this.mapSupplier(supplier);
+      } catch (error: unknown) {
+        if (
+          (isTransactionWriteConflict(error) ||
+            (error instanceof Prisma.PrismaClientKnownRequestError &&
+              error.code === 'P2002' &&
+              uniqueConstraintTarget(error).includes('name'))) &&
+          attempt < 2
+        ) {
+          continue;
+        }
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          // Prisma's pg adapter may nest constraint fields under driverAdapterError.
+          const target = uniqueConstraintTarget(error);
+          throw new SupplierAlreadyExistsError(
+            target.includes('name') ? 'name' : 'supplierAtLocation',
+          );
+        }
 
-      throw error;
+        throw error;
+      }
     }
+    throw new Error('Supplier creation retry limit reached.');
+  }
+
+  async findPossibleDuplicates(
+    input: FindSupplierDuplicatesInput,
+  ): Promise<PossibleSupplierDuplicate[]> {
+    const locations = await this.prisma.supplierLocation.findMany({
+      where: {
+        building: { equals: input.building, mode: 'insensitive' },
+        floor: input.floor,
+        isActive: true,
+        supplier: { category: input.category, isActive: true },
+        ...(input.excludeLocationId
+          ? { id: { not: input.excludeLocationId } }
+          : {}),
+      },
+      select: {
+        id: true,
+        supplierId: true,
+        building: true,
+        floor: true,
+        locationDescription: true,
+        supplier: { select: { name: true } },
+      },
+    });
+    return locations.map((location) => ({
+      supplierId: location.supplierId,
+      supplierName: location.supplier.name,
+      locationId: location.id,
+      building: location.building,
+      floor: location.floor,
+      locationDescription: location.locationDescription,
+    }));
   }
 
   async deactivateSupplier(supplierId: string): Promise<void> {
@@ -152,52 +269,90 @@ export class PrismaSupplierCatalogRepository
   async updateSupplier(
     record: UpdateSupplierRecord,
   ): Promise<SupplierCatalogEntry> {
-    const existingSupplier = await this.prisma.supplier.findUnique({
-      select: {
-        locations: {
-          select: { building: true, id: true },
-        },
-      },
-      where: { id: record.id },
-    });
-
-    if (!existingSupplier) {
-      throw new SupplierNotFoundError(record.id);
-    }
-
     try {
-      const supplier = await this.prisma.supplier.update({
-        data: {
-          category: record.category,
-          locations:
-            record.name === undefined
-              ? undefined
-              : {
-                  update: existingSupplier.locations.map((location) => ({
-                    data: {
-                      supplierAtLocation: `${record.name}@${location.building}`,
-                    },
-                    where: { id: location.id },
-                  })),
-                },
-          name: record.name,
-        },
-        include: { locations: true },
-        where: { id: record.id },
-      });
+      return await this.inSerializableTransaction(async (transaction) => {
+        const existingSupplier = await transaction.supplier.findUnique({
+          select: {
+            category: true,
+            locations: {
+              select: {
+                building: true,
+                id: true,
+                floor: true,
+                locationDescription: true,
+              },
+            },
+          },
+          where: { id: record.id },
+        });
 
-      return this.mapSupplier(supplier);
+        if (!existingSupplier) {
+          throw new SupplierNotFoundError(record.id);
+        }
+
+        if (
+          record.category !== undefined &&
+          record.category !== existingSupplier.category
+        ) {
+          const categoryMatches: PossibleSupplierDuplicate[] = [];
+          for (const location of existingSupplier.locations) {
+            try {
+              await this.assertLocationAvailable(
+                transaction,
+                record.category,
+                location.building,
+                location.floor,
+                location.id,
+                record.id,
+                {
+                  confirmed: record.confirmDistinctOutlet,
+                  description: location.locationDescription,
+                },
+              );
+            } catch (error) {
+              if (error instanceof PossibleSupplierDuplicateError)
+                categoryMatches.push(...error.matches);
+              else throw error;
+            }
+          }
+          if (categoryMatches.length)
+            throw new PossibleSupplierDuplicateError([
+              ...new Map(
+                categoryMatches.map((match) => [match.locationId, match]),
+              ).values(),
+            ]);
+        }
+        const supplier = await transaction.supplier.update({
+          data: {
+            category: record.category,
+            locations:
+              record.name === undefined
+                ? undefined
+                : {
+                    update: existingSupplier.locations.map((location) => ({
+                      data: {
+                        supplierAtLocation: `${record.name}@${location.building}`,
+                      },
+                      where: { id: location.id },
+                    })),
+                  },
+            name: record.name,
+          },
+          include: { locations: true },
+          where: { id: record.id },
+        });
+
+        return this.mapSupplier(supplier);
+      });
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        const target = JSON.stringify(error.meta?.target ?? '').toLowerCase();
+        const target = uniqueConstraintTarget(error);
 
         throw new SupplierAlreadyExistsError(
-          target.includes('supplier_at_location')
-            ? 'supplierAtLocation'
-            : 'name',
+          target.includes('name') ? 'name' : 'supplierAtLocation',
         );
       }
 
@@ -215,43 +370,67 @@ export class PrismaSupplierCatalogRepository
   async updateSupplierLocation(
     record: UpdateSupplierLocationRecord,
   ): Promise<SupplierLocationCatalogEntry> {
-    const existingLocation = await this.prisma.supplierLocation.findFirst({
-      include: { supplier: { select: { name: true } } },
-      where: {
-        id: record.locationId,
-        supplierId: record.supplierId,
-      },
-    });
-
-    if (!existingLocation) {
-      throw new SupplierLocationNotFoundError(
-        record.supplierId,
-        record.locationId,
-      );
-    }
-
-    const building = record.building ?? existingLocation.building;
-    const opensAt = record.opensAt ?? existingLocation.opensAt;
-    const closesAt = record.closesAt ?? existingLocation.closesAt;
-
     try {
-      const location = await this.prisma.supplierLocation.update({
-        data: {
-          building: record.building,
-          closesAt: record.closesAt,
-          floor: record.floor,
-          imageUrl: record.imageUrl,
-          isOpenOvernight: closesAt.getTime() < opensAt.getTime(),
-          latitude: record.latitude,
-          locationDescription: record.locationDescription,
-          longitude: record.longitude,
-          opensAt: record.opensAt,
-          supplierAtLocation: `${existingLocation.supplier.name}@${building}`,
-        },
-        where: { id: record.locationId },
-      });
+      return await this.inSerializableTransaction(async (transaction) => {
+        const existingLocation = await transaction.supplierLocation.findFirst({
+          include: { supplier: { select: { name: true, category: true } } },
+          where: {
+            id: record.locationId,
+            supplierId: record.supplierId,
+          },
+        });
 
-      return this.mapLocation(location);
+        if (!existingLocation) {
+          throw new SupplierLocationNotFoundError(
+            record.supplierId,
+            record.locationId,
+          );
+        }
+
+        const building = record.building ?? existingLocation.building;
+        const opensAt = record.opensAt ?? existingLocation.opensAt;
+        const closesAt = record.closesAt ?? existingLocation.closesAt;
+
+        const floor = record.floor ?? existingLocation.floor;
+        if (
+          building.toLowerCase() !== existingLocation.building.toLowerCase() ||
+          floor !== existingLocation.floor ||
+          (record.locationDescription !== undefined &&
+            record.locationDescription !== existingLocation.locationDescription)
+        ) {
+          await this.assertLocationAvailable(
+            transaction,
+            existingLocation.supplier.category,
+            building,
+            floor,
+            record.locationId,
+            undefined,
+            {
+              confirmed: record.confirmDistinctOutlet,
+              description:
+                record.locationDescription ??
+                existingLocation.locationDescription,
+            },
+          );
+        }
+        const location = await transaction.supplierLocation.update({
+          data: {
+            building: record.building,
+            closesAt: record.closesAt,
+            floor: record.floor,
+            imageUrl: record.imageUrl,
+            isOpenOvernight: closesAt.getTime() < opensAt.getTime(),
+            latitude: record.latitude,
+            locationDescription: record.locationDescription,
+            longitude: record.longitude,
+            opensAt: record.opensAt,
+            supplierAtLocation: `${existingLocation.supplier.name}@${building}`,
+          },
+          where: { id: record.locationId },
+        });
+
+        return this.mapLocation(location);
+      });
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -271,6 +450,73 @@ export class PrismaSupplierCatalogRepository
       }
 
       throw error;
+    }
+  }
+
+  private async inSerializableTransaction<T>(
+    operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(operation, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        });
+      } catch (error) {
+        if (isTransactionWriteConflict(error) && attempt < 2) continue;
+        throw error;
+      }
+    }
+  }
+
+  private async assertLocationAvailable(
+    transaction: Prisma.TransactionClient,
+    category: CreateSupplierRecord['category'],
+    building: string,
+    floor: number | null,
+    excludeLocationId?: string,
+    excludeSupplierId?: string,
+    confirmation?: { confirmed?: boolean; description: string },
+  ): Promise<void> {
+    const existing = await transaction.supplierLocation.findMany({
+      where: {
+        building: { equals: building, mode: 'insensitive' },
+        floor,
+        isActive: true,
+        supplier: { category, isActive: true },
+        ...(excludeLocationId ? { id: { not: excludeLocationId } } : {}),
+        ...(excludeSupplierId
+          ? { supplierId: { not: excludeSupplierId } }
+          : {}),
+      },
+      select: {
+        id: true,
+        supplierId: true,
+        building: true,
+        floor: true,
+        locationDescription: true,
+        supplier: { select: { name: true } },
+      },
+    });
+    const matches = existing.map((location) => ({
+      supplierId: location.supplierId,
+      supplierName: location.supplier.name,
+      locationId: location.id,
+      building: location.building,
+      floor: location.floor,
+      locationDescription: location.locationDescription,
+    }));
+    if (matches.length && confirmation?.confirmed !== true)
+      throw new PossibleSupplierDuplicateError(matches);
+    const key = (text: string): string =>
+      text.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (
+      matches.some(
+        (match) =>
+          key(match.locationDescription) ===
+          key(confirmation?.description ?? ''),
+      )
+    ) {
+      throw new SupplierAlreadyExistsError('location');
     }
   }
 
@@ -295,9 +541,9 @@ export class PrismaSupplierCatalogRepository
       id: location.id,
       imageUrl: location.imageUrl,
       isOpenOvernight: location.isOpenOvernight,
-      latitude: location.latitude.toNumber(),
+      latitude: location.latitude?.toNumber() ?? null,
       locationDescription: location.locationDescription,
-      longitude: location.longitude.toNumber(),
+      longitude: location.longitude?.toNumber() ?? null,
       opensAt: this.formatTime(location.opensAt),
       supplierAtLocation: location.supplierAtLocation,
     };

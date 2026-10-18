@@ -2,6 +2,7 @@ import { AccountValidationError } from './account-validation.error.js';
 
 const NUS_EMAIL_DOMAIN = 'u.nus.edu';
 const LOCAL_PART_PATTERN = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+$/;
+export const EMAIL_MAXIMUM_LENGTH = 254;
 
 export class NusEmail {
   private constructor(public readonly value: string) {}
@@ -14,6 +15,14 @@ export class NusEmail {
         'email',
         'EMAIL_REQUIRED',
         'NUS email address is required.',
+      );
+    }
+
+    if (normalizedValue.length > EMAIL_MAXIMUM_LENGTH) {
+      throw new AccountValidationError(
+        'email',
+        'EMAIL_TOO_LONG',
+        `Email address must contain at most ${EMAIL_MAXIMUM_LENGTH} characters.`,
       );
     }
 

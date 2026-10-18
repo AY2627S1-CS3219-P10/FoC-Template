@@ -9,6 +9,7 @@ export interface IssueEmailVerificationCodeRecord {
 export interface VerifyEmailInput {
   candidateCodeHash: string;
   email: string;
+  eventId: string;
   maximumAttempts: number;
   now: Date;
 }

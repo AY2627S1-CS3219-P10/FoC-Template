@@ -59,10 +59,10 @@ export interface PickupLocation {
   id: string;
   supplierAtLocation: string;
   building: string;
-  floor: number;
+  floor: number | null;
   locationDescription: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   opensAt: string;
   closesAt: string;
   isOpenOvernight: boolean;

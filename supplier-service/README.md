@@ -6,13 +6,15 @@ migration; image paths remain catalog metadata.
 
 ## Current scope
 
-The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and a
-service-owned migration. The migration creates suppliers and supplier pickup
-locations, then loads the 21 fixed NUS-campus entries from
-`../data/csv/supplier-seed-data.csv`.
+The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and
+service-owned migrations. They create suppliers and pickup locations, then load
+all 74 suppliers and their CSV pickup-location records from
+`../data/csv/supplier-seed-data.csv`. A location may have an unknown floor or
+coordinates when the source does not publish them; the browse API explicitly
+returns those values as `null` rather than fabricating details.
 
 Each location stores a stable UUID for service-to-service references and a
-case-insensitive `supplier@location` string for future user input. For example,
+case-insensitive `supplier@location` display string. For example,
 `NUS Co-op@Central Library`. The label is intentionally a catalog attribute,
 not an order-service foreign key or a user-entered free-text source of truth.
 
@@ -25,7 +27,26 @@ Administrators may create a new supplier and its first pickup location with
 the request identifies a location from `GET /api/suppliers/campus-locations`,
 and the service resolves its building and coordinates. Admins therefore do not
 enter latitude or longitude. The service also derives the `supplier@location`
-label and overnight-hours flag. Duplicate supplier names return HTTP 409.
+label and overnight-hours flag. A case-insensitive existing supplier name adds
+an outlet to that supplier instead of creating a second supplier. Its category
+must match. Matching category, building and floor returns HTTP 409 with
+`POSSIBLE_SUPPLIER_DUPLICATE` and public match details, including names and
+location descriptions. The admin can use an existing outlet, edit it, or
+explicitly confirm a different physical pickup point. Setting
+`confirmDistinctOutlet: true` permits creation only with a distinguishing
+description; matching descriptions (case/whitespace insensitive) remain blocked.
+The same supplier can have multiple pickup points on the same floor. A unique
+constraint on supplier, case-insensitive building, floor and description
+also protects exact duplicates; unknown floors compare equal.
+Display labels are no longer unique; outlet UUIDs remain the identifiers.
+Creation runs in a
+serializable transaction with bounded retries for concurrent writes.
+
+The repository rechecks matches inside serializable transactions for creates,
+location changes and category changes, with retries for concurrent writes.
+Edits can use the same confirmation field after reviewing matches. Confirmation
+is cleared in the client whenever form details change. No name-similarity
+threshold is used. Existing entries and errand location IDs are preserved.
 
 Administrators may update a supplier's name and/or category with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
@@ -45,8 +66,9 @@ Administrators may replace any subset of a pickup location's details with
 location row and UUID are retained for historical errand references, while the
 old field values are overwritten. Moving to another building also replaces the
 derived `supplier@location` label, and changing either business-hours field
-recalculates the overnight-hours flag. Reactivation and add-location operations
-are not implemented yet.
+recalculates the overnight-hours flag. Reactivation is not implemented;
+additional outlets are added through the create endpoint using the existing
+supplier name.
 
 Example request:
 
@@ -110,6 +132,26 @@ deployment configuration and must never be committed.
 
 ## Local database commands
 
+### Separate independently operated shops
+
+Independent businesses should have distinct supplier names and records. A
+shared brand can continue to have multiple outlets. If independent shops were
+previously grouped under one supplier, preview their separation with:
+
+```sh
+node scripts/separate-supplier-outlets.ts --supplier-id SUPPLIER_UUID \
+  --outlet 'LOCATION_UUID_4=CLB Printing — Level 4' \
+  --outlet 'LOCATION_UUID_5=CLB Printing — Level 5'
+```
+
+Replace the placeholders with the existing UUIDs. The plan must list every
+outlet of that supplier exactly once. Add `--apply` to commit the separation
+atomically. This preserves all outlet UUIDs, hours, floor details and historical
+errand references. Existing errand name snapshots are not rewritten. New
+supplier records automatically appear as separate cards in both catalogs.
+
+### Start the local database
+
 Run these commands from `supplier-service/`:
 
 ```text
@@ -122,6 +164,8 @@ corepack pnpm start:dev
 Copy `.env.example` to `.env` before running Prisma commands. PostgreSQL is
 exposed on port `5434` by default, avoiding the user service's `5433` port.
 The OpenAPI UI is available at `/api/docs` when the service is running.
+Operational probes are available at `GET /api/health/live` (process liveness)
+and `GET /api/health/ready` (database readiness).
 
 ## Intended internal layout
 

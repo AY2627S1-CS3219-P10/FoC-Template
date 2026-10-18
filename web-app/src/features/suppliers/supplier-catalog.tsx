@@ -6,6 +6,7 @@ import { Icon } from "@/components/icon";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import { categoryLabels, type Supplier } from "@/services/contracts";
+import { outletAddress, supplierCards } from "./outlet-display";
 
 export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
   const auth = useAuth();
@@ -129,13 +130,20 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
         </p>
         <div className="location-grid">
           {supplier.locations.map((location) => (
-            <article className="detail-card" key={location.id}>
+            <article
+              className="detail-card"
+              key={location.id}
+              id={`outlet-${location.id}`}
+            >
               <h2>{location.building}</h2>
               <p className="location-label">{location.supplierAtLocation}</p>
               <div className="route">
                 <Icon name="pin" />
                 <p>
-                  Floor {location.floor} · {location.locationDescription}
+                  {location.floor === null
+                    ? "Floor not specified"
+                    : `Floor ${location.floor}`}{" "}
+                  · {location.locationDescription}
                 </p>
               </div>
               <p className="location-hours">
@@ -150,10 +158,10 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
     );
   }
   const search = query.trim().toLowerCase();
-  const filtered = suppliers.filter(
-    (supplier) =>
+  const filtered = supplierCards(suppliers).filter(
+    ({ supplier, title, locations }) =>
       (category === "ALL" || supplier.category === category) &&
-      `${supplier.name} ${supplier.locations.map((location) => `${location.building} ${location.supplierAtLocation}`).join(" ")}`
+      `${title} ${locations.map((location) => `${outletAddress(location)} ${location.supplierAtLocation}`).join(" ")}`
         .toLowerCase()
         .includes(search),
   );
@@ -201,8 +209,8 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
       </div>
       {filtered.length ? (
         <div className="supplier-grid">
-          {filtered.map((supplier) => (
-            <article className="supplier-card" key={supplier.id}>
+          {filtered.map(({ id, supplier, title, locations, href }) => (
+            <article className="supplier-card" key={id}>
               <div className="card-top">
                 <span
                   className={`category-icon ${supplier.category === "PRINTING" ? "lilac" : supplier.category === "SHOPPING" ? "peach" : "mint"}`}
@@ -222,23 +230,21 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                 </span>
               </div>
               <h2>
-                <Link href={`/suppliers/${supplier.id}`}>{supplier.name}</Link>
+                <Link href={href}>{title}</Link>
               </h2>
               <p>
                 <Icon name="pin" />
-                {supplier.locations
-                  .map((location) => location.building)
-                  .join(" · ")}
+                {locations.map((location) => location.building).join(" · ")}
               </p>
               <div className="card-footer">
                 <span>
-                  {supplier.locations.length} pickup{" "}
-                  {supplier.locations.length === 1 ? "location" : "locations"}
+                  {locations.length} pickup{" "}
+                  {locations.length === 1 ? "location" : "locations"}
                 </span>
                 <Link
                   className="text-link"
-                  href={`/suppliers/${supplier.id}`}
-                  aria-label={`View locations: ${supplier.name}`}
+                  href={href}
+                  aria-label={`View locations: ${title}`}
                 >
                   View locations <Icon name="arrow" />
                 </Link>

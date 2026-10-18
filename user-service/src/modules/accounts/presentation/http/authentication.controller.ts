@@ -5,7 +5,10 @@ import {
   ForbiddenException,
   Header,
   HttpCode,
+  Inject,
+  Ip,
   Post,
+  Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -15,6 +18,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
@@ -23,9 +27,18 @@ import { LoginUseCase } from '../../application/use-cases/login.use-case.js';
 import { LogoutUseCase } from '../../application/use-cases/logout.use-case.js';
 import { RefreshSessionUseCase } from '../../application/use-cases/refresh-session.use-case.js';
 import { AccountValidationError } from '../../domain/account-validation.error.js';
+import {
+  PUBLIC_ENDPOINT_RATE_LIMITER,
+  type PublicEndpointRateLimiterPort,
+} from '../../application/ports/public-endpoint-rate-limiter.port.js';
 import { AuthenticationResponse } from './dto/authentication.response.js';
 import { LoginRequest } from './dto/login.request.js';
 import { RefreshTokenRequest } from './dto/refresh-token.request.js';
+import { enforcePublicEndpointRateLimit } from './security/enforce-public-endpoint-rate-limit.js';
+
+interface HeaderResponse {
+  header(name: string, value: string): unknown;
+}
 
 @ApiTags('authentication')
 @Controller('auth')
@@ -34,6 +47,8 @@ export class AuthenticationController {
     private readonly loginUseCase: LoginUseCase,
     private readonly logoutUseCase: LogoutUseCase,
     private readonly refreshSessionUseCase: RefreshSessionUseCase,
+    @Inject(PUBLIC_ENDPOINT_RATE_LIMITER)
+    private readonly publicEndpointRateLimiter: PublicEndpointRateLimiterPort,
   ) {}
 
   @Post('login')
@@ -45,8 +60,20 @@ export class AuthenticationController {
   @ApiBadRequestResponse({ description: 'Login details are invalid.' })
   @ApiForbiddenResponse({ description: 'Account is not active.' })
   @ApiUnauthorizedResponse({ description: 'Credentials are invalid.' })
-  async login(@Body() request: LoginRequest): Promise<AuthenticationResponse> {
+  @ApiTooManyRequestsResponse({ description: 'Login rate limit exceeded.' })
+  async login(
+    @Body() request: LoginRequest,
+    @Ip() clientIdentifier: string,
+    @Res({ passthrough: true }) reply: HeaderResponse,
+  ): Promise<AuthenticationResponse> {
     try {
+      await enforcePublicEndpointRateLimit(
+        this.publicEndpointRateLimiter,
+        reply,
+        'login',
+        clientIdentifier,
+        request.email.trim().toLowerCase(),
+      );
       return await this.loginUseCase.execute(request);
     } catch (error: unknown) {
       this.rethrowAsHttpException(error);
@@ -63,10 +90,20 @@ export class AuthenticationController {
   @ApiUnauthorizedResponse({
     description: 'Refresh token is invalid, expired, or already used.',
   })
+  @ApiTooManyRequestsResponse({ description: 'Refresh rate limit exceeded.' })
   async refresh(
     @Body() request: RefreshTokenRequest,
+    @Ip() clientIdentifier: string,
+    @Res({ passthrough: true }) reply: HeaderResponse,
   ): Promise<AuthenticationResponse> {
     try {
+      await enforcePublicEndpointRateLimit(
+        this.publicEndpointRateLimiter,
+        reply,
+        'refresh',
+        clientIdentifier,
+        request.refreshToken,
+      );
       return await this.refreshSessionUseCase.execute(request);
     } catch (error: unknown) {
       this.rethrowAsHttpException(error);

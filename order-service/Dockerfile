@@ -1,5 +1,5 @@
 FROM node:24.11-alpine AS build
-RUN npm install --global pnpm@12.5.1
+RUN npm install --global pnpm@12.11.2
 WORKDIR /workspace
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY order-service/package.json order-service/package.json

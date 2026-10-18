@@ -1,8 +1,17 @@
 import { AccountValidationError } from './account-validation.error.js';
 
 export const PASSWORD_MINIMUM_LENGTH = 8;
+export const PASSWORD_MAXIMUM_LENGTH = 128;
 
 export function assertPasswordMeetsPolicy(password: string): void {
+  if (password.length > PASSWORD_MAXIMUM_LENGTH) {
+    throw new AccountValidationError(
+      'password',
+      'PASSWORD_TOO_LONG',
+      `Password must contain at most ${PASSWORD_MAXIMUM_LENGTH} characters.`,
+    );
+  }
+
   if (password.length < PASSWORD_MINIMUM_LENGTH) {
     throw new AccountValidationError(
       'password',

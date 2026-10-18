@@ -1,11 +1,166 @@
 import { PrismaSupplierCatalogRepository } from '../../../src/infrastructure/persistence/prisma-supplier-catalog.repository.js';
 import type { PrismaClient } from '../../../src/generated/prisma/client.js';
+import { Prisma } from '../../../src/generated/prisma/client.js';
+import type { CreateSupplierRecord } from '../../../src/application/ports/supplier-management.repository.port.js';
 
 const SUPPLIER_ID = '30000000-0000-4000-8000-000000000001';
 const UTOWN_LOCATION_ID = '40000000-0000-4000-8000-000000000001';
 const SCIENCE_LOCATION_ID = '40000000-0000-4000-8000-000000000002';
 
 describe('PrismaSupplierCatalogRepository', () => {
+  it('looks for possible duplicates only in the selected building, floor and category', async () => {
+    let query: unknown;
+    const repository = new PrismaSupplierCatalogRepository({
+      supplierLocation: {
+        findMany: (args: unknown) => {
+          query = args;
+          return Promise.resolve([]);
+        },
+      },
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
+    await expect(
+      repository.findPossibleDuplicates({
+        building: 'Engineering',
+        floor: 1,
+        category: 'FOOD_COFFEE',
+      }),
+    ).resolves.toEqual([]);
+    expect(query).toMatchObject({
+      where: {
+        building: { equals: 'Engineering', mode: 'insensitive' },
+        floor: 1,
+        supplier: { category: 'FOOD_COFFEE', isActive: true },
+      },
+    });
+  });
+
+  it.each(['Science', 'Engineering'])(
+    'adds Starbucks at %s to the existing supplier with canonical labels',
+    async (building) => {
+      let upsertArguments: unknown;
+      let updateArguments: unknown;
+      let transactionOptions: unknown;
+      const existingLocations = [
+        locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks@UTown'),
+      ];
+      const transaction = {
+        supplierLocation: { findMany: () => Promise.resolve([]) },
+        supplier: {
+          upsert: (args: unknown) => {
+            upsertArguments = args;
+            return Promise.resolve({
+              id: SUPPLIER_ID,
+              name: 'Starbucks',
+              category: 'FOOD_COFFEE',
+              isActive: true,
+            });
+          },
+          update: (args: unknown) => {
+            updateArguments = args;
+            return Promise.resolve({
+              id: SUPPLIER_ID,
+              name: 'Starbucks',
+              category: 'FOOD_COFFEE',
+              locations: [
+                ...existingLocations,
+                locationRecord(
+                  SCIENCE_LOCATION_ID,
+                  building,
+                  `Starbucks@${building}`,
+                ),
+              ],
+            });
+          },
+        },
+      };
+      const repository = new PrismaSupplierCatalogRepository({
+        $transaction: (
+          callback: (tx: unknown) => Promise<unknown>,
+          options: unknown,
+        ) => {
+          transactionOptions = options;
+          return callback(transaction);
+        },
+      } as unknown as Pick<
+        PrismaClient,
+        '$transaction' | 'supplier' | 'supplierLocation'
+      >);
+      const record = createRecord(building);
+      await expect(repository.createSupplier(record)).resolves.toMatchObject({
+        id: SUPPLIER_ID,
+        name: 'Starbucks',
+        locations: [{ building: 'UTown' }, { building }],
+      });
+      expect(upsertArguments).toMatchObject({
+        where: { name: 'starbucks' },
+        update: {},
+      });
+      expect(updateArguments).toMatchObject({
+        where: { id: SUPPLIER_ID },
+        data: {
+          locations: {
+            create: { supplierAtLocation: `Starbucks@${building}` },
+          },
+        },
+      });
+      expect(transactionOptions).toEqual({ isolationLevel: 'Serializable' });
+    },
+  );
+
+  it('maps the database outlet constraint to a non-overridable duplicate error', async () => {
+    const repository = new PrismaSupplierCatalogRepository({
+      $transaction: () =>
+        Promise.reject(
+          new Prisma.PrismaClientKnownRequestError('duplicate', {
+            code: 'P2002',
+            clientVersion: '7.10.0',
+            meta: { target: ['supplier_at_location'] },
+          }),
+        ),
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
+    await expect(
+      repository.createSupplier(createRecord('UTown')),
+    ).rejects.toMatchObject({
+      code: 'SUPPLIER_ALREADY_EXISTS',
+      field: 'supplierAtLocation',
+    });
+  });
+
+  it('retries serialization conflicts before creating the outlet', async () => {
+    let attempts = 0;
+    const repository = new PrismaSupplierCatalogRepository({
+      $transaction: () => {
+        attempts += 1;
+        if (attempts === 1)
+          return Promise.reject(
+            new Prisma.PrismaClientKnownRequestError('retry', {
+              code: 'P2034',
+              clientVersion: '7.10.0',
+            }),
+          );
+        return Promise.resolve({
+          id: SUPPLIER_ID,
+          name: 'Starbucks',
+          category: 'FOOD_COFFEE',
+          locations: [],
+        });
+      },
+    } as unknown as Pick<
+      PrismaClient,
+      '$transaction' | 'supplier' | 'supplierLocation'
+    >);
+    await expect(
+      repository.createSupplier(createRecord('Engineering')),
+    ).resolves.toMatchObject({ id: SUPPLIER_ID });
+    expect(attempts).toBe(2);
+  });
+
   it('lists one coordinate-backed option for each campus building', async () => {
     let findManyArguments: unknown;
     const findMany = (args: unknown): Promise<unknown[]> => {
@@ -156,6 +311,8 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplier: { findUnique, update },
+      $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({ supplier: { findUnique, update } }),
     } as unknown as Pick<
       PrismaClient,
       '$transaction' | 'supplier' | 'supplierLocation'
@@ -199,10 +356,11 @@ describe('PrismaSupplierCatalogRepository', () => {
     let findFirstArguments: unknown;
     let updateArguments: unknown;
     const findFirst = (args: unknown): Promise<unknown> => {
+      if ((args as { select?: unknown }).select) return Promise.resolve(null);
       findFirstArguments = args;
       return Promise.resolve({
         ...locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks@UTown'),
-        supplier: { name: 'Starbucks' },
+        supplier: { name: 'Starbucks', category: 'FOOD_COFFEE' },
       });
     };
     const update = (args: unknown): Promise<unknown> => {
@@ -214,6 +372,15 @@ describe('PrismaSupplierCatalogRepository', () => {
 
     const repository = new PrismaSupplierCatalogRepository({
       supplierLocation: { findFirst, update },
+      // Matching uses a separate query from loading the outlet being edited.
+      $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({
+          supplierLocation: {
+            findFirst,
+            findMany: () => Promise.resolve([]),
+            update,
+          },
+        }),
     } as unknown as Pick<
       PrismaClient,
       '$transaction' | 'supplier' | 'supplierLocation'
@@ -235,7 +402,7 @@ describe('PrismaSupplierCatalogRepository', () => {
       supplierAtLocation: 'Starbucks@Science',
     });
     expect(findFirstArguments).toEqual({
-      include: { supplier: { select: { name: true } } },
+      include: { supplier: { select: { name: true, category: true } } },
       where: {
         id: UTOWN_LOCATION_ID,
         supplierId: SUPPLIER_ID,
@@ -280,5 +447,24 @@ function locationRecord(
     supplierAtLocation,
     supplierId: SUPPLIER_ID,
     updatedAt: new Date('2026-09-21T00:00:00.000Z'),
+  };
+}
+
+function createRecord(building: string): CreateSupplierRecord {
+  return {
+    name: 'starbucks',
+    category: 'FOOD_COFFEE',
+    location: {
+      building,
+      floor: 1,
+      locationDescription: 'Main entrance',
+      latitude: 1.3,
+      longitude: 103.7,
+      opensAt: new Date('1970-01-01T08:00:00Z'),
+      closesAt: new Date('1970-01-01T20:00:00Z'),
+      isOpenOvernight: false,
+      imageUrl: null,
+      supplierAtLocation: `starbucks@${building}`,
+    },
   };
 }

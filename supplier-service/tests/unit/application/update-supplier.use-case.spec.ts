@@ -10,6 +10,10 @@ import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.
 const SUPPLIER_ID = '30000000-0000-4000-8000-000000000001';
 
 class StubSupplierManagementRepository implements SupplierManagementRepositoryPort {
+  findPossibleDuplicates(): Promise<[]> {
+    return Promise.resolve([]);
+  }
+
   readonly records: UpdateSupplierRecord[] = [];
 
   createSupplier(record: CreateSupplierRecord): Promise<SupplierCatalogEntry> {

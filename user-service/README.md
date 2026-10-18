@@ -13,13 +13,13 @@ Reporting and moderation stay inside this service. All routes below require a
 live bearer session; the administrator routes reuse `@AdministratorOnly()`.
 Reporter and administrator identities come from that session, never the body.
 
-| Method | Path | Authorization and purpose |
-| --- | --- | --- |
-| POST | `/api/reports` | Any usable user reports another existing user |
-| GET | `/api/admin/reports` | Administrator lists reports |
-| GET | `/api/admin/reports/:reportId` | Administrator views one report |
-| PATCH | `/api/admin/reports/:reportId/resolve` | Administrator resolves a report |
-| PATCH | `/api/admin/accounts/:accountId/suspension` | Administrator sets a temporary timeout |
+| Method | Path                                        | Authorization and purpose                     |
+| ------ | ------------------------------------------- | --------------------------------------------- |
+| POST   | `/api/reports`                              | Any usable user reports another existing user |
+| GET    | `/api/admin/reports`                        | Administrator lists reports                   |
+| GET    | `/api/admin/reports/:reportId`              | Administrator views one report                |
+| PATCH  | `/api/admin/reports/:reportId/resolve`      | Administrator resolves a report               |
+| PATCH  | `/api/admin/accounts/:accountId/suspension` | Administrator sets a temporary timeout        |
 
 Create a report with `{ "reportedUserId": "<user UUID>", "description": "Missed an agreed pickup." }`.
 Descriptions are trimmed and must contain 1–500 characters. Self-report returns
@@ -79,6 +79,8 @@ audit history, so do not drop them as part of an application-only rollback.
 the moderation controllers with real JWTs and sessions, permissions, resolution,
 expiry, revocation, permanent statuses, last-admin checks, and concurrency races.
 OpenAPI schemas and error descriptions are available at `/api/docs`.
+Operational probes are available at `GET /api/health/live` (process liveness)
+and `GET /api/health/ready` (database readiness).
 
 The service foundation is initialized with NestJS, Fastify, TypeScript, strict
 static analysis, PostgreSQL 18, Prisma ORM 7, configuration validation, a smoke
@@ -113,6 +115,47 @@ activates the account. `POST /api/accounts/verify-email/resend` issues and queue
 a replacement code for a pending account. Its response does not reveal whether
 an account exists or is already verified.
 
+### User verification integration event
+
+A successful first-time verification also records `user.verified.v1` in the
+User Service PostgreSQL transactional outbox. Code consumption, account
+activation, and outbox insertion are one database transaction: none of them is
+committed if the event cannot be recorded. Invalid, expired, exhausted, or
+already-completed verification attempts do not create an event. The database
+also permits only one `user.verified.v1` outbox row per user.
+
+The outbox relay publishes the following stable envelope to the durable
+`foc.events` topic exchange using `user.verified.v1` as the routing key:
+
+```json
+{
+  "eventId": "<UUID v4>",
+  "eventType": "user.verified.v1",
+  "data": {
+    "userId": "<verified user UUID>"
+  }
+}
+```
+
+The outbox row ID is the envelope `eventId`; it is generated once before the
+verification transaction and remains unchanged across relay retries. Delivery
+is at least once, so consumers must deduplicate by `eventId`. The Credit Service
+uses this event to provision the user's initial credit account idempotently.
+There is no synchronous Credit Service call in the verification request.
+
+Set `USER_EVENTS_ENABLED=true` when RabbitMQ is available. `RABBITMQ_URL`,
+`USER_EVENTS_EXCHANGE` (default `foc.events`), and
+`USER_OUTBOX_POLL_INTERVAL_MS` (default 1000) configure delivery. A row is
+marked published only after RabbitMQ confirms it; failures are logged without
+payloads or connection credentials and are retried on a later poll. PostgreSQL
+remains authoritative while RabbitMQ is unavailable.
+
+The outbox migration is additive. An application rollback may safely leave the
+table in place so pending events can still be recovered. Before a schema
+rollback, stop the relay and verification writes, preserve any unpublished
+rows, then drop `outbox_events` in a reviewed migration; dropping it first can
+lose provisioning signals for already-activated users.
+
 `POST /api/auth/login` authenticates an active account and creates a session.
 `POST /api/auth/refresh` atomically rotates its single-use refresh token, and
 `POST /api/auth/logout` revokes it without revealing whether the token existed.
@@ -127,17 +170,17 @@ or refresh sessions.
 The access token is the stable authentication contract for synchronous calls to
 other backend services. Its JOSE header and JWT claims are:
 
-| Field | Required value | Meaning |
-| --- | --- | --- |
-| `alg` | `HS256` | The only accepted signing algorithm. |
-| `typ` | `JWT` | Token type. |
-| `iss` | `foc-user-service` | Issuing service. |
-| `aud` | `foc-api` | Intended backend API audience. |
-| `sub` | non-empty string | Current user's stable `userId`. |
-| `sid` | non-empty string | Current authentication `sessionId`. |
-| `isAdmin` | boolean | Current administrator status when the token is issued. |
-| `iat` | NumericDate | Issued-at time. |
-| `exp` | NumericDate | Expiry, exactly 15 minutes after `iat`. |
+| Field     | Required value     | Meaning                                                |
+| --------- | ------------------ | ------------------------------------------------------ |
+| `alg`     | `HS256`            | The only accepted signing algorithm.                   |
+| `typ`     | `JWT`              | Token type.                                            |
+| `iss`     | `foc-user-service` | Issuing service.                                       |
+| `aud`     | `foc-api`          | Intended backend API audience.                         |
+| `sub`     | non-empty string   | Current user's stable `userId`.                        |
+| `sid`     | non-empty string   | Current authentication `sessionId`.                    |
+| `isAdmin` | boolean            | Current administrator status when the token is issued. |
+| `iat`     | NumericDate        | Issued-at time.                                        |
+| `exp`     | NumericDate        | Expiry, exactly 15 minutes after `iat`.                |
 
 The names and types in this table are part of the cross-service contract.
 Changing them requires coordinated updates to every token consumer. In
