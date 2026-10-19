@@ -10,8 +10,8 @@ found, so no order-service code changed. Nothing pushed.
   applied. order-service was restarted with `ORDER_EVENTS_ENABLED=true` (git-ignored
   `.env`; it had been `false`, leaving one `errand.completed.v1` unpublished, which the
   relay then delivered and credit-service settled once).
-- **Accounts:** requester `nasif.hasan`, courier `e1366622`, stranger / second courier
-  `e1454249` (registered and verified by the user; credit-service opened its account
+- **Accounts:** three active student accounts (requester, courier, stranger / second
+  courier; the third registered and verified by the user; credit-service opened its account
   from `user.verified.v1`), admin `admin1` from user-service's admin seed. Credentials
   were passed with `--env-var` from a file outside the repo.
 - **Baseline (collection unchanged):** 53 requests, 91/91 assertions passed.
