@@ -82,6 +82,9 @@ Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_EVENTS_ENABLED' 'tr
 Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_EVENTS_EXCHANGE' $eventsExchange
 Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_OUTBOX_POLL_INTERVAL_MS' '1000'
 Save-Setting (Join-Path $repoPath 'user-service/.env') 'RABBITMQ_URL' $localRabbitMqUrl
+Save-Setting (Join-Path $repoPath 'order-service/.env') 'ORDER_EVENTS_ENABLED' 'true'
+Save-Setting (Join-Path $repoPath 'order-service/.env') 'ORDER_EVENTS_EXCHANGE' $eventsExchange
+Save-Setting (Join-Path $repoPath 'order-service/.env') 'RABBITMQ_URL' $localRabbitMqUrl
 $creditPort = if ($rootSettings['CREDIT_DATABASE_PORT']) { $rootSettings['CREDIT_DATABASE_PORT'] } else { '5435' }
 $creditUser = if ($rootSettings['CREDIT_DATABASE_USER']) { $rootSettings['CREDIT_DATABASE_USER'] } else { 'foc_credit' }
 $creditPassword = if ($rootSettings['CREDIT_DATABASE_PASSWORD']) { $rootSettings['CREDIT_DATABASE_PASSWORD'] } else { 'local_credit_password' }
