@@ -5,7 +5,12 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { connect, type ChannelModel, type ConfirmChannel } from 'amqplib';
+import {
+  connect,
+  type ChannelModel,
+  type ConfirmChannel,
+  type Message,
+} from 'amqplib';
 import { PrismaService } from './prisma.service';
 
 export const DEFAULT_RABBITMQ_URL =
@@ -14,8 +19,10 @@ export const DEFAULT_RABBITMQ_URL =
 /**
  * Publishes outbox rows to RabbitMQ in credit-service's envelope (docs/events.md §2).
  * A row is marked published only after the broker confirms it, so a crash can at
- * worst republish the same eventId, which credit deduplicates. Disabled unless
- * ORDER_EVENTS_ENABLED=true; rows keep accumulating safely while it is off.
+ * worst republish the same eventId, which credit deduplicates. Messages are published
+ * `mandatory`: if no queue is bound yet (credit's consumer is off, or RabbitMQ lost its
+ * queues on restart) the broker returns them and the row stays pending instead of being
+ * dropped. Enabled unless ORDER_EVENTS_ENABLED=false; rows keep accumulating while off.
  */
 @Injectable()
 export class OutboxRelay implements OnModuleInit, OnModuleDestroy {
@@ -27,16 +34,27 @@ export class OutboxRelay implements OnModuleInit, OnModuleDestroy {
   private channel?: ConfirmChannel;
   private timer?: ReturnType<typeof setInterval>;
   private publishing = false;
+  /** messageIds the broker returned as unroutable, consumed after each confirm. */
+  private readonly returned = new Set<string>();
   constructor(
     private readonly prisma: PrismaService,
     config: ConfigService,
   ) {
-    this.enabled = config.get<string>('ORDER_EVENTS_ENABLED') === 'true';
+    this.enabled = config.get<string>('ORDER_EVENTS_ENABLED') !== 'false';
     this.exchange = config.get<string>('ORDER_EVENTS_EXCHANGE') ?? 'foc.events';
     this.url = config.get<string>('RABBITMQ_URL') ?? DEFAULT_RABBITMQ_URL;
   }
   onModuleInit() {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      this.logger.warn(
+        'ORDER_EVENTS_ENABLED=false: errand.completed.v1 stays in the outbox, so couriers are not paid until the relay is enabled',
+      );
+      return;
+    }
+    this.logger.log(
+      { exchange: this.exchange },
+      'Outbox relay started; publishing to RabbitMQ',
+    );
     this.timer = setInterval(() => void this.publishPending(), 1000);
     this.timer.unref();
     void this.publishPending();
@@ -75,6 +93,7 @@ export class OutboxRelay implements OnModuleInit, OnModuleDestroy {
             {
               contentType: 'application/json',
               deliveryMode: 2,
+              mandatory: true,
               messageId: event.id,
               timestamp: event.createdAt.getTime(),
               type: event.eventType,
@@ -83,11 +102,31 @@ export class OutboxRelay implements OnModuleInit, OnModuleDestroy {
             (error) => (error ? reject(error as Error) : resolve()),
           ),
         );
+        // RabbitMQ sends basic.return before the confirm, so the set is filled by now.
+        if (this.returned.delete(event.id)) {
+          this.logger.warn(
+            {
+              eventId: event.id,
+              eventType: event.eventType,
+              exchange: this.exchange,
+            },
+            'No queue is bound for this event (is credit-service consuming?); it stays pending and will be retried',
+          );
+          break;
+        }
         await this.prisma.outboxEvent.updateMany({
           where: { id: event.id, publishedAt: null },
           data: { publishedAt: new Date() },
         });
         published++;
+        this.logger.log(
+          {
+            eventId: event.id,
+            eventType: event.eventType,
+            errandId: event.aggregateId,
+          },
+          'Published outbox event',
+        );
       }
     } catch (error) {
       this.logger.warn(
@@ -114,6 +153,10 @@ export class OutboxRelay implements OnModuleInit, OnModuleDestroy {
     });
     connection.on('error', () => undefined);
     this.channel = await connection.createConfirmChannel();
+    this.channel.on('return', (message: Message) => {
+      const id: unknown = message.properties.messageId;
+      if (typeof id === 'string') this.returned.add(id);
+    });
     await this.channel.assertExchange(this.exchange, 'topic', {
       durable: true,
     });
@@ -123,6 +166,7 @@ export class OutboxRelay implements OnModuleInit, OnModuleDestroy {
     const { channel, connection } = this;
     this.channel = undefined;
     this.connection = undefined;
+    this.returned.clear();
     await channel?.close().catch(() => undefined);
     await connection?.close().catch(() => undefined);
   }

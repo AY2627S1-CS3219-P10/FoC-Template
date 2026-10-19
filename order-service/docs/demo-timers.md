@@ -68,5 +68,23 @@ SELECT action, from_status, to_status, actor_role, courier_id, occurred_at
 FROM errand_history WHERE errand_id = :'id' ORDER BY occurred_at;
 SELECT courier_id FROM errand_excluded_couriers WHERE errand_id = :'id';
 ```
-Timer rows have `actor_role = SYSTEM`. Integration tests do the same ageing in SQL
+Timer rows have `actor_role = SYSTEM`.
+
+## Check the credits
+credit-service is the source of truth for balances, so read them there, not from
+order-service. Each user may read only their own balance (or an administrator any):
+```bash
+curl -s http://127.0.0.1:3003/v1/credit-accounts/<userId> -H "Authorization: Bearer <that user's access token>"
+```
+Take the token and `sub` from `POST http://127.0.0.1:3001/api/auth/login` (or from
+Postman's `0 Setup`). Expected, compared with the balances before the ageing:
+
+| Timer | Requester | Courier |
+|---|---|---|
+| Reopen | unchanged: the reservation stays (errand is OPEN again) | unchanged |
+| Expiry | `availableCredits` + offer, `reservedCredits` − offer | unchanged |
+| Auto-complete | `reservedCredits` − offer | `availableCredits` + offer, once, within a few seconds (needs `ORDER_EVENTS_ENABLED=true`) |
+
+The courier is paid by credit-service consuming `errand.completed.v1`, so a second
+read a few seconds later must show the same balance (no double payment). Integration tests do the same ageing in SQL
 (`age()` and `ageCreated()` in `tests/integration/errands.spec.ts`).

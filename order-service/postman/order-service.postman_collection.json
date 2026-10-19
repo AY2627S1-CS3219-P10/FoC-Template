@@ -204,6 +204,114 @@
               }
             }
           ]
+        },
+        {
+          "name": "Credit balance of requester before the run",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{requesterId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{requesterId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 (credit account exists, Q-012)', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('requesterAvailable0', pm.response.json().availableCredits);",
+                  "pm.collectionVariables.set('requesterReserved0', pm.response.json().reservedCredits);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Credit balance of courier before the run",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{courierId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{courierId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 (credit account exists, Q-012)', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('courierAvailable0', pm.response.json().availableCredits);",
+                  "pm.collectionVariables.set('courierReserved0', pm.response.json().reservedCredits);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Credit balance of stranger before the run",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{strangerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{strangerId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{strangerId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 (credit account exists, Q-012)', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('strangerAvailable0', pm.response.json().availableCredits);",
+                  "pm.collectionVariables.set('strangerReserved0', pm.response.json().reservedCredits);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -449,6 +557,45 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester balance after create and replay \u2192 5 reserved once",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{requesterId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{requesterId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const a0 = Number(pm.collectionVariables.get('requesterAvailable0'));",
+                  "const r0 = Number(pm.collectionVariables.get('requesterReserved0'));",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('available = start - 5', () => pm.expect(b.availableCredits).to.eql(a0 + (-5)));",
+                  "pm.test('reserved = start + 5', () => pm.expect(b.reservedCredits).to.eql(r0 + (5)));"
                 ]
               }
             }
@@ -1041,6 +1188,93 @@
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('version = 4', () => pm.expect(pm.response.json().version).to.eql(4));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Courier balance after confirm \u2192 +5 (settled from the outbox event)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{courierId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{courierId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const want = Number(pm.collectionVariables.get('courierAvailable0')) + (5);",
+                  "const tries = Number(pm.collectionVariables.get('pollTries') || 0);",
+                  "if (pm.response.code === 200 && b.availableCredits !== want && tries < 15) {",
+                  "  pm.collectionVariables.set('pollTries', tries + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "  setTimeout(() => {}, 1000);",
+                  "} else {",
+                  "  pm.collectionVariables.set('pollTries', 0);",
+                  "  const a0 = Number(pm.collectionVariables.get('courierAvailable0'));",
+                  "  const r0 = Number(pm.collectionVariables.get('courierReserved0'));",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test('available = start + 5', () => pm.expect(b.availableCredits).to.eql(a0 + (5)));",
+                  "  pm.test('reserved = start + 0', () => pm.expect(b.reservedCredits).to.eql(r0 + (0)));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester balance after confirm \u2192 reservation consumed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{requesterId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{requesterId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const a0 = Number(pm.collectionVariables.get('requesterAvailable0'));",
+                  "const r0 = Number(pm.collectionVariables.get('requesterReserved0'));",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('available = start - 5', () => pm.expect(b.availableCredits).to.eql(a0 + (-5)));",
+                  "pm.test('reserved = start + 0', () => pm.expect(b.reservedCredits).to.eql(r0 + (0)));"
                 ]
               }
             }
@@ -1727,6 +1961,84 @@
           ]
         },
         {
+          "name": "Requester balance after cancel \u2192 FOOD errand's 5 released",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{requesterId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{requesterId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const a0 = Number(pm.collectionVariables.get('requesterAvailable0'));",
+                  "const r0 = Number(pm.collectionVariables.get('requesterReserved0'));",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('available = start - 10', () => pm.expect(b.availableCredits).to.eql(a0 + (-10)));",
+                  "pm.test('reserved = start + 5', () => pm.expect(b.reservedCredits).to.eql(r0 + (5)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second courier (stranger) balance unchanged by the cancel",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{strangerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{strangerId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{strangerId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const a0 = Number(pm.collectionVariables.get('strangerAvailable0'));",
+                  "const r0 = Number(pm.collectionVariables.get('strangerReserved0'));",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('available = start + 0', () => pm.expect(b.availableCredits).to.eql(a0 + (0)));",
+                  "pm.test('reserved = start + 0', () => pm.expect(b.reservedCredits).to.eql(r0 + (0)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "The released courier can no longer read it \u2192 404",
           "request": {
             "method": "GET",
@@ -1794,6 +2106,45 @@
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('errand.status = CANCELLED', () => pm.expect(pm.response.json().errand.status).to.eql(\"CANCELLED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester balance after DELETE \u2192 5 released",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{requesterId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{requesterId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const a0 = Number(pm.collectionVariables.get('requesterAvailable0'));",
+                  "const r0 = Number(pm.collectionVariables.get('requesterReserved0'));",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('available = start - 5', () => pm.expect(b.availableCredits).to.eql(a0 + (-5)));",
+                  "pm.test('reserved = start + 0', () => pm.expect(b.reservedCredits).to.eql(r0 + (0)));"
                 ]
               }
             }
@@ -2063,6 +2414,138 @@
           ]
         }
       ]
+    },
+    {
+      "name": "5 Credit reconciliation (credit-service is the source of truth)",
+      "description": "Two errands of 5 completed (folder 2 confirm, folder 4 early confirm), two cancelled. The courier is paid exactly once per completion, the requester pays 10 and has nothing left reserved by this run, the second courier is unchanged.",
+      "item": [
+        {
+          "name": "Courier received exactly 10 (two completions)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{courierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{courierId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{courierId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const want = Number(pm.collectionVariables.get('courierAvailable0')) + (10);",
+                  "const tries = Number(pm.collectionVariables.get('pollTries') || 0);",
+                  "if (pm.response.code === 200 && b.availableCredits !== want && tries < 15) {",
+                  "  pm.collectionVariables.set('pollTries', tries + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "  setTimeout(() => {}, 1000);",
+                  "} else {",
+                  "  pm.collectionVariables.set('pollTries', 0);",
+                  "  const a0 = Number(pm.collectionVariables.get('courierAvailable0'));",
+                  "  const r0 = Number(pm.collectionVariables.get('courierReserved0'));",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test('available = start + 10', () => pm.expect(b.availableCredits).to.eql(a0 + (10)));",
+                  "  pm.test('reserved = start + 0', () => pm.expect(b.reservedCredits).to.eql(r0 + (0)));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Requester paid exactly 10, nothing left reserved",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{requesterToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{requesterId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{requesterId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const a0 = Number(pm.collectionVariables.get('requesterAvailable0'));",
+                  "const r0 = Number(pm.collectionVariables.get('requesterReserved0'));",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('available = start - 10', () => pm.expect(b.availableCredits).to.eql(a0 + (-10)));",
+                  "pm.test('reserved = start + 0', () => pm.expect(b.reservedCredits).to.eql(r0 + (0)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second courier (stranger) unchanged",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{strangerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{creditUrl}}/v1/credit-accounts/{{strangerId}}",
+              "host": [
+                "{{creditUrl}}"
+              ],
+              "path": [
+                "v1",
+                "credit-accounts",
+                "{{strangerId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const a0 = Number(pm.collectionVariables.get('strangerAvailable0'));",
+                  "const r0 = Number(pm.collectionVariables.get('strangerReserved0'));",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('available = start + 0', () => pm.expect(b.availableCredits).to.eql(a0 + (0)));",
+                  "pm.test('reserved = start + 0', () => pm.expect(b.reservedCredits).to.eql(r0 + (0)));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -2132,6 +2615,34 @@
     },
     {
       "key": "cancelOperationId",
+      "value": ""
+    },
+    {
+      "key": "requesterAvailable0",
+      "value": ""
+    },
+    {
+      "key": "requesterReserved0",
+      "value": ""
+    },
+    {
+      "key": "courierAvailable0",
+      "value": ""
+    },
+    {
+      "key": "courierReserved0",
+      "value": ""
+    },
+    {
+      "key": "strangerAvailable0",
+      "value": ""
+    },
+    {
+      "key": "strangerReserved0",
+      "value": ""
+    },
+    {
+      "key": "pollTries",
       "value": ""
     }
   ]

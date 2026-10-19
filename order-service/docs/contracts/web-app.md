@@ -25,9 +25,9 @@ The UI sends `limit=21` and pages by 20; `sort` ∈ `newest`, `oldest`,
 ## Response shapes relied on (`web-app/src/services/contracts.ts`)
 ```
 ErrandOperation { operationId, status: "PENDING" | "SUCCEEDED" | "FAILED", errand?, errorCode? }
-Errand { id, requesterId, requesterUsername?, courierId | null, status, pickupLocationId,
-         pickupSupplierName, pickupLocationLabel, description, deliveryDestination,
-         instructions, offeredCredits, version, createdAt, updatedAt }
+Errand { id, requesterId, requesterUsername?, courierId | null, courierUsername?, status,
+         pickupLocationId, pickupSupplierName, pickupLocationLabel, description,
+         deliveryDestination, instructions, offeredCredits, version, createdAt, updatedAt }
 ```
 
 ## Behaviour relied on
@@ -36,7 +36,11 @@ Errand { id, requesterId, requesterUsername?, courierId | null, status, pickupLo
 - `web-app/src/features/errands/errand-detail.tsx`: edit shown when
   `owner && status === "OPEN" && !courierId`; delete when admin or the same owner
   condition; after DELETE it shows "Errand deleted … Any reserved credits have been
-  released". If `courierId` is set it is displayed.
+  released". If `courierId` is set, the courier is shown by `courierUsername` (the
+  viewer's own name when they are the courier). Both usernames are set only by
+  `GET /api/errands/:id` and the `Errand`-returning actions (accept, pickup, deliver,
+  confirm, dispute, courier-cancel), not by lists or `ErrandOperation.errand`; they are
+  null when the account no longer exists.
 - Error handling: it shows `message`; 4xx other than 408/429 are final, otherwise retry.
   It does not branch on order's `code` values.
 - Unauthenticated `GET /api/errands` → 401 with `cache-control: no-store` (e2e test).

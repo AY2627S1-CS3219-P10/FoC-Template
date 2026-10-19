@@ -9,3 +9,6 @@ One file per working pass: a summary for humans at the top, then one entry per c
 | [2026-10-18-S0-agent-docs.md](2026-10-18-S0-agent-docs.md) | S0 | done — docs and agent tooling, no code |
 | [2026-10-18-D3-order-lifecycle.md](2026-10-18-D3-order-lifecycle.md) | S1, N1, S3–S6b, D3 queries, Docker, Postman | done — lifecycle, accept race, outbox + relay, 4 h timer, Postman; cancel/expiry blocked (Q-006/7/8) |
 | [2026-10-18-S7-cancel-expiry.md](2026-10-18-S7-cancel-expiry.md) | S7, S8 | done — requester/courier cancel, 30-min reopen, item-type expiry, IN_PROGRESS removed, 4 h timer fix; Q-020/Q-021 parked |
+| [2026-10-18-UI-courier-username.md](2026-10-18-UI-courier-username.md) | UI | done — `courierUsername` in order-service, shown in web-app instead of the courier id |
+| [2026-10-18-D3-postman-newman.md](2026-10-18-D3-postman-newman.md) | D3 | done — Newman run 121/121, credit-balance checks added, timers verified 18/18 |
+| [2026-10-18-fix-credit-settlement.md](2026-10-18-fix-credit-settlement.md) | fix | done — relay on by default, mandatory publish, credit event logs; compose (Q-018) still open |

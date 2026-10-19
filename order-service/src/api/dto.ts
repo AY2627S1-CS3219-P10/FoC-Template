@@ -115,10 +115,13 @@ export class ManageErrandsDto extends ListErrandsDto {
   requesterId?: string;
 }
 export class ErrandResponse extends CreateErrandDto {
-  @ApiPropertyOptional({ nullable: true }) requesterUsername?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  requesterUsername?: string | null;
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) requesterId!: string;
   @ApiProperty({ format: 'uuid', nullable: true }) courierId!: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  courierUsername?: string | null;
   @ApiProperty({ enum: ERRAND_STATUSES })
   status!: string;
   @ApiProperty() pickupSupplierName!: string;
