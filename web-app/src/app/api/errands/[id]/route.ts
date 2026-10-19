@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { accessToken, backend, BackendError, errorResponse, json, requireSameOrigin } from "@/services/backend.server";
-import type { ErrandOperation } from "@/services/contracts";
+import type { Errand, ErrandOperation } from "@/services/contracts";
+import { withCourierUsername } from "@/services/errand-identity.server";
 type Context = { params: Promise<{ id: string }> };
 async function identifier(context: Context) { const { id } = await context.params; if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) throw new BackendError(400, "Invalid errand identifier."); return id; }
 export async function GET(request: NextRequest, context: Context) {
-  try { return json(await backend("order", `errands/${await identifier(context)}`, { token: accessToken(request) })); } catch (error) { return errorResponse(error); }
+  try { const token = accessToken(request); const result = await backend<Errand>("order", `errands/${await identifier(context)}`, { token }); return json(await withCourierUsername(result, token)); } catch (error) { return errorResponse(error); }
 }
 async function mutate(request: NextRequest, context: Context, method: "PATCH" | "DELETE") {
   try {
@@ -16,7 +17,7 @@ async function mutate(request: NextRequest, context: Context, method: "PATCH" | 
     if (typeof idempotencyKey !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) throw new BackendError(400, "Invalid request identifier.");
     if (method === "DELETE" && Object.keys(fields).length) throw new BackendError(400, "Unexpected fields.");
     const result = await backend<ErrandOperation>("order", `errands/${id}`, { method, token, idempotencyKey, ...(method === "PATCH" ? { body: fields } : {}) });
-    return json(result, result.status === "PENDING" ? 202 : 200);
+    return json(await withCourierUsername(result, token), result.status === "PENDING" ? 202 : 200);
   } catch (error) { return errorResponse(error); }
 }
 export async function PATCH(request: NextRequest, context: Context) { return mutate(request, context, "PATCH"); }

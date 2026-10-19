@@ -33,12 +33,17 @@ services:
       USER_SERVICE_URL: ${ORDER_USER_SERVICE_URL:-http://host.docker.internal:3001}
       SUPPLIER_SERVICE_URL: ${ORDER_SUPPLIER_SERVICE_URL:-http://host.docker.internal:3002}
       CREDIT_SERVICE_URL: ${ORDER_CREDIT_SERVICE_URL:-http://host.docker.internal:3003}
+      ORDER_EVENTS_ENABLED: ${ORDER_EVENTS_ENABLED:-true}
+      ORDER_EVENTS_EXCHANGE: ${ORDER_EVENTS_EXCHANGE:-foc.events}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://foc:foc_local_password@rabbitmq:5672}
     ports:
       - "3004:3004"
     depends_on:
       order-db:
         condition: service_healthy
       order-redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3004/health/ready"]

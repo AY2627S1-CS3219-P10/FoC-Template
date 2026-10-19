@@ -28,10 +28,14 @@ test("courier release requires confirmation and prevents reacceptance", async ({
 });
 test("requester confirms receipt, while pending cancellation can be checked", async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: requester }));
-  let value = { ...initial, courierId: courier.id, status: "DELIVERED" };
+  let value = { ...initial, courierId: courier.id, courierUsername: courier.username, status: "DELIVERED" };
   await page.route(`**/api/errands/${initial.id}`, (route) => route.fulfill({ json: value }));
   await page.route(`**/api/errands/${initial.id}/confirm`, (route) => { value = { ...value, status: "COMPLETED" }; return route.fulfill({ json: value }); });
-  await page.goto(`/errands/${initial.id}`); await expect(page.getByRole("button", { name: "Mark as delivered", exact: true })).toHaveCount(0); await page.getByRole("button", { name: "Confirm receipt", exact: true }).click(); await page.getByRole("button", { name: "Confirm receipt", exact: true }).click(); await expect(page.getByLabel("Status: Completed", { exact: true })).toBeVisible();
+  await page.goto(`/errands/${initial.id}`);
+  const courierField = page.locator("dl > div").filter({ has: page.locator("dt", { hasText: /^Courier$/ }) });
+  await expect(courierField.locator("dd")).toHaveText(courier.username);
+  await expect(page.getByText(courier.id, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Mark as delivered", exact: true })).toHaveCount(0); await page.getByRole("button", { name: "Confirm receipt", exact: true }).click(); await page.getByRole("button", { name: "Confirm receipt", exact: true }).click(); await expect(page.getByLabel("Status: Completed", { exact: true })).toBeVisible();
   value = { ...value, status: "ACCEPTED" }; await page.reload();
   await page.route(`**/api/errands/${initial.id}/cancel`, (route) => route.fulfill({ status: 202, json: { operationId: "op", status: "PENDING" } }));
   await page.route("**/api/errand-operations/op", (route) => { value = { ...value, status: "CANCELLED" }; return route.fulfill({ json: { operationId: "op", status: "SUCCEEDED", errand: value } }); });
