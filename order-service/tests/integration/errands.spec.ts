@@ -177,8 +177,16 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     process.env.CREDIT_SERVICE_URL = await listen(proxy);
     lookup = createServer((req, res) => {
       res.setHeader('Content-Type', 'application/json');
-      if (req.url?.match(/^\/api\/accounts\/[^/]+\/identity$/)) {
-        res.end(JSON.stringify({ id: requesterId, username: 'RequesterName' }));
+      const identity = req.url?.match(/^\/api\/accounts\/([^/]+)\/identity$/);
+      if (identity) {
+        // Numbered couriers stand for accounts that no longer exist.
+        const username = {
+          [requesterId]: 'RequesterName',
+          [otherId]: 'OtherName',
+          [courierId]: 'CourierName',
+        }[identity[1]];
+        if (username) res.end(JSON.stringify({ id: identity[1], username }));
+        else res.writeHead(404).end('{}');
         return;
       }
       if (req.url === '/api/accounts/me') {
@@ -231,6 +239,8 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
           SUPPLIER_SERVICE_URL: process.env.SUPPLIER_SERVICE_URL,
           CREDIT_SERVICE_URL: process.env.CREDIT_SERVICE_URL,
           CREDIT_ORDER_SERVICE_TOKEN: process.env.CREDIT_ORDER_SERVICE_TOKEN,
+          // Tests drive the relay by hand (fakeRelay); never reach a real broker.
+          ORDER_EVENTS_ENABLED: 'false',
         }),
       )
       .overrideProvider(RecoveryWorker)
@@ -343,8 +353,14 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       version: 1,
       acceptedAt: expect.any(String),
     });
-    expect((await read(id, 'courier')).json()).toMatchObject({ courierId });
-    expect((await read(id, 'requester')).json()).toMatchObject({ courierId });
+    const names = {
+      courierId,
+      courierUsername: 'CourierName',
+      requesterUsername: 'RequesterName',
+    };
+    expect(response.json()).toMatchObject(names);
+    expect((await read(id, 'courier')).json()).toMatchObject(names);
+    expect((await read(id, 'requester')).json()).toMatchObject(names);
     expect((await read(id, 'other')).statusCode).toBe(404);
     expect(
       (
@@ -364,6 +380,30 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         actorId: courierId,
       }),
     ]);
+  });
+  it('courierUsername is null while unassigned, after a release, and for a deleted courier account', async () => {
+    const id = (await create()).json().errand.id;
+    expect((await read(id, 'requester')).json()).toMatchObject({
+      courierId: null,
+      courierUsername: null,
+    });
+    await accept(id);
+    const released = await app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/courier-cancel`,
+      headers: { authorization: 'Bearer courier' },
+    });
+    expect(released.json()).toMatchObject({
+      courierId: null,
+      courierUsername: null,
+    });
+    const gone = await accept(id, 'courier-7');
+    expect(gone.statusCode).toBe(200);
+    expect(gone.json()).toMatchObject({
+      courierId: userFor('Bearer courier-7'),
+      courierUsername: null,
+      requesterUsername: 'RequesterName',
+    });
   });
   it('S4: rejects self-accept, unknown, deleted, taken and pending errands without changing them', async () => {
     const id = (await create()).json().errand.id;
@@ -673,21 +713,34 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       version: 4,
     });
   });
-  /** Relay wired to an in-memory confirm channel; `nack` makes the broker reject. */
-  function fakeRelay() {
+  /**
+   * Relay wired to an in-memory confirm channel; `nack` makes the broker reject and
+   * `unroutable` makes it return the message (no queue bound) before confirming.
+   */
+  function fakeRelay(
+    config: Record<string, string> = { ORDER_EVENTS_ENABLED: 'true' },
+  ) {
     const sent: { routingKey: string; body: unknown; options: unknown }[] = [];
-    const broker = { nack: false };
+    const broker = { nack: false, unroutable: false };
+    let onReturn: (message: unknown) => void = () => undefined;
     const channel = {
       assertExchange: jest.fn(() => Promise.resolve()),
       close: () => Promise.resolve(),
+      on: (event: string, listener: (message: unknown) => void) => {
+        if (event === 'return') onReturn = listener;
+      },
       publish: (
         _exchange: string,
         routingKey: string,
         content: Buffer,
-        options: unknown,
+        options: { messageId: string },
         done: (error: Error | null) => void,
       ) => {
         if (broker.nack) return done(new Error('nack'));
+        if (broker.unroutable) {
+          onReturn({ properties: { messageId: options.messageId } });
+          return done(null);
+        }
         sent.push({
           routingKey,
           body: JSON.parse(content.toString()),
@@ -705,10 +758,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         } as unknown as ChannelModel);
       }
     }
-    const relay = new TestRelay(
-      prisma,
-      new ConfigService({ ORDER_EVENTS_ENABLED: 'true' }),
-    );
+    const relay = new TestRelay(prisma, new ConfigService(config));
     return { relay, sent, broker, channel };
   }
   it("S6a relay: publishes credit's envelope after broker confirm, once per event", async () => {
@@ -741,6 +791,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         },
         options: expect.objectContaining({
           deliveryMode: 2,
+          mandatory: true,
           messageId: event.id,
           contentType: 'application/json',
           headers: { 'x-correlation-id': correlationId },
@@ -773,6 +824,39 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     expect(event.publishedAt).toBeInstanceOf(Date);
     await relay.onModuleDestroy();
   });
+  it('relay: an unroutable event (no queue bound yet) stays pending until a consumer binds', async () => {
+    const id = await errandIn('DELIVERED');
+    await act(id, 'confirm', 'requester');
+    const { relay, sent, broker } = fakeRelay();
+    broker.unroutable = true;
+    expect(await relay.publishPending()).toBe(0);
+    expect(
+      await prisma.outboxEvent.count({ where: { publishedAt: null } }),
+    ).toBe(1);
+    broker.unroutable = false;
+    expect(await relay.publishPending()).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(
+      await prisma.outboxEvent.count({ where: { publishedAt: null } }),
+    ).toBe(0);
+    await relay.onModuleDestroy();
+  });
+  it.each([
+    [{}, 1],
+    [{ ORDER_EVENTS_ENABLED: 'true' }, 1],
+    [{ ORDER_EVENTS_ENABLED: 'false' }, 0],
+  ])(
+    'relay: config %j publishes %i event on start (on unless explicitly false)',
+    async (config, expected) => {
+      const id = await errandIn('DELIVERED');
+      await act(id, 'confirm', 'requester');
+      const { relay, sent } = fakeRelay(config);
+      relay.onModuleInit();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await relay.onModuleDestroy();
+      expect(sent).toHaveLength(expected);
+    },
+  );
   /** Moves an errand's lifecycle timestamps into the past instead of waiting. */
   const age = (id: string, interval: string) =>
     prisma.$executeRaw`UPDATE "errands" SET "accepted_at" = "accepted_at" - ${interval}::interval, "picked_up_at" = "picked_up_at" - ${interval}::interval, "delivered_at" = "delivered_at" - ${interval}::interval WHERE "id" = ${id}::uuid`;

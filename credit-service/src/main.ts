@@ -101,6 +101,12 @@ async function bootstrap(): Promise<void> {
       },
     });
     await app.startAllMicroservices();
+  } else {
+    app
+      .get(Logger)
+      .warn(
+        'CREDIT_EVENTS_ENABLED=false: errand.completed.v1 and user.verified.v1 are not consumed, so completed errands are not settled',
+      );
   }
   await app.listen(config.getOrThrow<number>('app.port'), '0.0.0.0');
 }
