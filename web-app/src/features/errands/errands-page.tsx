@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/icon";
 import { useAuth } from "@/features/auth/auth-provider";
-import { authenticatedRequest, request } from "@/services/api";
+import { ApiError, authenticatedRequest, request } from "@/services/api";
 import type { ErrandPreview } from "@/services/contracts";
 import { ErrandStatus } from "./errand-status";
 
@@ -62,12 +62,17 @@ export function ErrandsPage() {
         }
       } catch (failure) {
         if (active) {
+          const missingGuestPreview =
+            failure instanceof ApiError &&
+            failure.status === 404 &&
+            failure.message.includes("errand-previews");
           setState({
             viewer,
             errands: [],
             busy: false,
-            error:
-              failure instanceof Error
+            error: missingGuestPreview
+              ? ""
+              : failure instanceof Error
                 ? failure.message
                 : "Unable to load errands.",
             more: false,

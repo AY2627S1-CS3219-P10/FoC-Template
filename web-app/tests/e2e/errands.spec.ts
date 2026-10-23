@@ -93,6 +93,17 @@ test("guests can browse previews but must log in to open an errand", async ({ pa
   await page.goto("/errands"); await expect(page.getByRole("article")).toContainText("Pick up my coffee"); await expect(page.getByText("Log in to open an errand, view its details, or accept it.")).toBeVisible();
   await page.getByRole("article").getByRole("link", { name: "Log in to view errand: Pick up my coffee" }).click(); await expect(page).toHaveURL(/\/login$/);
 });
+test("missing guest preview endpoint is shown as an empty errand list", async ({ page }) => {
+  await page.route("**/api/auth/session", (route) => route.fulfill({ status: 401, json: {} }));
+  await page.route("**/api/auth/refresh", (route) => route.fulfill({ status: 401, json: {} }));
+  await page.route("**/api/errands?*", (route) =>
+    route.fulfill({ status: 404, json: { message: "Cannot GET /api/errand-previews" } }),
+  );
+  await page.goto("/errands");
+  await expect(page.getByRole("heading", { name: "No open errands right now" })).toBeVisible();
+  await expect(page.getByText("Cannot GET", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Retry errands" })).toHaveCount(0);
+});
 test("catalogue shows coin rewards and supports all time and credit sort orders", async ({ page }) => {
   const values = [{ ...errand, id: "first", description: "Older request", offeredCredits: 10 }, { ...errand, id: "second", description: "Newest request", offeredCredits: 30 }];
   await page.route("**/api/errands?*", (route) => {
