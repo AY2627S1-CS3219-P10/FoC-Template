@@ -333,10 +333,34 @@
   color: var(--muted);
   margin-bottom: 24px;
 }
+.supplier-card-details { display: grid; gap: 14px; margin: 0 0 22px; }
+.supplier-card-details > div { display: grid; gap: 6px; }
+.supplier-card-details dt { color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+.supplier-card-details dd { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--ink); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.supplier-card-details dd svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--muted); }
 .supplier-card .card-footer {
   margin-top: auto;
   font-size: 11px;
+  justify-content: flex-end;
 }
+.supplier-view-options { display: flex; align-items: center; gap: 16px; }
+.supplier-view-options > p { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.view-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #f4f6f2; }
+.view-switch button { display: flex; align-items: center; gap: 6px; border: 0; border-radius: 6px; padding: 8px 11px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.view-switch button[aria-pressed="true"] { background: #fff; color: var(--green); box-shadow: 0 1px 4px rgba(29, 60, 50, 0.12); }
+.view-switch svg { width: 16px; height: 16px; }
+.supplier-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+.supplier-table { width: 100%; min-width: 760px; border-collapse: collapse; text-align: left; }
+.supplier-table th { padding: 14px 18px; background: #f4f6f2; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.supplier-table td { padding: 15px 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; vertical-align: middle; }
+.supplier-table tbody tr:hover { background: #fbfcfa; }
+.supplier-table th:first-child { width: 30%; }
+.supplier-table th:last-child, .supplier-table td:last-child { text-align: right; }
+.supplier-list-name { display: flex; align-items: center; gap: 12px; color: var(--ink); }
+.supplier-list-name .category-icon { width: 38px; height: 38px; flex: 0 0 auto; }
+.supplier-list-name strong { font-size: 14px; overflow-wrap: anywhere; }
+.supplier-table .category-label { white-space: nowrap; }
+.supplier-table .text-link { justify-content: flex-end; white-space: nowrap; }
 .location-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -411,6 +435,7 @@
   .location-grid {
     grid-template-columns: 1fr;
   }
+  .supplier-view-options { width: 100%; justify-content: space-between; }
   .home-catalog-callout {
     padding: 22px;
     gap: 15px;
