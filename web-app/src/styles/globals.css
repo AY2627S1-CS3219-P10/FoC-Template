@@ -1133,6 +1133,9 @@ h1 em {
 .guest-errands-notice strong { color: var(--ink); }
 .guest-errands-notice p { margin: 5px 0 0; color: var(--muted); }
 .guest-errands-notice .button { flex: 0 0 auto; }
+.supplier-guest-notice {
+  margin-top: 0;
+}
 @media (max-width: 640px) {
   .guest-errands-notice { align-items: flex-start; flex-direction: column; }
 }

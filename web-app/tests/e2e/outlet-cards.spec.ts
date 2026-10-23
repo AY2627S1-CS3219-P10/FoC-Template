@@ -43,6 +43,27 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
+test("guests can preview suppliers but must log in to view locations", async ({
+  page,
+}) => {
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ status: 401, json: {} }),
+  );
+  await page.route("**/api/auth/refresh", (route) =>
+    route.fulfill({ status: 401, json: {} }),
+  );
+  await page.goto("/suppliers");
+  await expect(
+    page.getByText("Preview popular suppliers around campus."),
+  ).toBeVisible();
+  await expect(page.getByText("Anna's x Soup Union")).toBeVisible();
+  await expect(
+    page.getByRole("link", {
+      name: "Log in to view locations: Anna's x Soup Union",
+    }),
+  ).toHaveAttribute("href", "/login");
+});
+
 test("adding the same name on another floor automatically renders a separate admin card", async ({
   page,
 }) => {

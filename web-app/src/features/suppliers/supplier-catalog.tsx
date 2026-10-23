@@ -6,6 +6,7 @@ import { Icon } from "@/components/icon";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import { categoryLabels, type Supplier } from "@/services/contracts";
+import { guestSupplierPreviews } from "./guest-supplier-previews";
 import { outletAddress, supplierCards } from "./outlet-display";
 
 type CatalogView = "cards" | "list";
@@ -36,6 +37,7 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
   }
 
   useEffect(() => {
+    if (auth.loading) return;
     if (!userId) return;
     let active = true;
     authenticatedRequest<Supplier[]>("suppliers")
@@ -61,7 +63,9 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
     return () => {
       active = false;
     };
-  }, [userId, attempt, reload]);
+  }, [auth.loading, userId, attempt, reload]);
+
+  const catalogSuppliers = userId ? suppliers : guestSupplierPreviews;
 
   function retry() {
     setBusy(true);
@@ -87,11 +91,11 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
         </button>
       </div>
     );
-  if (!auth.user)
+  if (supplierId && !auth.user)
     return (
       <div className="empty-state">
         <p className="eyebrow">YOUR CAMPUS FAVOURITES</p>
-        <h1>Log in to explore suppliers.</h1>
+        <h1>Log in to view supplier details.</h1>
         <p>
           Find campus shops, food spots, and their available pickup locations.
         </p>
@@ -106,7 +110,7 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
         </p>
       </div>
     );
-  if (busy)
+  if (busy && userId)
     return (
       <div className="empty-state" role="status">
         Loading campus suppliers…
@@ -174,7 +178,7 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
     );
   }
   const search = query.trim().toLowerCase();
-  const filtered = supplierCards(suppliers).filter(
+  const filtered = supplierCards(catalogSuppliers).filter(
     ({ supplier, title, locations }) =>
       (category === "ALL" || supplier.category === category) &&
       `${title} ${locations.map((location) => `${outletAddress(location)} ${location.supplierAtLocation}`).join(" ")}`
@@ -248,6 +252,17 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
           </div>
         </div>
       </div>
+      {!auth.user && (
+        <aside className="guest-errands-notice supplier-guest-notice">
+          <div>
+            <strong>Preview popular suppliers around campus.</strong>
+            <p>Log in to view pickup points, opening hours, and directions.</p>
+          </div>
+          <Link className="button button-dark" href="/login">
+            Log in
+          </Link>
+        </aside>
+      )}
       {filtered.length ? (
         view === "cards" ? (
           <div className="supplier-grid">
@@ -272,7 +287,7 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                   </span>
                 </div>
                 <h2>
-                  <Link href={href}>{title}</Link>
+                  <Link href={auth.user ? href : "/login"}>{title}</Link>
                 </h2>
                 <dl className="supplier-card-details">
                   <div>
@@ -295,10 +310,15 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                 <div className="card-footer">
                   <Link
                     className="text-link"
-                    href={href}
-                    aria-label={`View locations: ${title}`}
+                    href={auth.user ? href : "/login"}
+                    aria-label={
+                      auth.user
+                        ? `View locations: ${title}`
+                        : `Log in to view locations: ${title}`
+                    }
                   >
-                    View locations <Icon name="arrow" />
+                    {auth.user ? "View locations" : "Log in to view"}{" "}
+                    <Icon name="arrow" />
                   </Link>
                 </div>
               </article>
@@ -322,7 +342,10 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                 {filtered.map(({ id, supplier, title, locations, href }) => (
                   <tr key={id}>
                     <td>
-                      <Link className="supplier-list-name" href={href}>
+                      <Link
+                        className="supplier-list-name"
+                        href={auth.user ? href : "/login"}
+                      >
                         <span
                           className={`category-icon ${supplier.category === "PRINTING" ? "lilac" : supplier.category === "SHOPPING" ? "peach" : "mint"}`}
                         >
@@ -356,10 +379,14 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                     <td>
                       <Link
                         className="text-link"
-                        href={href}
-                        aria-label={`View locations: ${title}`}
+                        href={auth.user ? href : "/login"}
+                        aria-label={
+                          auth.user
+                            ? `View locations: ${title}`
+                            : `Log in to view locations: ${title}`
+                        }
                       >
-                        View <Icon name="arrow" />
+                        {auth.user ? "View" : "Log in"} <Icon name="arrow" />
                       </Link>
                     </td>
                   </tr>
@@ -371,16 +398,16 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
       ) : (
         <div className="empty-state">
           <h2>
-            {suppliers.length
+            {catalogSuppliers.length
               ? "No matching suppliers"
               : "No suppliers available yet"}
           </h2>
           <p>
-            {suppliers.length
+            {catalogSuppliers.length
               ? "Try another search or category."
               : "Active suppliers will appear here when they become available."}
           </p>
-          {suppliers.length > 0 && (
+          {catalogSuppliers.length > 0 && (
             <button
               className="button button-dark"
               onClick={() => {
