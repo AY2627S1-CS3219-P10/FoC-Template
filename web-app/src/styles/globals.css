@@ -1119,6 +1119,23 @@ h1 em {
   font-size: 12px;
   color: var(--muted);
 }
+.guest-errands-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 24px 0;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f4f7f1;
+}
+.guest-errands-notice strong { color: var(--ink); }
+.guest-errands-notice p { margin: 5px 0 0; color: var(--muted); }
+.guest-errands-notice .button { flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .guest-errands-notice { align-items: flex-start; flex-direction: column; }
+}
 .empty-state {
   text-align: center;
   padding: 90px 20px;
