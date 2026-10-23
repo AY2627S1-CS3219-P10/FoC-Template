@@ -173,7 +173,7 @@ export function CreateErrand({ onCreated }: { onCreated: () => void }) {
       <div className="create-errand-heading">
         <div>
           <p className="eyebrow">REQUEST CAMPUS HELP</p>
-          <h2 id="create-errand-title">Create a new errand</h2>
+          <h1 id="create-errand-title">Create a new errand</h1>
         </div>
         <p>
           Set the reward for your courier. Credits are reserved only after the

@@ -1837,7 +1837,7 @@ hr {
   gap: 32px;
   margin-bottom: 24px;
 }
-.create-errand-heading h2 {
+.create-errand-heading h1 {
   margin-top: 8px;
   font-size: clamp(28px, 3.2vw, 42px);
   letter-spacing: -1.2px;
