@@ -6,7 +6,11 @@ import { Icon } from "@/components/icon";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import { categoryLabels, type Supplier } from "@/services/contracts";
+import { guestSupplierPreviews } from "./guest-supplier-previews";
 import { outletAddress, supplierCards } from "./outlet-display";
+
+type CatalogView = "cards" | "list";
+const VIEW_STORAGE_KEY = "foc-supplier-catalog-view-v2";
 
 export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
   const auth = useAuth();
@@ -18,8 +22,22 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
+  const [view, setView] = useState<CatalogView>("list");
 
   useEffect(() => {
+    void Promise.resolve().then(() => {
+      const saved = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (saved === "cards" || saved === "list") setView(saved);
+    });
+  }, []);
+
+  function chooseView(nextView: CatalogView) {
+    setView(nextView);
+    window.localStorage.setItem(VIEW_STORAGE_KEY, nextView);
+  }
+
+  useEffect(() => {
+    if (auth.loading) return;
     if (!userId) return;
     let active = true;
     authenticatedRequest<Supplier[]>("suppliers")
@@ -45,7 +63,9 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
     return () => {
       active = false;
     };
-  }, [userId, attempt, reload]);
+  }, [auth.loading, userId, attempt, reload]);
+
+  const catalogSuppliers = userId ? suppliers : guestSupplierPreviews;
 
   function retry() {
     setBusy(true);
@@ -71,11 +91,11 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
         </button>
       </div>
     );
-  if (!auth.user)
+  if (supplierId && !auth.user)
     return (
       <div className="empty-state">
         <p className="eyebrow">YOUR CAMPUS FAVOURITES</p>
-        <h1>Log in to explore suppliers.</h1>
+        <h1>Log in to view supplier details.</h1>
         <p>
           Find campus shops, food spots, and their available pickup locations.
         </p>
@@ -90,7 +110,7 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
         </p>
       </div>
     );
-  if (busy)
+  if (busy && userId)
     return (
       <div className="empty-state" role="status">
         Loading campus suppliers…
@@ -158,7 +178,7 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
     );
   }
   const search = query.trim().toLowerCase();
-  const filtered = supplierCards(suppliers).filter(
+  const filtered = supplierCards(catalogSuppliers).filter(
     ({ supplier, title, locations }) =>
       (category === "ALL" || supplier.category === category) &&
       `${title} ${locations.map((location) => `${outletAddress(location)} ${location.supplierAtLocation}`).join(" ")}`
@@ -167,104 +187,227 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
   );
   return (
     <section className="browse-page">
-      <p className="eyebrow">AROUND THE CORNER</p>
-      <h1>
-        Your campus. <em>Your favourites.</em>
-      </h1>
-      <p className="page-description">
-        Explore available suppliers and find a pickup spot near you.
-      </p>
-      <div className="browse-controls supplier-controls">
-        <label className="search-field">
-          <Icon name="search" />
-          <span className="sr-only">Search suppliers</span>
-          <input
-            type="search"
-            placeholder="Search a supplier or campus location…"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
-        <button className="button button-outline" onClick={retry}>
-          Refresh suppliers
-        </button>
+      <div className="catalog-hero">
+        <p className="eyebrow">AROUND THE CORNER</p>
+        <h1>
+          Your campus. <em>Your favourites.</em>
+        </h1>
+        <p>Explore available suppliers and find a pickup spot near you.</p>
       </div>
-      <div className="filter-row">
-        <div className="category-filters" aria-label="Filter by category">
-          {[["ALL", "All suppliers"], ...Object.entries(categoryLabels)].map(
-            ([value, label]) => (
+      <div className="supplier-control-panel">
+        <div className="browse-controls supplier-controls">
+          <label className="search-field">
+            <Icon name="search" />
+            <span className="sr-only">Search suppliers</span>
+            <input
+              type="search"
+              placeholder="Search a supplier or campus location…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className="supplier-refresh-action">
+            <button className="button button-dark" onClick={retry}>
+              Refresh suppliers
+            </button>
+          </div>
+        </div>
+        <div className="filter-row">
+          <div className="category-filters" aria-label="Filter by category">
+            {[["ALL", "All suppliers"], ...Object.entries(categoryLabels)].map(
+              ([value, label]) => (
+                <button
+                  key={value}
+                  aria-pressed={category === value}
+                  onClick={() => setCategory(value)}
+                >
+                  {label}
+                </button>
+              ),
+            )}
+          </div>
+          <div className="supplier-view-options">
+            <p aria-live="polite">
+              {filtered.length}{" "}
+              {filtered.length === 1 ? "supplier" : "suppliers"}
+            </p>
+            <div
+              className="view-switch"
+              role="group"
+              aria-label="Supplier layout"
+            >
               <button
-                key={value}
-                aria-pressed={category === value}
-                onClick={() => setCategory(value)}
+                aria-pressed={view === "cards"}
+                onClick={() => chooseView("cards")}
               >
-                {label}
+                <Icon name="grid" /> Cards
               </button>
-            ),
-          )}
+              <button
+                aria-pressed={view === "list"}
+                onClick={() => chooseView("list")}
+              >
+                <Icon name="list" /> List
+              </button>
+            </div>
+          </div>
         </div>
-        <p aria-live="polite">
-          {filtered.length} {filtered.length === 1 ? "supplier" : "suppliers"}
-        </p>
       </div>
+      {!auth.user && (
+        <aside className="guest-errands-notice supplier-guest-notice">
+          <div>
+            <strong>Preview popular suppliers around campus.</strong>
+            <p>Log in to view pickup points, opening hours, and directions.</p>
+          </div>
+          <Link className="button button-dark" href="/login">
+            Log in
+          </Link>
+        </aside>
+      )}
       {filtered.length ? (
-        <div className="supplier-grid">
-          {filtered.map(({ id, supplier, title, locations, href }) => (
-            <article className="supplier-card" key={id}>
-              <div className="card-top">
-                <span
-                  className={`category-icon ${supplier.category === "PRINTING" ? "lilac" : supplier.category === "SHOPPING" ? "peach" : "mint"}`}
-                >
-                  <Icon
-                    name={
-                      supplier.category === "PRINTING"
-                        ? "print"
-                        : supplier.category === "SHOPPING"
-                          ? "bag"
-                          : "coffee"
+        view === "cards" ? (
+          <div className="supplier-grid">
+            {filtered.map(({ id, supplier, title, locations, href }) => (
+              <article className="supplier-card" key={id}>
+                <div className="card-top">
+                  <span
+                    className={`category-icon ${supplier.category === "PRINTING" ? "lilac" : supplier.category === "SHOPPING" ? "peach" : "mint"}`}
+                  >
+                    <Icon
+                      name={
+                        supplier.category === "PRINTING"
+                          ? "print"
+                          : supplier.category === "SHOPPING"
+                            ? "bag"
+                            : "coffee"
+                      }
+                    />
+                  </span>
+                  <span className="category-label">
+                    {categoryLabels[supplier.category]}
+                  </span>
+                </div>
+                <h2>
+                  <Link href={auth.user ? href : "/login"}>{title}</Link>
+                </h2>
+                <dl className="supplier-card-details">
+                  <div>
+                    <dt>Campus locations</dt>
+                    <dd>
+                      <Icon name="pin" />
+                      {locations
+                        .map((location) => location.building)
+                        .join(" · ")}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Pickup points</dt>
+                    <dd>
+                      {locations.length}{" "}
+                      {locations.length === 1 ? "location" : "locations"}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="card-footer">
+                  <Link
+                    className="text-link"
+                    href={auth.user ? href : "/login"}
+                    aria-label={
+                      auth.user
+                        ? `View locations: ${title}`
+                        : `Log in to view locations: ${title}`
                     }
-                  />
-                </span>
-                <span className="category-label">
-                  {categoryLabels[supplier.category]}
-                </span>
-              </div>
-              <h2>
-                <Link href={href}>{title}</Link>
-              </h2>
-              <p>
-                <Icon name="pin" />
-                {locations.map((location) => location.building).join(" · ")}
-              </p>
-              <div className="card-footer">
-                <span>
-                  {locations.length} pickup{" "}
-                  {locations.length === 1 ? "location" : "locations"}
-                </span>
-                <Link
-                  className="text-link"
-                  href={href}
-                  aria-label={`View locations: ${title}`}
-                >
-                  View locations <Icon name="arrow" />
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+                  >
+                    {auth.user ? "View locations" : "Log in to view"}{" "}
+                    <Icon name="arrow" />
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="supplier-table-wrap">
+            <table className="supplier-table">
+              <thead>
+                <tr>
+                  <th>Supplier</th>
+                  <th>Category</th>
+                  <th>Campus locations</th>
+                  <th>Pickup points</th>
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(({ id, supplier, title, locations, href }) => (
+                  <tr key={id}>
+                    <td>
+                      <Link
+                        className="supplier-list-name"
+                        href={auth.user ? href : "/login"}
+                      >
+                        <span
+                          className={`category-icon ${supplier.category === "PRINTING" ? "lilac" : supplier.category === "SHOPPING" ? "peach" : "mint"}`}
+                        >
+                          <Icon
+                            name={
+                              supplier.category === "PRINTING"
+                                ? "print"
+                                : supplier.category === "SHOPPING"
+                                  ? "bag"
+                                  : "coffee"
+                            }
+                          />
+                        </span>
+                        <strong>{title}</strong>
+                      </Link>
+                    </td>
+                    <td>
+                      <span className="category-label">
+                        {categoryLabels[supplier.category]}
+                      </span>
+                    </td>
+                    <td>
+                      {locations
+                        .map((location) => location.building)
+                        .join(" · ")}
+                    </td>
+                    <td>
+                      {locations.length}{" "}
+                      {locations.length === 1 ? "location" : "locations"}
+                    </td>
+                    <td>
+                      <Link
+                        className="text-link"
+                        href={auth.user ? href : "/login"}
+                        aria-label={
+                          auth.user
+                            ? `View locations: ${title}`
+                            : `Log in to view locations: ${title}`
+                        }
+                      >
+                        {auth.user ? "View" : "Log in"} <Icon name="arrow" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : (
         <div className="empty-state">
           <h2>
-            {suppliers.length
+            {catalogSuppliers.length
               ? "No matching suppliers"
               : "No suppliers available yet"}
           </h2>
           <p>
-            {suppliers.length
+            {catalogSuppliers.length
               ? "Try another search or category."
               : "Active suppliers will appear here when they become available."}
           </p>
-          {suppliers.length > 0 && (
+          {catalogSuppliers.length > 0 && (
             <button
               className="button button-dark"
               onClick={() => {

@@ -9,6 +9,8 @@ const paths = {
   bag: "M4 7h16l1 14H3ZM8 8V6a4 4 0 0 1 8 0v2",
   print: "M6 9V2h12v7M6 17H3V9h18v8h-3M6 14h12v8H6Z",
   check: "m5 12 4 4L19 6",
+  grid: "M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z",
+  list: "M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01",
 } as const;
 
 export function Icon({

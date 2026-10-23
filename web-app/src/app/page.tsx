@@ -4,106 +4,124 @@ import { Icon } from "@/components/icon";
 export default function HomePage() {
   return (
     <>
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="eyebrow">
-            <span className="status-dot" /> YOUR CAMPUS, A LITTLE CLOSER
-          </p>
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <p className="eyebrow">YOUR CAMPUS, A LITTLE CLOSER</p>
           <h1>
-            A little help.
-            <br />A <em>better</em> campus day.
+            Small errands.
+            <br />A <em>stronger</em> community.
           </h1>
-          <p className="hero-description">
-            A coffee on the way to class. Lunch between lectures.
-            <br className="desktop-break" /> Connect with friends who can lend a
-            hand.
+          <p>
+            Find a campus errand that fits your route, or ask a neighbour to
+            pick something up along the way.
           </p>
-          <Link className="button button-dark" href="/suppliers">
-            Explore suppliers <Icon name="arrow" />
-          </Link>
-          <p className="hero-footnote">
-            On your way anyway? Make someone’s day.
-          </p>
+          <div className="home-hero-actions">
+            <Link className="button home-primary-action" href="/errands">
+              Browse errands <Icon name="arrow" />
+            </Link>
+            <Link className="button home-secondary-action" href="/suppliers">
+              Explore suppliers
+            </Link>
+          </div>
         </div>
-        <div className="campus-scene" aria-hidden="true">
-          <div className="scene-orbit orbit-one" />
-          <div className="scene-orbit orbit-two" />
-          <span className="scene-spark spark-one">✳</span>
-          <span className="scene-spark spark-two">✳</span>
-          <div className="scene-note">
-            <span className="note-dot" /> A small favour, a big difference.
-          </div>
-          <div className="coffee-illustration">
-            <div className="cup-steam" />
-            <div className="cup-lid" />
-            <div className="cup-body">
-              <div className="cup-sleeve">
-                hey,
-                <br />
-                <strong>neighbour.</strong>
-                <span>♡</span>
-              </div>
-            </div>
-          </div>
-          <div className="floating-delivery">
-            <span className="delivery-check">
-              <Icon name="check" />
+        <div
+          className="home-community-card"
+          aria-label="How Friend on Campus works"
+        >
+          <p className="home-card-kicker">GOOD THINGS GO AROUND</p>
+          <div className="home-route-line">
+            <span>
+              <Icon name="pin" />
             </span>
             <div>
-              <strong>Coffee, with a side of kindness.</strong>
-              <span>That’s the campus spirit.</span>
+              <strong>Pick up nearby</strong>
+              <small>Campus shops and food spots</small>
             </div>
           </div>
-          <div className="scene-caption">GOOD THINGS GO AROUND ↗</div>
+          <div className="home-route-divider" />
+          <div className="home-route-line">
+            <span>
+              <Icon name="arrow" />
+            </span>
+            <div>
+              <strong>Deliver along your route</strong>
+              <small>Help a friend between classes</small>
+            </div>
+          </div>
+          <div className="home-kindness-note">
+            <Icon name="check" /> One small favour, one easier campus day.
+          </div>
         </div>
       </section>
-      <section className="steps-strip" aria-label="How it works">
-        <div>
-          <span className="step-number">01</span>
-          <p>
-            <strong>Join your campus community</strong>
-            <span>Register and verify your NUS email.</span>
-          </p>
-        </div>
-        <div>
-          <span className="step-number">02</span>
-          <p>
-            <strong>Find your campus favourites</strong>
-            <span>Browse food, shops, and printing.</span>
-          </p>
-        </div>
-        <div>
-          <span className="step-number">03</span>
-          <p>
-            <strong>Know where to go</strong>
-            <span>Check pickup locations and hours.</span>
-          </p>
-        </div>
-      </section>
-      <section className="home-errands">
-        <div className="section-heading">
+
+      <section className="home-paths" aria-labelledby="home-paths-title">
+        <div className="home-section-heading">
           <div>
-            <p className="eyebrow">AROUND THE CORNER</p>
-            <h2>Your next campus stop</h2>
+            <p className="eyebrow">START HERE</p>
+            <h2 id="home-paths-title">What can we help you do?</h2>
+          </div>
+          <p>Everything you need for a smoother campus day, in one place.</p>
+        </div>
+        <div className="home-path-grid">
+          <article className="home-path-card featured">
+            <span className="home-path-icon">
+              <Icon name="bag" />
+            </span>
+            <p className="eyebrow">COMMUNITY ERRANDS</p>
+            <h3>Find a way to help.</h3>
             <p>
-              Discover suppliers, opening hours, and pickup locations in one
-              place.
+              Browse open requests, compare routes and rewards, and lend a hand
+              when it suits your day.
             </p>
-          </div>
-          <Link className="text-link" href="/suppliers">
-            Browse suppliers <Icon name="arrow" />
-          </Link>
+            <Link className="text-link" href="/errands">
+              View open errands <Icon name="arrow" />
+            </Link>
+          </article>
+          <article className="home-path-card">
+            <span className="home-path-icon peach">
+              <Icon name="pin" />
+            </span>
+            <p className="eyebrow">CAMPUS DIRECTORY</p>
+            <h3>Know where to pick up.</h3>
+            <p>
+              Explore food, shopping, coffee, and printing locations before
+              creating your request.
+            </p>
+            <Link className="text-link" href="/suppliers">
+              Browse campus suppliers <Icon name="arrow" />
+            </Link>
+          </article>
         </div>
-        <div className="home-catalog-callout">
-          <Icon name="pin" />
-          <div>
-            <h3>Campus favourites, all together.</h3>
-            <p>Log in to see available suppliers and their pickup spots.</p>
-          </div>
-          <Link href="/register" className="button button-outline">
-            Join the community
-          </Link>
+      </section>
+
+      <section className="home-how" aria-labelledby="home-how-title">
+        <div>
+          <p className="eyebrow">HOW IT WORKS</p>
+          <h2 id="home-how-title">From request to doorstep.</h2>
         </div>
+        <ol>
+          <li>
+            <span>01</span>
+            <div>
+              <strong>Create or discover</strong>
+              <p>Post what you need or find an open errand nearby.</p>
+            </div>
+          </li>
+          <li>
+            <span>02</span>
+            <div>
+              <strong>Credits stay protected</strong>
+              <p>The bounty is reserved safely while the errand is underway.</p>
+            </div>
+          </li>
+          <li>
+            <span>03</span>
+            <div>
+              <strong>Complete the handoff</strong>
+              <p>Confirm delivery and reward the friend who helped.</p>
+            </div>
+          </li>
+        </ol>
       </section>
     </>
   );
