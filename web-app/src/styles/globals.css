@@ -185,7 +185,7 @@
   margin: 18px 0 24px;
 }
 .auth-intro em {
-  font-family: Georgia, serif;
+  font-family: var(--font-heading);
   color: #708652;
   font-weight: 400;
 }
@@ -428,7 +428,7 @@
 }
 @theme inline {
   --color-campus-green: #225347;
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 :root {
   --ink: #233b33;
@@ -436,6 +436,8 @@
   --green: #225347;
   --border: #e2e7df;
   --paper: #fafbf7;
+  --font-interface: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-heading: Georgia, "Times New Roman", serif;
 }
 * {
   box-sizing: border-box;
@@ -444,7 +446,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-interface);
   font-size: 15px;
   line-height: 1.6;
 }
@@ -471,6 +473,11 @@ input:focus-visible,
 select:focus-visible {
   outline: 3px solid #aa6029;
   outline-offset: 4px;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
 }
 h1,
 h2,
@@ -594,7 +601,7 @@ h1 {
   font-weight: 600;
 }
 h1 em {
-  font-family: Georgia, serif;
+  font-family: var(--font-heading);
   font-weight: 400;
   color: #708652;
 }
@@ -723,7 +730,7 @@ h1 em {
   text-align: center;
   font-size: 17px;
   line-height: 1.1;
-  font-family: Georgia, serif;
+  font-family: var(--font-heading);
 }
 .cup-sleeve strong {
   font-weight: 400;
