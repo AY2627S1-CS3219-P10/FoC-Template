@@ -27,8 +27,9 @@ event settle) or double-apply.
 
 - Exchange `foc.events` (topic, durable). Routing key = `eventType`.
 - Body: `{ "pattern": eventType, "data": { "eventId": <uuid v4>, "eventType": eventType, "data": <payload> } }`.
-- Publish persistent, `messageId = eventId`, on a **confirm channel**; mark published only
-  after the broker confirms. Reference: `credit-service/src/infrastructure/outbox-relay.service.ts`
+- Publish persistent and **`mandatory`**, `messageId = eventId`, on a **confirm channel**;
+  mark published only after the broker confirms **and** did not return the message as
+  unroutable. Reference: `credit-service/src/infrastructure/outbox-relay.service.ts`
   `OutboxRelayService`.
 - Correlation id: AMQP header `x-correlation-id` (name pending Q-017), **never** in the
   body of `errand.completed.v1`.
@@ -72,12 +73,19 @@ index on (created_at) where published_at is null
   credit dedupes by `eventId` + payload hash.
 - If RabbitMQ is down, rows accumulate; nothing is lost. Readiness does **not** depend
   on RabbitMQ.
+- If no queue is bound for the routing key (credit's consumer is off, has not started yet,
+  or RabbitMQ was recreated without a volume and lost `credit-service.events`), a plain
+  publish is confirmed and **silently dropped**. `mandatory` makes the broker return it
+  (`basic.return` arrives before the confirm); the relay keeps the row pending, logs a
+  warning and retries on the next poll.
+- Logs: `Outbox relay started` (or a warning when disabled), `Published outbox event`
+  per row (`eventId`, `eventType`, `errandId`), warnings for unroutable or failed publishes.
 
 ## 5. Configuration (added in S6a)
 | Var | Default | Notes |
 |---|---|---|
 | `RABBITMQ_URL` | `amqp://foc:foc_local_password@127.0.0.1:5672` | local docker rabbit from root `compose.yaml` |
-| `ORDER_EVENTS_ENABLED` | `false` | when false the relay does not start; rows still written |
+| `ORDER_EVENTS_ENABLED` | on | only the exact value `false` turns the relay off (rows still written; couriers are not paid until it is on). Default was `false` until 2026-10-18, which left completions unsettled in local runs |
 | `ORDER_EVENTS_EXCHANGE` | `foc.events` | |
 
 Dependencies (pinned to credit's versions): `amqplib@0.10.9`, `@types/amqplib@0.10.8`
@@ -99,6 +107,8 @@ handling, ack after commit, DLQ for permanent failures.
 - Any extra key, wrong `amount`, or reused `eventId` with different data → DLQ.
 - `ACCOUNT_BALANCE_LIMIT_EXCEEDED` (courier at 10M) → DLQ.
 - Nobody monitors `credit-service.events.dlq` yet.
+- An old local `order-service/.env` copied from `.env.example` before 2026-10-18 still
+  says `ORDER_EVENTS_ENABLED=false`; delete the line or set it to `true`.
 
 ## 8. External dependency — compose.yaml (owner: compose maintainer)
 Status: **OPEN** (Q-018). Order-service cannot edit the root `compose.yaml`.

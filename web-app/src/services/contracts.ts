@@ -18,6 +18,7 @@ export interface Errand {
   completionMethod?: "REQUESTER_CONFIRMED" | "AUTO_TIMEOUT" | null;
   itemType?: "FOOD" | "NON_PERISHABLE";
   requesterUsername?: string | null;
+  courierUsername?: string | null;
   id: string;
   requesterId: string;
   courierId: string | null;

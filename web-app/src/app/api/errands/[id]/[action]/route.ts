@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { accessToken, backend, BackendError, errorResponse, json, requireSameOrigin } from "@/services/backend.server";
 import type { Errand, ErrandOperation } from "@/services/contracts";
+import { withCourierUsername } from "@/services/errand-identity.server";
 const actions = new Set(["accept", "pickup", "deliver", "courier-cancel", "confirm", "dispute", "cancel"]);
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string; action: string }> }) {
   try {
@@ -14,6 +15,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     let body; try { body = JSON.parse(raw); } catch { throw new BackendError(400, "Invalid request."); }
     if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length) throw new BackendError(400, "This action does not accept additional fields.");
     const result = await backend<Errand | ErrandOperation>("order", `errands/${id}/${action}`, { method: "POST", body: {}, token });
-    return json(result, result.status === "PENDING" ? 202 : 200);
+    return json(await withCourierUsername(result, token), result.status === "PENDING" ? 202 : 200);
   } catch (error) { return errorResponse(error); }
 }
