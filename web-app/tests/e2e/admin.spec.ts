@@ -29,7 +29,8 @@ const supplier = {
       opensAt: "08:00",
       closesAt: "20:00",
       isOpenOvernight: false,
-      imageUrl: null,
+      imageUrl:
+        "https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/ROBOT_CAFE.jpeg",
       supplierAtLocation: "Campus Coffee@UTown",
     },
   ],
@@ -102,6 +103,19 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   await expect(
     page.getByRole("heading", { name: "Admin dashboard" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Campus Coffee supplier" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Campus Coffee supplier" }),
+  ).toHaveAttribute(
+    "style",
+    /raw\.githubusercontent\.com\/CS3219-AY2627S1\/FoC-Template\/main\/data\/images\/ROBOT_CAFE\.jpeg/,
+  );
+  await page.getByRole("button", { name: "Food", exact: true }).click();
+  await expect(page.getByText("No suppliers found.")).toBeVisible();
+  await page.getByRole("button", { name: "Food & coffee" }).click();
+  await expect(page.getByText("Campus Coffee", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add supplier", exact: true }).click();
   await page.getByLabel("Supplier name").fill("New Coffee");
   await page
@@ -157,7 +171,11 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   expect(writes[3]).toMatchObject({
     method: "PATCH",
     path: `/api/admin/suppliers/${supplier.id}/locations/${supplier.locations[0].id}`,
-    body: { campusLocationId: campusLocations[2].id, imageUrl: null },
+    body: {
+      campusLocationId: campusLocations[2].id,
+      imageUrl:
+        "https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/ROBOT_CAFE.jpeg",
+    },
   });
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -477,7 +495,7 @@ for (const user of [admin, student]) {
     await page.getByLabel("NUS email").fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill("test-password");
     await page.getByRole("button", { name: "Log in", exact: true }).click();
-    await expect(page).toHaveURL(user.isAdmin ? /\/admin$/ : /\/suppliers$/);
+    await expect(page).toHaveURL(/\/$/);
   });
 }
 

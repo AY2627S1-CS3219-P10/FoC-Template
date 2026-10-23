@@ -8,6 +8,7 @@ import type { SupplierMatch } from "@/services/supplier-matches";
 import {
   outletAddress,
   supplierCards,
+  supplierImageUrl,
 } from "@/features/suppliers/outlet-display";
 import {
   type CampusLocation,
@@ -29,6 +30,32 @@ const message = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Unable to complete the request. Please try again.";
+
+function AdminSupplierImage({
+  locations,
+  title,
+}: {
+  locations: PickupLocation[];
+  title: string;
+}) {
+  const imageUrl = supplierImageUrl(
+    locations.find((location) => location.imageUrl)?.imageUrl ?? null,
+  );
+  return imageUrl ? (
+    <div
+      className="admin-card-image"
+      role="img"
+      aria-label={`${title} supplier`}
+      style={{ backgroundImage: `url("${imageUrl}")` }}
+    />
+  ) : (
+    <div
+      className="admin-card-image admin-card-image-empty"
+      role="img"
+      aria-label={`No image available for ${title}`}
+    />
+  );
+}
 
 export function AdminDashboard() {
   const { user, loading, error, reload } = useAuth();
@@ -119,6 +146,9 @@ function SupplierManagement() {
   );
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<
+    "ALL" | Supplier["category"]
+  >("ALL");
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -207,10 +237,12 @@ function SupplierManagement() {
         }}
       />
     );
-  const filtered = supplierCards(suppliers).filter(({ title, locations }) =>
-    `${title} ${locations.map(outletAddress).join(" ")}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
+  const filtered = supplierCards(suppliers).filter(
+    ({ supplier, title, locations }) =>
+      (category === "ALL" || supplier.category === category) &&
+      `${title} ${categoryLabels[supplier.category]} ${locations.map(outletAddress).join(" ")}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   );
   return (
     <>
@@ -274,6 +306,28 @@ function SupplierManagement() {
           placeholder="Supplier name or building"
         />
       </label>
+      <div
+        className="admin-category-filters category-filters"
+        aria-label="Filter suppliers by category"
+      >
+        <button
+          type="button"
+          aria-pressed={category === "ALL"}
+          onClick={() => setCategory("ALL")}
+        >
+          All suppliers
+        </button>
+        {Object.entries(categoryLabels).map(([value, label]) => (
+          <button
+            type="button"
+            aria-pressed={category === value}
+            key={value}
+            onClick={() => setCategory(value as Supplier["category"])}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       {loading ? (
         <p role="status">Loading suppliers…</p>
       ) : filtered.length === 0 ? (
@@ -282,58 +336,61 @@ function SupplierManagement() {
         <div className="admin-list">
           {filtered.map(({ id, supplier, title, locations }) => (
             <article className="admin-card" key={id}>
-              <div className="admin-heading">
-                <div>
-                  <span className="eyebrow">
-                    {categoryLabels[supplier.category]}
-                  </span>
-                  <h3>{title}</h3>
-                </div>
-                <div className="admin-actions">
-                  <button
-                    className="button button-outline"
-                    disabled={busy}
-                    onClick={() => setEditor({ kind: "supplier", supplier })}
-                  >
-                    {locations.length < supplier.locations.length
-                      ? "Edit supplier (all outlets)"
-                      : "Edit supplier"}
-                  </button>
-                  <button
-                    className="button admin-danger"
-                    disabled={busy}
-                    onClick={() => {
-                      setError("");
-                      setSupplierToDelete(supplier);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                  >
-                    {locations.length < supplier.locations.length
-                      ? "Delete supplier (all outlets)"
-                      : "Delete"}
-                  </button>
-                </div>
-              </div>
-              {locations.map((location) => (
-                <div className="admin-location" key={location.id}>
+              <AdminSupplierImage locations={locations} title={title} />
+              <div className="admin-card-content">
+                <div className="admin-heading">
                   <div>
-                    <strong>{outletAddress(location)}</strong>
-                    <p>{location.locationDescription}</p>
-                    <p>
-                      {location.opensAt}–{location.closesAt}
-                      {location.isOpenOvernight ? " (overnight)" : ""}
-                    </p>
+                    <span className="eyebrow">
+                      {categoryLabels[supplier.category]}
+                    </span>
+                    <h3>{title}</h3>
                   </div>
-                  <button
-                    className="button button-outline"
-                    onClick={() =>
-                      setEditor({ kind: "location", supplier, location })
-                    }
-                  >
-                    Edit pickup location
-                  </button>
+                  <div className="admin-actions">
+                    <button
+                      className="button button-outline"
+                      disabled={busy}
+                      onClick={() => setEditor({ kind: "supplier", supplier })}
+                    >
+                      {locations.length < supplier.locations.length
+                        ? "Edit supplier (all outlets)"
+                        : "Edit supplier"}
+                    </button>
+                    <button
+                      className="button admin-danger"
+                      disabled={busy}
+                      onClick={() => {
+                        setError("");
+                        setSupplierToDelete(supplier);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      {locations.length < supplier.locations.length
+                        ? "Delete supplier (all outlets)"
+                        : "Delete"}
+                    </button>
+                  </div>
                 </div>
-              ))}
+                {locations.map((location) => (
+                  <div className="admin-location" key={location.id}>
+                    <div>
+                      <strong>{outletAddress(location)}</strong>
+                      <p>{location.locationDescription}</p>
+                      <p>
+                        {location.opensAt}–{location.closesAt}
+                        {location.isOpenOvernight ? " (overnight)" : ""}
+                      </p>
+                    </div>
+                    <button
+                      className="button button-outline"
+                      onClick={() =>
+                        setEditor({ kind: "location", supplier, location })
+                      }
+                    >
+                      Edit pickup location
+                    </button>
+                  </div>
+                ))}
+              </div>
             </article>
           ))}
         </div>
