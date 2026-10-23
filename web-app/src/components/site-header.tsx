@@ -36,17 +36,14 @@ export function SiteHeader() {
           <span className="brand-name">friend on campus</span>
         </Link>
         <nav aria-label="Main navigation">
-          <Link href="/errands" aria-current={pathname === "/errands" ? "page" : undefined}>Errands</Link>
-          {user?.isAdmin && (
-            <Link
-              href="/admin"
-              aria-current={pathname === "/admin" ? "page" : undefined}
-            >
-              Admin dashboard
-            </Link>
-          )}
           <Link href="/" aria-current={pathname === "/" ? "page" : undefined}>
             Home
+          </Link>
+          <Link
+            href="/errands"
+            aria-current={pathname === "/errands" ? "page" : undefined}
+          >
+            Errands
           </Link>
           <Link
             href="/suppliers"
@@ -56,6 +53,14 @@ export function SiteHeader() {
           >
             Suppliers
           </Link>
+          {user?.isAdmin && (
+            <Link
+              href="/admin"
+              aria-current={pathname === "/admin" ? "page" : undefined}
+            >
+              Admin dashboard
+            </Link>
+          )}
         </nav>
         <div className="header-account">
           {loading ? (
