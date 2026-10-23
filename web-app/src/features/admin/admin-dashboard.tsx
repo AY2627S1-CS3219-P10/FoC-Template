@@ -490,19 +490,26 @@ function SupplierEditor({
     }
   }
   return (
-    <section className="admin-card">
-      <h2>
-        {editor.kind === "create"
-          ? "Add supplier"
-          : editor.kind === "supplier"
-            ? `Edit ${supplier?.name}`
-            : `Edit pickup location · ${supplier?.name}`}
-      </h2>
-      <p>
-        {editor.kind === "create"
-          ? "Add a supplier or a new outlet for an existing supplier. Use the existing supplier name when adding another building or floor."
-          : "Update the details below."}
-      </p>
+    <section className="admin-card admin-editor-card">
+      <header className="admin-editor-header">
+        <span className="eyebrow">
+          {editor.kind === "location"
+            ? "Pickup location"
+            : "Supplier details"}
+        </span>
+        <h2>
+          {editor.kind === "create"
+            ? "Add supplier"
+            : editor.kind === "supplier"
+              ? `Edit ${supplier?.name}`
+              : `Edit pickup location · ${supplier?.name}`}
+        </h2>
+        <p>
+          {editor.kind === "create"
+            ? "Add a supplier or a new outlet for an existing supplier. Use the existing supplier name when adding another building or floor."
+            : "Review and update the details below."}
+        </p>
+      </header>
       <form
         className="admin-form"
         onSubmit={submit}
