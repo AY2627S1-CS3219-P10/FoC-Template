@@ -53,3 +53,17 @@ export function outletTitle(name: string, location: PickupLocation): string {
 export function outletAddress(location: PickupLocation): string {
   return `${location.building} · ${location.floor === null ? "Floor not specified" : `Floor ${location.floor}`}`;
 }
+
+export function supplierImageUrl(imageUrl: string | null): string | null {
+  if (!imageUrl) return null;
+  try {
+    const url = new URL(imageUrl);
+    if (url.hostname !== "github.com") return imageUrl;
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length < 5 || parts[2] !== "blob") return imageUrl;
+    const [owner, repository, , revision, ...path] = parts;
+    return `https://raw.githubusercontent.com/${owner}/${repository}/${revision}/${path.join("/")}`;
+  } catch {
+    return imageUrl;
+  }
+}
