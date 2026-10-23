@@ -138,6 +138,7 @@ test("supplier browsing distinguishes floors and links to the selected outlet", 
     }),
   );
   await page.goto("/suppliers");
+  await page.getByRole("button", { name: "Cards" }).click();
   await expect(page.getByRole("article")).toHaveCount(2);
   await expect(
     page.getByRole("article").first().getByText("Campus locations"),
@@ -252,6 +253,8 @@ for (const path of ["/admin", "/suppliers"]) {
       route.fulfill({ json: catalog }),
     );
     await page.goto(path);
+    if (path === "/suppliers")
+      await page.getByRole("button", { name: "Cards" }).click();
     await expect(page.getByRole("article")).toHaveCount(4);
     for (const name of [
       "MedSci Printing",
