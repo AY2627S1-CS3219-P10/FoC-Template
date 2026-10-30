@@ -28,6 +28,8 @@ import {
   withCorrelationId,
 } from './correlation';
 import { ERRAND_COMPLETED_EVENT } from '../domain/events';
+import { assertReviewable, normaliseReview } from '../domain/review';
+import type { CourierReviewRecord, CourierRatingSummary } from '../application/ports';
 
 export function operationRecord(value: ErrandOperation): OperationRecord {
   return { ...value, payload: value.payload as unknown as ErrandDetails };
@@ -99,6 +101,92 @@ function actorGuard(row: Transition, actorId: string | null) {
 @Injectable()
 export class PrismaOrderRepository implements OrderRepository {
   constructor(private readonly prisma: PrismaService) {}
+  async createReview(
+  errandId: string,
+  requesterId: string,
+  stars: number,
+  comment?: string,
+): Promise<CourierReviewRecord> {
+  const input = normaliseReview(stars, comment);
+
+  return this.prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT "id"
+      FROM "errands"
+      WHERE "id" = ${errandId}::uuid
+      FOR UPDATE
+    `;
+
+    const errand = await tx.errand.findUnique({
+      where: { id: errandId },
+    });
+
+    if (!errand) {
+      throw new OrderError(
+        'ERRAND_NOT_FOUND',
+        'Errand not found.',
+        404,
+      );
+    }
+
+    assertReviewable(errand, requesterId);
+
+    const courierId = errand.courierId;
+
+    if (!courierId) {
+      throw new OrderError(
+        'ERRAND_NOT_REVIEWABLE',
+        'The errand has no assigned courier.',
+        409,
+      );
+    }
+
+    const existing = await tx.courierReview.findUnique({
+      where: { errandId },
+    });
+
+    if (existing) {
+      if (
+        existing.stars === input.stars &&
+        existing.comment === input.comment
+      ) {
+        return existing;
+      }
+
+      throw new OrderError(
+        'REVIEW_ALREADY_EXISTS',
+        'This errand has already been reviewed.',
+        409,
+      );
+    }
+
+    return tx.courierReview.create({
+      data: {
+        errandId,
+        requesterId: errand.requesterId,
+        courierId,
+        stars: input.stars,
+        comment: input.comment,
+      },
+    });
+  });
+}
+
+async ratingSummary(
+  courierId: string,
+): Promise<CourierRatingSummary> {
+  const result = await this.prisma.courierReview.aggregate({
+    where: { courierId },
+    _avg: { stars: true },
+    _count: { _all: true },
+  });
+
+  return {
+    courierId,
+    averageStars: result._avg.stars,
+    reviewCount: result._count._all,
+  };
+}
   async findByKey(requesterId: string, idempotencyKey: string) {
     const value = await this.prisma.errandOperation.findUnique({
       where: { requesterId_idempotencyKey: { requesterId, idempotencyKey } },

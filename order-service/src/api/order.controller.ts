@@ -41,6 +41,8 @@ import {
   ListErrandsDto,
   ManageErrandsDto,
   OperationResponse,
+  CreateReviewDto,
+  CourierReviewResponse,
 } from './dto';
 
 @ApiTags('errands')
@@ -49,6 +51,39 @@ import {
 @Controller('api/errands')
 export class OrderController {
   constructor(private readonly service: OrderService) {}
+  @Post(':id/review')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Requester: review the courier of a completed errand',
+  })
+  @ApiOkResponse({ type: CourierReviewResponse })
+  @ApiBadRequestResponse({
+    description: 'Invalid errand ID, stars, comment, or extra fields',
+  })
+  @ApiUnauthorizedResponse()
+  @ApiForbiddenResponse({
+    description: 'Only the requester may submit a review',
+  })
+  @ApiNotFoundResponse({
+    description: 'Errand is missing or deleted',
+  })
+  @ApiConflictResponse({
+    description:
+      'Errand is not completed, has no courier, or already has a different review',
+  })
+  createReview(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() body: CreateReviewDto,
+  ) {
+    return this.service.createReview(
+      request.userId,
+      id,
+      body.stars,
+      body.comment,
+    );
+  }
   @Get()
   @Header('Cache-Control', 'no-store')
   @ApiOperation({

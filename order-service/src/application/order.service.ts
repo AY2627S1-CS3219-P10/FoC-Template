@@ -36,6 +36,25 @@ export class OrderService {
     @Inject(ORDER_REPOSITORY) private readonly repository: OrderRepository,
     @Inject(SERVICE_CLIENTS) private readonly clients: ErrandServices,
   ) {}
+  // coneect the layers: HTTP controller -> order service -> order repository -> postgreSQL
+  async createReview(
+    requesterId: string,
+    errandId: string,
+    stars: number,
+    comment?: string,
+  ) {
+    return this.repository.createReview(
+      errandId,
+      requesterId,
+      stars,
+      comment,
+    );
+  }
+
+  async ratingSummary(courierId: string) {
+    return this.repository.ratingSummary(courierId);
+  }
+
   async create(
     requesterId: string,
     token: string,
