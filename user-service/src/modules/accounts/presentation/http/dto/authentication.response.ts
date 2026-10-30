@@ -15,7 +15,7 @@ export class AuthenticationResponse {
   @ApiProperty({ description: 'Short-lived JWT access token.' })
   accessToken!: string;
 
-  @ApiProperty({ example: 900 })
+  @ApiProperty({ example: 3600 })
   expiresIn!: number;
 
   @ApiProperty({ description: 'Single-use opaque refresh token.' })

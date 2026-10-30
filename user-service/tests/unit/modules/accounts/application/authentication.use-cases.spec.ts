@@ -193,7 +193,7 @@ describe('authentication use cases', () => {
       }),
     ).resolves.toEqual({
       accessToken: 'signed-access-token',
-      expiresIn: 900,
+      expiresIn: ACCESS_TOKEN_LIFETIME_SECONDS,
       refreshToken: REFRESH_TOKEN,
       tokenType: 'Bearer',
       user: {

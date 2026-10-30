@@ -159,7 +159,7 @@ lose provisioning signals for already-activated users.
 `POST /api/auth/login` authenticates an active account and creates a session.
 `POST /api/auth/refresh` atomically rotates its single-use refresh token, and
 `POST /api/auth/logout` revokes it without revealing whether the token existed.
-Access tokens are HS256 JWTs valid for 15 minutes. Refresh sessions are valid
+Access tokens are HS256 JWTs valid for 60 minutes. Refresh sessions are valid
 for 30 days, while only SHA-256 refresh-token hashes are stored in PostgreSQL.
 Reusing a revoked refresh token revokes the account's remaining active sessions
 as a defensive response. Pending, suspended, and banned accounts cannot create
@@ -180,7 +180,7 @@ other backend services. Its JOSE header and JWT claims are:
 | `sid`     | non-empty string   | Current authentication `sessionId`.                    |
 | `isAdmin` | boolean            | Current administrator status when the token is issued. |
 | `iat`     | NumericDate        | Issued-at time.                                        |
-| `exp`     | NumericDate        | Expiry, exactly 15 minutes after `iat`.                |
+| `exp`     | NumericDate        | Expiry, exactly 60 minutes after `iat`.                |
 
 The names and types in this table are part of the cross-service contract.
 Changing them requires coordinated updates to every token consumer. In
@@ -234,7 +234,7 @@ deployment secret manager; never commit or log it.
 
 Independent verification deliberately avoids a User Service database query.
 Consequently, other services learn about logout, session revocation, promotion,
-or demotion when the existing access token expires, at most 15 minutes later.
+or demotion when the existing access token expires, at most 60 minutes later.
 The User Service's own protected routes retain their stronger behavior below
 and re-check the session and current privilege in PostgreSQL on every request.
 
