@@ -99,7 +99,7 @@ test("live services: login, profile, token renewal, supplier catalog, and logout
     .getByLabel("Password", { exact: true })
     .fill(process.env.E2E_USER_PASSWORD!);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/suppliers$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "Your campus.",
   );

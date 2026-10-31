@@ -43,6 +43,27 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
+test("guests can preview suppliers but must log in to view locations", async ({
+  page,
+}) => {
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ status: 401, json: {} }),
+  );
+  await page.route("**/api/auth/refresh", (route) =>
+    route.fulfill({ status: 401, json: {} }),
+  );
+  await page.goto("/suppliers");
+  await expect(
+    page.getByText("Preview popular suppliers around campus."),
+  ).toBeVisible();
+  await expect(page.getByText("Anna's x Soup Union")).toBeVisible();
+  await expect(
+    page.getByRole("link", {
+      name: "Log in to view locations: Anna's x Soup Union",
+    }),
+  ).toHaveAttribute("href", "/login");
+});
+
 test("adding the same name on another floor automatically renders a separate admin card", async ({
   page,
 }) => {
@@ -138,7 +159,14 @@ test("supplier browsing distinguishes floors and links to the selected outlet", 
     }),
   );
   await page.goto("/suppliers");
+  await page.getByRole("button", { name: "Cards" }).click();
   await expect(page.getByRole("article")).toHaveCount(2);
+  await expect(
+    page.getByRole("article").first().getByText("Campus locations"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("article").first().getByText("Pickup points"),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "MedSci Printing — Level 1", exact: true }),
   ).toBeVisible();
@@ -163,6 +191,31 @@ test("supplier browsing distinguishes floors and links to the selected outlet", 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("supplier browsing switches between card and list layouts and remembers the choice", async ({
+  page,
+}) => {
+  await page.route("**/api/suppliers", (route) =>
+    route.fulfill({ json: [supplier] }),
+  );
+  await page.goto("/suppliers");
+  await expect(page.getByRole("button", { name: "List" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("table")).toBeVisible();
+
+  await page.getByRole("button", { name: "Cards" }).click();
+  await expect(page.getByRole("article")).toHaveCount(1);
+  await expect(page.getByRole("table")).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Cards" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("article")).toHaveCount(1);
 });
 
 for (const path of ["/admin", "/suppliers"]) {
@@ -221,6 +274,8 @@ for (const path of ["/admin", "/suppliers"]) {
       route.fulfill({ json: catalog }),
     );
     await page.goto(path);
+    if (path === "/suppliers")
+      await page.getByRole("button", { name: "Cards" }).click();
     await expect(page.getByRole("article")).toHaveCount(4);
     for (const name of [
       "MedSci Printing",
@@ -233,11 +288,9 @@ for (const path of ["/admin", "/suppliers"]) {
       ).toBeVisible();
     }
     await expect(page.getByRole("heading", { name: /— Level/ })).toHaveCount(0);
-    const starbucks = page
-      .getByRole("article")
-      .filter({
-        has: page.getByRole("heading", { name: "Starbucks", exact: true }),
-      });
+    const starbucks = page.getByRole("article").filter({
+      has: page.getByRole("heading", { name: "Starbucks", exact: true }),
+    });
     await expect(starbucks).toContainText("UTown");
     await expect(starbucks).toContainText("Science");
   });

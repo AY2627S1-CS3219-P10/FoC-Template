@@ -19,11 +19,32 @@ export interface Errand {
   itemType?: "FOOD" | "NON_PERISHABLE";
   requesterUsername?: string | null;
   courierUsername?: string | null;
-  id: string; requesterId: string; courierId: string | null; status: string;
-  pickupLocationId: string; pickupSupplierName: string; pickupLocationLabel: string;
-  description: string; deliveryDestination: string; instructions: string; offeredCredits: number;
-  version: number; createdAt: string; updatedAt: string;
+  id: string;
+  requesterId: string;
+  courierId: string | null;
+  status: string;
+  pickupLocationId: string;
+  pickupSupplierName: string;
+  pickupLocationLabel: string;
+  description: string;
+  deliveryDestination: string;
+  instructions: string;
+  offeredCredits: number;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
 }
+export type ErrandPreview = Pick<
+  Errand,
+  | "id"
+  | "status"
+  | "description"
+  | "pickupSupplierName"
+  | "pickupLocationLabel"
+  | "deliveryDestination"
+  | "offeredCredits"
+  | "createdAt"
+>;
 export interface CreditBalance {
   userId: string;
   availableCredits: number;

@@ -34,7 +34,7 @@ export default function RootLayout({
         </AuthProvider>
         <footer className="site-footer">
           <Link href="/">
-            friend on campus<span> • </span>Small errands. Stronger community.
+            friend on campus<span> • </span>Small errands. Strong community.
           </Link>
           <span>Made for campus life.</span>
         </footer>

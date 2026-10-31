@@ -223,7 +223,7 @@ export function clearSession(response: NextResponse) {
 }
 
 export function accessToken(request: NextRequest) {
-  const token = request.cookies.get(ACCESS_COOKIE)?.value;
+  const token = optionalAccessToken(request);
   if (!token)
     throw new BackendError(
       401,
@@ -231,4 +231,8 @@ export function accessToken(request: NextRequest) {
       "SESSION_REQUIRED",
     );
   return token;
+}
+
+export function optionalAccessToken(request: NextRequest) {
+  return request.cookies.get(ACCESS_COOKIE)?.value;
 }
