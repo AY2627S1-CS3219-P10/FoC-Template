@@ -61,9 +61,36 @@ export interface Profile {
   phoneNumber: string;
   isAdmin: boolean;
   status: string;
+  suspendedUntil?: string | null;
   emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ReportIdentity {
+  id: string;
+  username: string;
+}
+
+export interface UserReport {
+  id: string;
+  reporterUserId: string;
+  reportedUserId: string;
+  reporter: ReportIdentity;
+  reportedUser: ReportIdentity;
+  description: string;
+  status: "OPEN" | "RESOLVED";
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  resolvedBy: ReportIdentity | null;
+}
+
+export interface SuspensionResult {
+  id: string;
+  username: string;
+  status: "SUSPENDED";
+  suspendedUntil: string;
 }
 
 export interface Authentication {

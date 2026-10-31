@@ -7,6 +7,7 @@ export class ApiError extends Error {
     public code?: string,
     public retryAfter?: number,
     public matches: SupplierMatch[] = [],
+    public suspendedUntil?: string,
   ) {
     super(message);
   }
@@ -43,6 +44,7 @@ export async function request<T>(
       data.code === "POSSIBLE_SUPPLIER_DUPLICATE"
         ? supplierMatches(data.matches)
         : [],
+      typeof data.suspendedUntil === "string" ? data.suspendedUntil : undefined,
     );
   return data as T;
 }

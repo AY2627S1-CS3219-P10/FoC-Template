@@ -7,6 +7,7 @@ import { ApiError, authenticatedRequest } from "@/services/api";
 import type { Errand, ErrandOperation } from "@/services/contracts";
 import { ErrandStatus } from "./errand-status";
 import { ErrandActions } from "./errand-actions";
+import { ReportUser, type ReportTarget } from "./report-user";
 type Mutation = { method: "PATCH" | "DELETE"; body: Record<string, unknown>; operationId?: string };
 export function ErrandDetail({ id }: { id: string }) {
   const auth = useAuth();
@@ -29,6 +30,10 @@ function ErrandDetailContent({ id }: { id: string }) {
   }, [userId, busy, mutation, editing, confirmDelete, deleted]);
   const current = state.userId === userId ? state : { errand: null, error: "", loading: true };
   const errand = current.errand; const owner = errand?.requesterId === userId; const admin = auth.user?.isAdmin === true;
+  const reportTargets: ReportTarget[] = errand ? [
+    ...(errand.requesterId !== userId ? [{ id: errand.requesterId, username: errand.requesterUsername || "Unavailable user", role: "requester" as const }] : []),
+    ...(errand.courierId && errand.courierId !== userId ? [{ id: errand.courierId, username: errand.courierUsername || "Unavailable user", role: "courier" as const }] : []),
+  ] : [];
   const editable = owner && errand?.status === "OPEN" && !errand.courierId;
   const deletable = admin || (owner && errand?.status === "OPEN" && !errand.courierId);
   async function apply(input: Mutation) {
@@ -72,6 +77,7 @@ function ErrandDetailContent({ id }: { id: string }) {
         <fieldset disabled={busy || !!mutation}><legend>Edit your request</legend><label>Errand description<textarea name="description" required maxLength={1000} defaultValue={errand.description} /></label><label>Delivery destination<input name="deliveryDestination" required maxLength={250} defaultValue={errand.deliveryDestination} /></label><label>Pickup or delivery instructions<textarea name="instructions" required maxLength={1000} defaultValue={errand.instructions} /></label><label>Offered credits<input name="offeredCredits" type="number" min={1} max={2000000000} step={1} required defaultValue={errand.offeredCredits} /></label></fieldset>
         <p>Increasing the offer reserves additional credits. Decreasing it returns the difference.</p><button className="button button-edit" disabled={busy || !!mutation}>Save changes</button><button type="button" className="button button-light" disabled={busy || !!mutation} onClick={() => setEditing(false)}>Cancel editing</button>
       </form>}
+      <ReportUser targets={reportTargets} />
     </article>}
   </section>;
 }

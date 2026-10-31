@@ -21,6 +21,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [inactive, setInactive] = useState(false);
+  const [suspendedUntil, setSuspendedUntil] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [verified, setVerified] = useState(false);
 
@@ -38,6 +39,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setError("");
     setNotice("");
     setInactive(false);
+    setSuspendedUntil(null);
     try {
       if (mode === "login") {
         await auth.login(email.trim(), String(data.get("password")));
@@ -67,6 +69,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
       setInactive(
         failure instanceof ApiError && failure.code === "ACCOUNT_NOT_ACTIVE",
       );
+      if (
+        failure instanceof ApiError &&
+        failure.code === "ACCOUNT_TEMPORARILY_SUSPENDED"
+      ) {
+        setError("Your account is temporarily suspended.");
+        setSuspendedUntil(failure.suspendedUntil ?? null);
+      }
     } finally {
       setBusy(false);
     }
@@ -236,6 +245,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   If you haven’t verified your email,{" "}
                   <Link href="/verify-email">verify it here</Link>. For a
                   suspended or banned account, contact your administrator.
+                </p>
+              )}
+              {suspendedUntil && (
+                <p>
+                  You can sign in again after{" "}
+                  {new Date(suspendedUntil).toLocaleString("en-SG", {
+                    timeZone: "Asia/Singapore",
+                  })}
+                  .
                 </p>
               )}
             </div>

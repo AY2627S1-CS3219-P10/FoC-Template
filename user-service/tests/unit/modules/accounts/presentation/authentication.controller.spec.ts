@@ -171,6 +171,28 @@ describe('AuthenticationController', () => {
     expect(response.json()).toMatchObject({ code: 'ACCOUNT_NOT_ACTIVE' });
   });
 
+  it('returns the authoritative expiry for a temporary suspension', async () => {
+    const suspendedUntil = new Date('2026-11-04T02:00:00.000Z');
+    loginUseCase.error = new AuthenticationError(
+      'ACCOUNT_TEMPORARILY_SUSPENDED',
+      'Your account is temporarily suspended.',
+      suspendedUntil,
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      payload: { email: 'student@u.nus.edu', password: 'Strong!Pass' },
+      url: '/api/auth/login',
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      code: 'ACCOUNT_TEMPORARILY_SUSPENDED',
+      message: 'Your account is temporarily suspended.',
+      suspendedUntil: suspendedUntil.toISOString(),
+    });
+  });
+
   it('rotates a valid refresh token', async () => {
     const response = await app.inject({
       method: 'POST',

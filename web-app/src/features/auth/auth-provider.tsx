@@ -84,17 +84,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [reload]);
 
   async function login(email: string, password: string) {
-    const profile = await sessionLock(async () => {
-      await request("auth/login", { email, password });
-      const profile = await request<Profile>("auth/session");
-      revision.current++;
-      setUser(profile);
-      setLoading(false);
-      setError("");
+    try {
+      const profile = await sessionLock(async () => {
+        await request("auth/login", { email, password });
+        const profile = await request<Profile>("auth/session");
+        revision.current++;
+        setUser(profile);
+        setLoading(false);
+        setError("");
+        return profile;
+      });
+      broadcast();
       return profile;
-    });
-    broadcast();
-    return profile;
+    } catch (failure) {
+      if (
+        failure instanceof ApiError &&
+        ["ACCOUNT_NOT_ACTIVE", "ACCOUNT_TEMPORARILY_SUSPENDED"].includes(
+          failure.code ?? "",
+        )
+      ) {
+        revision.current++;
+        setUser(null);
+        setLoading(false);
+        setError("");
+        broadcast();
+      }
+      throw failure;
+    }
   }
   async function logout() {
     await sessionLock(async () => {

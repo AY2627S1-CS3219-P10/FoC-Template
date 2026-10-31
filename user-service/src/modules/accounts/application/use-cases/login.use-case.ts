@@ -50,6 +50,17 @@ export class LoginUseCase {
 
     const prepared = this.dependencies.sessionTokenIssuer.prepare();
     if (
+      account.status === AccountStatus.Active &&
+      account.suspendedUntil &&
+      account.suspendedUntil > prepared.record.createdAt
+    ) {
+      throw new AuthenticationError(
+        'ACCOUNT_TEMPORARILY_SUSPENDED',
+        'Your account is temporarily suspended.',
+        account.suspendedUntil,
+      );
+    }
+    if (
       effectiveAccountStatus(
         account.status,
         account.suspendedUntil,

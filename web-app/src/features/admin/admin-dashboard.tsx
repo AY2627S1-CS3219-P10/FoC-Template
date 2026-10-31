@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
+import { ReportsModeration } from "./reports-moderation";
 import type { SupplierMatch } from "@/services/supplier-matches";
 import {
   outletAddress,
@@ -100,7 +101,7 @@ export function AdminDashboard() {
 }
 
 function Dashboard({ user }: { user: Profile }) {
-  const [tab, setTab] = useState<"suppliers" | "accounts">("suppliers");
+  const [tab, setTab] = useState<"suppliers" | "accounts" | "reports">("suppliers");
   return (
     <section className="admin-page">
       <p className="eyebrow">CAMPUS ADMINISTRATION</p>
@@ -124,11 +125,20 @@ function Dashboard({ user }: { user: Profile }) {
         >
           Accounts & privileges
         </button>
+        <button
+          className={`button ${tab === "reports" ? "button-dark" : "button-outline"}`}
+          aria-pressed={tab === "reports"}
+          onClick={() => setTab("reports")}
+        >
+          Reports & moderation
+        </button>
       </div>
       {tab === "suppliers" ? (
         <SupplierManagement />
-      ) : (
+      ) : tab === "accounts" ? (
         <AccountManagement userId={user.id} />
+      ) : (
+        <ReportsModeration administratorId={user.id} />
       )}
     </section>
   );

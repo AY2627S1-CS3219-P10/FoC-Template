@@ -6,12 +6,13 @@ test("guest flow links to real account and supplier screens", async ({
   await page.goto("/");
   await page.getByRole("link", { name: "Explore suppliers" }).click();
   await expect(
-    page.getByRole("heading", { name: "Log in to explore suppliers." }),
+    page.getByRole("heading", { name: "Your campus. Your favourites." }),
   ).toBeVisible();
+  await expect(page.getByText("Preview popular suppliers around campus.")).toBeVisible();
   await page
-    .getByRole("main")
+    .getByRole("complementary")
     .getByRole("link", { name: "Log in", exact: true })
-    .click();
+    .click({ force: true });
   await expect(page.getByLabel("NUS email")).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute(
     "type",
