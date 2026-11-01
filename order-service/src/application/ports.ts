@@ -22,6 +22,32 @@ export interface OperationRecord {
   errorCode: string | null;
   errorStatus: number | null;
 }
+
+export interface CourierReviewRecord {
+  id: string;
+  errandId: string;
+  requesterId: string;
+  courierId: string;
+  stars: number;
+  comment: string | null;
+  createdAt: Date;
+}
+
+export interface CourierRatingSummary {
+  courierId: string;
+  averageStars: number | null;
+  reviewCount: number;
+}
+
+export interface CourierReviewOverview extends CourierRatingSummary {
+  recentComments: {
+    id: string;
+    stars: number;
+    comment: string;
+    createdAt: Date;
+  }[];
+}
+
 export interface OrderRepository {
   /** Administrators only: soft-delete in any state and release (Q-011 parked). */
   deleteIntent(
@@ -111,7 +137,19 @@ export interface OrderRepository {
     key: string,
     digest: string,
   ): Promise<OperationRecord | null>;
+
+  createReview(
+    errandId: string,
+    requesterId: string,
+    stars: number,
+    comment?: string,
+  ): Promise<CourierReviewRecord>;
+
+  ratingSummary(courierId: string): Promise<CourierRatingSummary>;
+  findReview(errandId: string): Promise<CourierReviewRecord | null>;
+  reviewOverview(courierId: string): Promise<CourierReviewOverview>;
 }
+
 export interface ErrandServices {
   username(userId: string, token: string): Promise<string | null>;
   isAdministrator(token: string): Promise<boolean>;

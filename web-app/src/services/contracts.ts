@@ -34,6 +34,28 @@ export interface Errand {
   createdAt: string;
   updatedAt: string;
 }
+export interface CourierReview {
+  id: string;
+  errandId: string;
+  requesterId: string;
+  courierId: string;
+  stars: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+export interface CourierRatingSummary {
+  courierId: string;
+  averageStars: number | null;
+  reviewCount: number;
+}
+
+export interface CourierReviewOverview extends CourierRatingSummary {
+  recentComments: (Pick<CourierReview, "id" | "stars" | "createdAt"> & {
+    comment: string;
+  })[];
+}
+
 export type ErrandPreview = Pick<
   Errand,
   | "id"

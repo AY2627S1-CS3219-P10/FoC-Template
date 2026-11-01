@@ -80,6 +80,7 @@ model Errand {
   completionMethod    CompletionMethod? @map("completion_method")
   history             ErrandHistory[]
   excludedCouriers    ErrandExcludedCourier[]
+  review CourierReview?
 
   @@index([status, courierId, createdAt, id])
   @@index([requesterId, createdAt])
@@ -134,6 +135,20 @@ model ErrandExcludedCourier {
 
   @@id([errandId, courierId])
   @@map("errand_excluded_couriers")
+}
+
+model CourierReview {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  errandId    String   @unique @map("errand_id") @db.Uuid
+  errand      Errand   @relation(fields: [errandId], references: [id], onDelete: Restrict)
+  requesterId String   @map("requester_id") @db.Uuid
+  courierId   String   @map("courier_id") @db.Uuid
+  stars       Int
+  comment     String?  @db.VarChar(1000)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([courierId, createdAt, id])
+  @@map("courier_reviews")
 }
 
 model OutboxEvent {

@@ -202,6 +202,28 @@ Implemented rows live in `src/domain/lifecycle.ts` `TRANSITIONS`.
 | NFR9 | ≥80% coverage on critical logic; invalid-transition + concurrency tests | done | `test:coverage` (80% gate on domain/application; 96.7% statements, 92.2% branches); `tests/unit/lifecycle.spec.ts` matrix; race tests "S4 race…", "S5 race…", "S6a race…", "S6b race…", "F race: …" (cancel, courier cancel, reopen, expiry) |
 | NFR10 | Containerised, restart-safe | done | `Dockerfile`, `docker-entrypoint.sh` (`migrate deploy`); image verified 2026-10-18 (9 migrations, ready after restart). Compose RabbitMQ wiring: Q-018 |
 
+### Courier review feature (2026-11-01)
+
+Personal overview: done. `CourierRatingsController.reviewOverview` derives the
+courier from the session; `PrismaOrderRepository.reviewOverview` returns the
+all-time average/count and three newest non-empty comments. Integration tests
+verify own-user filtering (including admin and malicious query parameters),
+authentication, newest-three ordering, star-only ratings and empty results.
+`web-app/tests/e2e/my-courier-rating.spec.ts` covers signed-in students/admins,
+guests, empty states, retries and desktop/mobile layout.
+
+Submit-one-review and aggregate-rating backend: done. Evidence:
+`OrderController.createReview`, `CourierRatingsController.ratingSummary`,
+`PrismaOrderRepository.createReview` / `ratingSummary`, the migration
+`202610300001_courier_reviews`, and the `courier reviews and ratings` integration
+suite in `tests/integration/errands.spec.ts`. Tests cover HTTP validation and
+authorization, persistence, concurrent identical/conflicting requests, averages,
+and database constraints. Existing domain rules are covered by
+`tests/unit/review.spec.ts`. Authenticated `GET /api/errands/:id/review` restores
+saved reviews on reload and uses errand-view permissions; covered by integration
+tests for participants/admins, strangers, unauthenticated requests and deleted
+errands. Review listing, edits, and deletion are not in scope.
+
 ## 5. Known defects and risks
 | ID | Problem | Where | Fix slice |
 |---|---|---|---|

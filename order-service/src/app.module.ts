@@ -19,6 +19,8 @@ import { ServiceClients } from './infrastructure/service-clients';
 import { RecoveryWorker } from './infrastructure/recovery.worker';
 import { OutboxRelay } from './infrastructure/outbox.relay';
 import { TimerWorker } from './infrastructure/timer.worker';
+import { CourierRatingsController } from './api/courier-ratings.controller';
+
 function validate(env: Record<string, unknown>) {
   for (const name of [
     'DATABASE_URL',
@@ -75,7 +77,12 @@ function validate(env: Record<string, unknown>) {
       },
     }),
   ],
-  controllers: [OrderController, OperationController, HealthController],
+  controllers: [
+    OrderController,
+    OperationController,
+    HealthController,
+    CourierRatingsController,
+  ],
   providers: [
     PrismaService,
     AuthGuard,
@@ -91,6 +98,11 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(CorrelationMiddleware)
-      .forRoutes(OrderController, OperationController, HealthController);
+      .forRoutes(
+        OrderController,
+        OperationController,
+        HealthController,
+        CourierRatingsController,
+      );
   }
 }

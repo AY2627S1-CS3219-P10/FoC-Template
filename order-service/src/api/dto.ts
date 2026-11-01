@@ -166,3 +166,72 @@ export class OperationResponse {
   @ApiProperty({ type: ErrandResponse, nullable: true })
   errand!: ErrandResponse | null;
 }
+
+export class CreateReviewDto {
+  @ApiProperty({ minimum: 1, maximum: 5, example: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  stars!: number;
+
+  @ApiPropertyOptional({
+    maxLength: 1000,
+    example: 'Quick delivery, thank you!',
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(trim)
+  @IsString()
+  @MaxLength(1000)
+  comment?: string;
+}
+
+export class CourierReviewResponse {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  errandId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  requesterId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  courierId!: string;
+
+  @ApiProperty({ minimum: 1, maximum: 5 })
+  stars!: number;
+
+  @ApiProperty({ type: String, nullable: true })
+  comment!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+}
+export class CourierRatingSummaryResponse {
+  @ApiProperty({ format: 'uuid' })
+  courierId!: string;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    minimum: 1,
+    maximum: 5,
+    example: 4.5,
+  })
+  averageStars!: number | null;
+
+  @ApiProperty({ minimum: 0, example: 2 })
+  reviewCount!: number;
+}
+
+export class RecentCourierCommentResponse {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ minimum: 1, maximum: 5 }) stars!: number;
+  @ApiProperty({ maxLength: 1000 }) comment!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
+
+export class CourierReviewOverviewResponse extends CourierRatingSummaryResponse {
+  @ApiProperty({ type: [RecentCourierCommentResponse], maxItems: 3 })
+  recentComments!: RecentCourierCommentResponse[];
+}

@@ -1,5 +1,44 @@
 # Contract: what web-app depends on (do not break)
 
+## Personal courier rating overview
+
+`GET /api/couriers/me/review-overview` requires a session (401 otherwise).
+Returns HTTP 200 with `courierId`, `averageStars: number | null`, `reviewCount`,
+and `recentComments: {id, stars, comment, createdAt}[]` (maximum three).
+The courier identity comes only from AuthGuard. Even administrators see only
+their own received reviews here. Query parameters cannot select another user.
+All received reviews contribute to average/count; only non-empty written
+comments appear in recentComments, ordered by createdAt DESC then id DESC.
+No reviews returns null, 0, and []. Response is no-store and does not include
+requester identifiers or contact details. Both queries share a repeatable-read
+transaction snapshot. This additive endpoint does not change rating-summary.
+
+## Additive review endpoints (2026-11-01)
+
+- `POST /api/errands/:id/review`: requester JWT; body `{stars: number, comment?: string}`.
+  Stars are whole numbers 1–5; comment is trimmed, limited to 1000 characters,
+  and stored as null when omitted/blank. HTTP 200 returns the saved review
+  (`id`, `errandId`, `requesterId`, `courierId`, `stars`, `comment`, `createdAt`).
+  The errand must be COMPLETED with a courier. Repeating identical normalised
+  content replays the same record; changing it returns 409. No Idempotency-Key.
+  Errors: 400 invalid input/UUID/extra fields, 401 inactive session, 403 non-owner,
+  404 missing/deleted errand, 409 ineligible errand or different existing review.
+- `GET /api/couriers/:courierId/rating-summary`: authenticated session; UUID v4.
+  Returns `{courierId, averageStars: number | null, reviewCount: number}`.
+  No reviews yields null/0, including unknown user UUIDs; no User Service lookup.
+
+Both responses use Cache-Control: no-store. Existing errand endpoints and shapes
+are unchanged. Review listing, edits, and deletion are not exposed.
+
+### Reading a saved review
+
+`GET /api/errands/:id/review` requires authentication and the same permission as
+reading the errand. Returns HTTP 200 with `{review: CourierReview | null}`.
+Null means the accessible errand has not been reviewed. Participants and admins
+can read reviews on completed errands; missing, deleted or inaccessible errands
+return 404, malformed UUIDs 400, and missing/invalid sessions 401. Responses use
+Cache-Control: no-store. Review data is not cached in browser storage.
+
 `web-app/` belongs to a teammate and **cannot be edited** by order-service work. Any
 change to an order-service response that web-app reads is a **hard stop** (ask the user
 first). New routes and new optional fields are fine. Verified 2026-10-18.

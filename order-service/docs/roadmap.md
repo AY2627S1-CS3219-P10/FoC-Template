@@ -35,6 +35,26 @@ answered, re-evaluate every slice that lists it.
 
 ## Slice details
 
+### Courier reviews and ratings (DONE, 2026-11-01)
+
+Home-page overview follow-up: self-only GET `/api/couriers/me/review-overview`
+and a compact panel below the home banner show all-time average/count and up to
+three newest written comments. Empty/loading/error states covered. No schema
+changes; existing index supports the bounded newest-first comment query.
+
+Frontend follow-up: GET `/api/errands/:id/review` now restores a saved review
+after reload using errand-view authorization. The web app shows rating summaries
+and a requester-only completed-errand review form. Integration coverage includes
+read permissions and empty results; desktop/mobile tests cover submission/retry
+and reload. No schema or credit changes.
+
+Requester review submission and authenticated courier average/count retrieval
+are implemented. The `courier reviews and ratings` integration suite verifies
+the real PostgreSQL migration, HTTP endpoints, concurrency and database guards.
+No new dependencies, credit effects, or existing API changes. Written-review
+listing and editing/deletion remain outside this slice. Next existing READY
+slice: S1 Hygiene.
+
 ### S0 — Agent docs (DONE)
 Docs and `.agents/` tooling. No code. Log: `logs/2026-10-18-S0-agent-docs.md`.
 
