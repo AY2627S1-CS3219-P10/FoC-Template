@@ -131,8 +131,9 @@ test("failed submission preserves inputs and allows an identical retry", async (
   await page
     .getByRole("button", { name: "Submit review", exact: true })
     .click();
-  await expect(page.getByRole("region", { name: "Courier reviews" }).getByRole("alert"))
-    .toHaveText("Please retry your review.");
+  await expect(
+    page.getByRole("region", { name: "Courier reviews" }).getByRole("alert"),
+  ).toHaveText("Please retry your review.");
   await expect(page.getByLabel("Comment (optional)")).toHaveValue(
     "Quick delivery!",
   );
@@ -171,8 +172,71 @@ for (const scenario of [
     await expect(
       page.getByRole("heading", { name: "Review this delivery" }),
     ).toHaveCount(0);
-    expect(reviewReads).toBe(0);
+    if (scenario.user.id === courier.id) {
+      await expect(
+        page.getByText("The requester has not reviewed this delivery yet."),
+      ).toBeVisible();
+      expect(reviewReads).toBe(1);
+    } else expect(reviewReads).toBe(0);
   });
+
+test("assigned courier reads the requester's stars and comment after reload without edit controls", async ({
+  page,
+}) => {
+  await setup(page, courier);
+  await page.route(`**/api/couriers/${courier.id}/rating-summary`, (route) =>
+    route.fulfill({
+      json: { courierId: courier.id, averageStars: 4.5, reviewCount: 2 },
+    }),
+  );
+  let posts = 0;
+  await page.route(`**/api/errands/${errandId}/review`, (route) => {
+    if (route.request().method() === "POST") posts++;
+    return route.fulfill({ json: { review: savedReview } });
+  });
+  await page.goto(`/errands/${errandId}`);
+  await expect(
+    page.getByRole("heading", { name: "Requester’s review", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("5 / 5 stars", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Quick delivery!", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Submit review", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("radio")).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByText("Quick delivery!", { exact: true }),
+  ).toBeVisible();
+  expect(posts).toBe(0);
+});
+
+test("courier sees an explicit empty comment and can retry a failed review read", async ({
+  page,
+}) => {
+  await setup(page, courier);
+  await page.route(`**/api/couriers/${courier.id}/rating-summary`, (route) =>
+    route.fulfill({
+      json: { courierId: courier.id, averageStars: 5, reviewCount: 1 },
+    }),
+  );
+  let reads = 0;
+  await page.route(`**/api/errands/${errandId}/review`, (route) => {
+    reads++;
+    return reads === 1
+      ? route.fulfill({ status: 503, json: { message: "Review unavailable." } })
+      : route.fulfill({ json: { review: { ...savedReview, comment: null } } });
+  });
+  await page.goto(`/errands/${errandId}`);
+  await expect(page.getByText("Review unavailable.")).toBeVisible();
+  await page.getByRole("button", { name: "Retry review", exact: true }).click();
+  await expect(page.getByText("No written comment provided.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Submit review", exact: true }),
+  ).toHaveCount(0);
+});
 
 test("review loading failure offers retry instead of an unsafe blank form", async ({
   page,

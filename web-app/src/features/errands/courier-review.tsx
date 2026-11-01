@@ -8,19 +8,22 @@ export function CourierReviews({
   errandId,
   courierId,
   canReview,
+  canReadReview = false,
 }: {
   errandId: string;
   courierId: string;
   canReview: boolean;
+  canReadReview?: boolean;
 }) {
   const [revision, setRevision] = useState(0);
   return (
     <section className="courier-reviews" aria-label="Courier reviews">
       <CourierRating key={`${courierId}:${revision}`} courierId={courierId} />
-      {canReview && (
+      {(canReview || canReadReview) && (
         <CourierReviewForm
-          key={errandId}
+          key={`${errandId}:${canReview}`}
           errandId={errandId}
+          readOnly={!canReview}
           onSubmitted={() => setRevision((value) => value + 1)}
         />
       )}
@@ -84,9 +87,11 @@ function CourierRating({ courierId }: { courierId: string }) {
 export function CourierReviewForm({
   errandId,
   onSubmitted,
+  readOnly = false,
 }: {
   errandId: string;
   onSubmitted: () => void;
+  readOnly?: boolean;
 }) {
   const [review, setReview] = useState<CourierReview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -127,7 +132,7 @@ export function CourierReviewForm({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (locked.current || review) return;
+    if (readOnly || locked.current || review) return;
     if (stars === null) {
       setError("Choose a rating from 1 to 5 stars.");
       return;
@@ -181,7 +186,7 @@ export function CourierReviewForm({
     }
   }
 
-  if (loading) return <p role="status">Loading your review…</p>;
+  if (loading) return <p role="status">Loading delivery review…</p>;
   if (loadError)
     return (
       <div>
@@ -200,12 +205,17 @@ export function CourierReviewForm({
   if (review)
     return (
       <div className="saved-courier-review">
-        <h3>Your review</h3>
-        <p role="status">Your review has been submitted.</p>
+        <h3>{readOnly ? "Requester’s review" : "Your review"}</h3>
+        {!readOnly && <p role="status">Your review has been submitted.</p>}
         <p>{review.stars} / 5 stars</p>
-        {review.comment && <p className="review-comment">{review.comment}</p>}
+        {review.comment ? (
+          <p className="review-comment">{review.comment}</p>
+        ) : (
+          <p>No written comment provided.</p>
+        )}
       </div>
     );
+  if (readOnly) return <p>The requester has not reviewed this delivery yet.</p>;
   return (
     <form className="account-form" onSubmit={submit}>
       <h3>Review this delivery</h3>
