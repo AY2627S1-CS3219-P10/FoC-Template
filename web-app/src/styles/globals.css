@@ -2211,3 +2211,8 @@ button.errand-select-button:hover { background: #fbfcfa; }
 .errand-actions { margin: 16px 0; }
 .errand-action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
 .errand-lifecycle-dates { margin: 12px 0; font-size: 14px; color: var(--muted); }
+.courier-reviews { margin: 24px 0; padding: 20px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.review-stars { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; }
+.review-stars label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.review-stars input { width: auto; accent-color: var(--foreground, #215b35); }
+.review-comment { white-space: pre-wrap; overflow-wrap: anywhere; }

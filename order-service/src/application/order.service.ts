@@ -50,6 +50,11 @@ export class OrderService {
     return this.repository.ratingSummary(courierId);
   }
 
+  async review(errandId: string, userId: string, token: string) {
+    await this.find(errandId, userId, token);
+    return { review: await this.repository.findReview(errandId) };
+  }
+
   async create(
     requesterId: string,
     token: string,

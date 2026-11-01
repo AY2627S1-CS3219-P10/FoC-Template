@@ -485,6 +485,59 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       headers: { authorization: `Bearer ${token}` },
     });
   describe('courier reviews and ratings', () => {
+    it('reads a saved review after refresh and returns null before submission', async () => {
+      const id = await completedErrandForReview();
+      const readReview = (token = 'requester') =>
+        app.inject({
+          method: 'GET',
+          url: `/api/errands/${id}/review`,
+          headers: { authorization: `Bearer ${token}` },
+        });
+      const empty = await readReview();
+      expect(empty.statusCode).toBe(200);
+      expect(empty.json()).toEqual({ review: null });
+      const submitted = await review(id, {
+        stars: 5,
+        comment: 'Reliable courier',
+      });
+      expect(submitted.statusCode).toBe(200);
+      for (const token of ['requester', 'courier', 'admin']) {
+        const response = await readReview(token);
+        expect(response.statusCode).toBe(200);
+        expect(response.json()).toEqual({ review: submitted.json() });
+      }
+      expect((await readReview('other')).statusCode).toBe(404);
+      expect(
+        (await app.inject({ method: 'GET', url: `/api/errands/${id}/review` }))
+          .statusCode,
+      ).toBe(401);
+      await prisma.errand.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      expect((await readReview()).statusCode).toBe(404);
+    });
+
+    it('rejects malformed or missing errand IDs on review reads', async () => {
+      expect(
+        (
+          await app.inject({
+            method: 'GET',
+            url: '/api/errands/invalid/review',
+            headers: auth,
+          })
+        ).statusCode,
+      ).toBe(400);
+      expect(
+        (
+          await app.inject({
+            method: 'GET',
+            url: `/api/errands/${randomUUID()}/review`,
+            headers: auth,
+          })
+        ).statusCode,
+      ).toBe(404);
+    });
     async function completedErrandForReview() {
       const created = await create();
       expect(created.statusCode).toBe(201);

@@ -11,13 +11,37 @@ import type { CourierReview } from "@/services/contracts";
 
 type Context = { params: Promise<{ id: string }> };
 
+export async function GET(request: NextRequest, context: Context) {
+  try {
+    const token = accessToken(request);
+    const { id } = await context.params;
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        id,
+      )
+    )
+      throw new BackendError(400, "Invalid errand identifier.");
+    return json(
+      await backend<{ review: CourierReview | null }>(
+        "order",
+        `errands/${id}/review`,
+        { token },
+      ),
+    );
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 export async function POST(request: NextRequest, context: Context) {
   try {
     requireSameOrigin(request);
     const token = accessToken(request);
     const { id } = await context.params;
     if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        id,
+      )
     ) {
       throw new BackendError(400, "Invalid errand identifier.");
     }

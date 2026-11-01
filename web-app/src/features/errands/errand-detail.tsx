@@ -7,6 +7,7 @@ import { ApiError, authenticatedRequest } from "@/services/api";
 import type { Errand, ErrandOperation } from "@/services/contracts";
 import { ErrandStatus } from "./errand-status";
 import { ErrandActions } from "./errand-actions";
+import { CourierReviews } from "./courier-review";
 type Mutation = { method: "PATCH" | "DELETE"; body: Record<string, unknown>; operationId?: string };
 export function ErrandDetail({ id }: { id: string }) {
   const auth = useAuth();
@@ -57,6 +58,7 @@ function ErrandDetailContent({ id }: { id: string }) {
         <div><dt>Requester</dt><dd>{owner ? auth.user.username : errand.requesterUsername || "Unavailable user"}</dd></div>{errand.courierId && <div><dt>Courier</dt><dd>{errand.courierId === auth.user.id ? auth.user.username : errand.courierUsername || "Unavailable user"}</dd></div>}
         <div><dt>Created</dt><dd>{new Date(errand.createdAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</dd></div><div><dt>Last updated</dt><dd>{new Date(errand.updatedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</dd></div>
       </dl>
+      {errand.courierId && <CourierReviews key={`${errand.id}:${userId}:${errand.courierId}`} errandId={errand.id} courierId={errand.courierId} canReview={owner && errand.status === "COMPLETED"} />}
       <div className="errand-lifecycle-dates">{([
         ["Accepted", errand.acceptedAt], ["Picked up", errand.pickedUpAt], ["Delivered", errand.deliveredAt], ["Disputed", errand.disputedAt], ["Completed", errand.completedAt], ["Cancelled", errand.cancelledAt], ["Expired", errand.expiredAt], ["Expires", errand.expiresAt],
       ] as const).filter(([, value]) => value).map(([label, value]) => <p key={label}>{label}: <time dateTime={value!}>{new Date(value!).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</time></p>)}</div>

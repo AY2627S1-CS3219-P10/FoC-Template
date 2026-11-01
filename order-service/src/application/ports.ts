@@ -137,6 +137,7 @@ export interface OrderRepository {
   ): Promise<CourierReviewRecord>;
 
   ratingSummary(courierId: string): Promise<CourierRatingSummary>;
+  findReview(errandId: string): Promise<CourierReviewRecord | null>;
 }
 
 export interface ErrandServices {

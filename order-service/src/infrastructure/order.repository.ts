@@ -184,6 +184,9 @@ export class PrismaOrderRepository implements OrderRepository {
       reviewCount: result._count._all,
     };
   }
+  findReview(errandId: string): Promise<CourierReviewRecord | null> {
+    return this.prisma.courierReview.findUnique({ where: { errandId } });
+  }
   async findByKey(requesterId: string, idempotencyKey: string) {
     const value = await this.prisma.errandOperation.findUnique({
       where: { requesterId_idempotencyKey: { requesterId, idempotencyKey } },

@@ -51,6 +51,34 @@ import {
 @Controller('api/errands')
 export class OrderController {
   constructor(private readonly service: OrderService) {}
+  @Get(':id/review')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Read a review for an accessible errand; review is null if not reviewed',
+  })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      required: ['review'],
+      properties: {
+        review: {
+          allOf: [{ $ref: '#/components/schemas/CourierReviewResponse' }],
+          nullable: true,
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse()
+  @ApiNotFoundResponse({
+    description: 'Errand is missing, deleted, or inaccessible',
+  })
+  review(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.review(id, request.userId, request.accessToken);
+  }
   @Post(':id/review')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')

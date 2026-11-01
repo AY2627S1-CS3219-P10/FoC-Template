@@ -30,8 +30,15 @@ Authorization: Bearer <access-token>
 
 Returns `courierId`, `averageStars`, and `reviewCount`. With no reviews the average
 is `null` and the count is 0. This endpoint aggregates local reviews; it does not
-check whether the courier UUID exists in User Service. Written-review listing,
-review editing/deletion, and frontend controls are outside this implementation.
+check whether the courier UUID exists in User Service.
+
+`GET /api/errands/:id/review` returns `{ "review": null }` before submission, or
+`{ "review": { ...savedReview } }` afterward. It uses the same viewing permissions
+as errand details: participants and administrators may read completed-errand
+reviews; inaccessible, missing or deleted errands return 404. The web app uses
+this endpoint to restore the saved review after a page reload. All review routes
+require an authenticated session and disable response caching. Written-review
+listing and review editing/deletion are outside this implementation.
 
 Before starting locally, run `pnpm db:generate` and `pnpm db:migrate` from this
 folder to generate the review model and apply `202610300001_courier_reviews`.

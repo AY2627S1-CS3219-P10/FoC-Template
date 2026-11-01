@@ -211,7 +211,10 @@ Submit-one-review and aggregate-rating backend: done. Evidence:
 suite in `tests/integration/errands.spec.ts`. Tests cover HTTP validation and
 authorization, persistence, concurrent identical/conflicting requests, averages,
 and database constraints. Existing domain rules are covered by
-`tests/unit/review.spec.ts`. Review listing, edits, and deletion are not in scope.
+`tests/unit/review.spec.ts`. Authenticated `GET /api/errands/:id/review` restores
+saved reviews on reload and uses errand-view permissions; covered by integration
+tests for participants/admins, strangers, unauthenticated requests and deleted
+errands. Review listing, edits, and deletion are not in scope.
 
 ## 5. Known defects and risks
 | ID | Problem | Where | Fix slice |

@@ -15,7 +15,16 @@
   No reviews yields null/0, including unknown user UUIDs; no User Service lookup.
 
 Both responses use Cache-Control: no-store. Existing errand endpoints and shapes
-are unchanged. Review retrieval/listing, edits, and deletion are not exposed.
+are unchanged. Review listing, edits, and deletion are not exposed.
+
+### Reading a saved review
+
+`GET /api/errands/:id/review` requires authentication and the same permission as
+reading the errand. Returns HTTP 200 with `{review: CourierReview | null}`.
+Null means the accessible errand has not been reviewed. Participants and admins
+can read reviews on completed errands; missing, deleted or inaccessible errands
+return 404, malformed UUIDs 400, and missing/invalid sessions 401. Responses use
+Cache-Control: no-store. Review data is not cached in browser storage.
 
 `web-app/` belongs to a teammate and **cannot be edited** by order-service work. Any
 change to an order-service response that web-app reads is a **hard stop** (ask the user
