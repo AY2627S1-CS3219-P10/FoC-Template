@@ -39,6 +39,15 @@ export interface CourierRatingSummary {
   reviewCount: number;
 }
 
+export interface CourierReviewOverview extends CourierRatingSummary {
+  recentComments: {
+    id: string;
+    stars: number;
+    comment: string;
+    createdAt: Date;
+  }[];
+}
+
 export interface OrderRepository {
   /** Administrators only: soft-delete in any state and release (Q-011 parked). */
   deleteIntent(
@@ -138,6 +147,7 @@ export interface OrderRepository {
 
   ratingSummary(courierId: string): Promise<CourierRatingSummary>;
   findReview(errandId: string): Promise<CourierReviewRecord | null>;
+  reviewOverview(courierId: string): Promise<CourierReviewOverview>;
 }
 
 export interface ErrandServices {

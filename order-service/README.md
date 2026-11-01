@@ -40,6 +40,16 @@ this endpoint to restore the saved review after a page reload. All review routes
 require an authenticated session and disable response caching. Written-review
 listing and review editing/deletion are outside this implementation.
 
+`GET /api/couriers/me/review-overview` powers the signed-in home-page panel.
+It returns your `courierId`, all-time `averageStars` / `reviewCount`, and
+`recentComments` (up to three objects containing `id`, `stars`, `comment`, and
+`createdAt`). Identity comes from the authenticated session, never query/body
+parameters. Comments exclude empty/star-only reviews and sort newest-first by
+`createdAt`, then `id`. Star-only reviews still contribute to the average/count.
+No ratings yields null/0 and an empty list. The panel is available to every
+signed-in user, including admins, and hidden for guests. Public comment listings
+remain outside scope. No new database migration is required.
+
 Before starting locally, run `pnpm db:generate` and `pnpm db:migrate` from this
 folder to generate the review model and apply `202610300001_courier_reviews`.
 The review integration tests in `tests/integration/errands.spec.ts` use isolated

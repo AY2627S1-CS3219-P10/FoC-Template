@@ -32,6 +32,7 @@ import { assertReviewable, normaliseReview } from '../domain/review';
 import type {
   CourierReviewRecord,
   CourierRatingSummary,
+  CourierReviewOverview,
 } from '../application/ports';
 
 export function operationRecord(value: ErrandOperation): OperationRecord {
@@ -186,6 +187,33 @@ export class PrismaOrderRepository implements OrderRepository {
   }
   findReview(errandId: string): Promise<CourierReviewRecord | null> {
     return this.prisma.courierReview.findUnique({ where: { errandId } });
+  }
+  reviewOverview(courierId: string): Promise<CourierReviewOverview> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const result = await tx.courierReview.aggregate({
+          where: { courierId },
+          _avg: { stars: true },
+          _count: { _all: true },
+        });
+        const comments = await tx.courierReview.findMany({
+          where: { courierId, comment: { not: null, notIn: [''] } },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 3,
+          select: { id: true, stars: true, comment: true, createdAt: true },
+        });
+        return {
+          courierId,
+          averageStars: result._avg.stars,
+          reviewCount: result._count._all,
+          recentComments: comments.map((value) => ({
+            ...value,
+            comment: value.comment!,
+          })),
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
   async findByKey(requesterId: string, idempotencyKey: string) {
     const value = await this.prisma.errandOperation.findUnique({

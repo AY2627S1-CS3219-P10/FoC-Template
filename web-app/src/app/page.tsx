@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/icon";
+import { MyCourierRating } from "@/features/errands/my-courier-rating";
 
 export default function HomePage() {
   return (
@@ -53,6 +54,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <MyCourierRating />
 
       <section className="home-paths" aria-labelledby="home-paths-title">
         <div className="home-section-heading">

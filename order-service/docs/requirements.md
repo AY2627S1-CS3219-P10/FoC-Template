@@ -204,6 +204,14 @@ Implemented rows live in `src/domain/lifecycle.ts` `TRANSITIONS`.
 
 ### Courier review feature (2026-11-01)
 
+Personal overview: done. `CourierRatingsController.reviewOverview` derives the
+courier from the session; `PrismaOrderRepository.reviewOverview` returns the
+all-time average/count and three newest non-empty comments. Integration tests
+verify own-user filtering (including admin and malicious query parameters),
+authentication, newest-three ordering, star-only ratings and empty results.
+`web-app/tests/e2e/my-courier-rating.spec.ts` covers signed-in students/admins,
+guests, empty states, retries and desktop/mobile layout.
+
 Submit-one-review and aggregate-rating backend: done. Evidence:
 `OrderController.createReview`, `CourierRatingsController.ratingSummary`,
 `PrismaOrderRepository.createReview` / `ratingSummary`, the migration

@@ -223,3 +223,15 @@ export class CourierRatingSummaryResponse {
   @ApiProperty({ minimum: 0, example: 2 })
   reviewCount!: number;
 }
+
+export class RecentCourierCommentResponse {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ minimum: 1, maximum: 5 }) stars!: number;
+  @ApiProperty({ maxLength: 1000 }) comment!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
+
+export class CourierReviewOverviewResponse extends CourierRatingSummaryResponse {
+  @ApiProperty({ type: [RecentCourierCommentResponse], maxItems: 3 })
+  recentComments!: RecentCourierCommentResponse[];
+}

@@ -485,6 +485,100 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       headers: { authorization: `Bearer ${token}` },
     });
   describe('courier reviews and ratings', () => {
+    it('shows your own all-time average and only your three newest written comments', async () => {
+      const comments = [
+        'Oldest comment',
+        undefined,
+        'Third-newest comment',
+        'Second-newest comment',
+        'Newest comment',
+      ];
+      const stars = [5, 4, 1, 3, 2];
+      for (let index = 0; index < comments.length; index++) {
+        const id = await completedErrandForReview();
+        expect(
+          (
+            await review(id, {
+              stars: stars[index],
+              ...(comments[index] ? { comment: comments[index] } : {}),
+            })
+          ).statusCode,
+        ).toBe(200);
+        await prisma.courierReview.update({
+          where: { errandId: id },
+          data: {
+            createdAt: new Date(
+              `2026-10-${String(index + 1).padStart(2, '0')}T12:00:00Z`,
+            ),
+          },
+        });
+      }
+      const overview = await app.inject({
+        method: 'GET',
+        url: '/api/couriers/me/review-overview',
+        headers: { authorization: 'Bearer courier' },
+      });
+      expect(overview.statusCode).toBe(200);
+      expect(overview.json()).toMatchObject({
+        courierId,
+        averageStars: 3,
+        reviewCount: 5,
+      });
+      expect(
+        overview
+          .json()
+          .recentComments.map((value: { comment: string }) => value.comment),
+      ).toEqual([
+        'Newest comment',
+        'Second-newest comment',
+        'Third-newest comment',
+      ]);
+      expect(Object.keys(overview.json().recentComments[0]).sort()).toEqual([
+        'comment',
+        'createdAt',
+        'id',
+        'stars',
+      ]);
+      for (const token of ['requester', 'admin']) {
+        const empty = await app.inject({
+          method: 'GET',
+          url: `/api/couriers/me/review-overview?courierId=${courierId}`,
+          headers: { authorization: `Bearer ${token}` },
+        });
+        expect(empty.statusCode).toBe(200);
+        expect(empty.json()).toEqual({
+          courierId: token === 'requester' ? requesterId : otherId,
+          averageStars: null,
+          reviewCount: 0,
+          recentComments: [],
+        });
+      }
+      expect(
+        (
+          await app.inject({
+            method: 'GET',
+            url: '/api/couriers/me/review-overview',
+          })
+        ).statusCode,
+      ).toBe(401);
+    });
+
+    it('returns an empty comment list when ratings have no written comments', async () => {
+      const id = await completedErrandForReview();
+      expect((await review(id, { stars: 4 })).statusCode).toBe(200);
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/couriers/me/review-overview',
+        headers: { authorization: 'Bearer courier' },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        courierId,
+        averageStars: 4,
+        reviewCount: 1,
+        recentComments: [],
+      });
+    });
     it('reads a saved review after refresh and returns null before submission', async () => {
       const id = await completedErrandForReview();
       const readReview = (token = 'requester') =>

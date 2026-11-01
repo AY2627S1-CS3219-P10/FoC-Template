@@ -50,6 +50,12 @@ export interface CourierRatingSummary {
   reviewCount: number;
 }
 
+export interface CourierReviewOverview extends CourierRatingSummary {
+  recentComments: (Pick<CourierReview, "id" | "stars" | "createdAt"> & {
+    comment: string;
+  })[];
+}
+
 export type ErrandPreview = Pick<
   Errand,
   | "id"

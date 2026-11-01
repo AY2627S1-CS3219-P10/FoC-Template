@@ -4,6 +4,7 @@ import {
   Header,
   Param,
   ParseUUIDPipe,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -15,8 +16,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OrderService } from '../application/order.service';
-import { AuthGuard } from './auth.guard';
-import { CourierRatingSummaryResponse } from './dto';
+import { AuthGuard, type AuthenticatedRequest } from './auth.guard';
+import {
+  CourierRatingSummaryResponse,
+  CourierReviewOverviewResponse,
+} from './dto';
 
 @ApiTags('courier ratings')
 @ApiBearerAuth()
@@ -24,6 +28,17 @@ import { CourierRatingSummaryResponse } from './dto';
 @Controller('api/couriers')
 export class CourierRatingsController {
   constructor(private readonly service: OrderService) {}
+
+  @Get('me/review-overview')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Your courier average rating and three newest written comments',
+  })
+  @ApiOkResponse({ type: CourierReviewOverviewResponse })
+  @ApiUnauthorizedResponse()
+  reviewOverview(@Req() request: AuthenticatedRequest) {
+    return this.service.reviewOverview(request.userId);
+  }
 
   @Get(':courierId/rating-summary')
   @Header('Cache-Control', 'no-store')

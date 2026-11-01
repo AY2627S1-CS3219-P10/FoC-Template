@@ -1,5 +1,18 @@
 # Contract: what web-app depends on (do not break)
 
+## Personal courier rating overview
+
+`GET /api/couriers/me/review-overview` requires a session (401 otherwise).
+Returns HTTP 200 with `courierId`, `averageStars: number | null`, `reviewCount`,
+and `recentComments: {id, stars, comment, createdAt}[]` (maximum three).
+The courier identity comes only from AuthGuard. Even administrators see only
+their own received reviews here. Query parameters cannot select another user.
+All received reviews contribute to average/count; only non-empty written
+comments appear in recentComments, ordered by createdAt DESC then id DESC.
+No reviews returns null, 0, and []. Response is no-store and does not include
+requester identifiers or contact details. Both queries share a repeatable-read
+transaction snapshot. This additive endpoint does not change rating-summary.
+
 ## Additive review endpoints (2026-11-01)
 
 - `POST /api/errands/:id/review`: requester JWT; body `{stars: number, comment?: string}`.
