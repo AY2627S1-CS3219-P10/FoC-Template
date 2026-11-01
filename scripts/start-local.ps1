@@ -77,7 +77,7 @@ Save-Setting (Join-Path $repoPath 'order-service/.env') 'CREDIT_ORDER_SERVICE_TO
 
 $rootSettings = Read-Settings $rootEnv
 $localRabbitMqUrl = 'amqp://foc:foc_local_password@127.0.0.1:5672'
-$eventsExchange = if ($rootSettings['USER_EVENTS_EXCHANGE']) { $rootSettings['USER_EVENTS_EXCHANGE'] } elseif ($rootSettings['CREDIT_EVENTS_EXCHANGE']) { $rootSettings['CREDIT_EVENTS_EXCHANGE'] } else { 'foc.events' }
+$eventsExchange = if ($rootSettings['USER_EVENTS_EXCHANGE']) { $rootSettings['USER_EVENTS_EXCHANGE'] } elseif ($rootSettings['ORDER_EVENTS_EXCHANGE']) { $rootSettings['ORDER_EVENTS_EXCHANGE'] } elseif ($rootSettings['CREDIT_EVENTS_EXCHANGE']) { $rootSettings['CREDIT_EVENTS_EXCHANGE'] } else { 'foc.events' }
 Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_EVENTS_ENABLED' 'true'
 Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_EVENTS_EXCHANGE' $eventsExchange
 Save-Setting (Join-Path $repoPath 'user-service/.env') 'USER_OUTBOX_POLL_INTERVAL_MS' '1000'

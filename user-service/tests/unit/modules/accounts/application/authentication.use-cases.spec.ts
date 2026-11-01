@@ -171,7 +171,10 @@ describe('authentication use cases', () => {
     };
     await expect(
       context.login.execute({ email: ACCOUNT.email, password: 'Strong!Pass' }),
-    ).rejects.toMatchObject({ code: 'ACCOUNT_NOT_ACTIVE' });
+    ).rejects.toMatchObject({
+      code: 'ACCOUNT_TEMPORARILY_SUSPENDED',
+      suspendedUntil: new Date(NOW.getTime() + 1000),
+    });
     expect(context.repository.createdSessions).toEqual([]);
     expect(context.accessTokens.issueInputs).toEqual([]);
   });

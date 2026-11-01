@@ -135,9 +135,15 @@ export class AuthenticationController {
       const response = {
         code: error.code,
         message: error.message,
+        ...(error.suspendedUntil
+          ? { suspendedUntil: error.suspendedUntil.toISOString() }
+          : {}),
       };
 
-      if (error.code === 'ACCOUNT_NOT_ACTIVE') {
+      if (
+        error.code === 'ACCOUNT_NOT_ACTIVE' ||
+        error.code === 'ACCOUNT_TEMPORARILY_SUSPENDED'
+      ) {
         throw new ForbiddenException({ ...response, statusCode: 403 });
       }
 

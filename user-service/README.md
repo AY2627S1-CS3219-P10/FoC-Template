@@ -44,7 +44,8 @@ expiry. Every non-revoked session is revoked in the same database transaction.
 
 Temporary suspension is an overlay on the base ACTIVE account status, stored
 as `users.suspended_until`. While the timestamp is in the future, login returns
-403 and refresh/protected User Service routes return 401. At or after expiry,
+403 with `ACCOUNT_TEMPORARILY_SUSPENDED` and the authoritative `suspendedUntil`
+timestamp; refresh/protected User Service routes return 401. At or after expiry,
 fresh login and protected access work automatically without clearing the field
 or running a scheduled job. Revoked sessions remain revoked; the user must sign
 in again. BANNED, PENDING_VERIFICATION, and legacy SUSPENDED statuses remain

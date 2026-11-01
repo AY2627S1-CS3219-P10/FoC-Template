@@ -13,6 +13,7 @@ export class BackendError extends Error {
     public code?: string,
     public retryAfter?: string,
     public matches: SupplierMatch[] = [],
+    public suspendedUntil?: string,
   ) {
     super(message);
   }
@@ -84,6 +85,7 @@ export async function backend<T>(
         data.code === "POSSIBLE_SUPPLIER_DUPLICATE"
         ? supplierMatches(data.matches)
         : [],
+      typeof data.suspendedUntil === "string" ? data.suspendedUntil : undefined,
     );
   }
   if (response.status === 204) return undefined as T;
@@ -111,6 +113,9 @@ export function errorResponse(error: unknown) {
       message: failure.message,
       code: failure.code,
       ...(failure.matches.length ? { matches: failure.matches } : {}),
+      ...(failure.suspendedUntil
+        ? { suspendedUntil: failure.suspendedUntil }
+        : {}),
     },
     failure.status,
   );

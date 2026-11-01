@@ -20,7 +20,14 @@ async function handle(request: NextRequest, context: Context) {
     const accounts =
       (method === "GET" && path === "accounts") ||
       (method === "PATCH" &&
-        new RegExp(`^accounts/${uuid}/administrator$`).test(path));
+        new RegExp(`^accounts/${uuid}/(?:administrator|suspension)$`).test(
+          path,
+        ));
+    const reports =
+      (method === "GET" && path === "reports") ||
+      (method === "GET" && new RegExp(`^reports/${uuid}$`).test(path)) ||
+      (method === "PATCH" &&
+        new RegExp(`^reports/${uuid}/resolve$`).test(path));
     const suppliers =
       (path === "suppliers" && ["GET", "POST"].includes(method)) ||
       (path === "suppliers/campus-locations" && method === "GET") ||
@@ -28,7 +35,8 @@ async function handle(request: NextRequest, context: Context) {
         new RegExp(`^suppliers/${uuid}$`).test(path)) ||
       (method === "PATCH" &&
         new RegExp(`^suppliers/${uuid}/locations/${uuid}$`).test(path));
-    if (!accounts && !suppliers) return json({ message: "Not found." }, 404);
+    if (!accounts && !reports && !suppliers)
+      return json({ message: "Not found." }, 404);
     if (method !== "GET") requireSameOrigin(request, method !== "DELETE");
     const token = accessToken(request);
     // Check the current session and privileges, including supplier operations.
@@ -48,14 +56,17 @@ async function handle(request: NextRequest, context: Context) {
       if (!body || typeof body !== "object" || Array.isArray(body))
         throw new BackendError(400, "Invalid request.");
     }
-    const query =
-      method === "GET" && accounts
-        ? `?${new URLSearchParams({ search: request.nextUrl.searchParams.get("search") || "" })}`
-        : "";
+    let query = "";
+    if (method === "GET" && accounts)
+      query = `?${new URLSearchParams({ search: request.nextUrl.searchParams.get("search") || "" })}`;
+    if (method === "GET" && reports && path === "reports") {
+      const status = request.nextUrl.searchParams.get("status");
+      query = status ? `?${new URLSearchParams({ status })}` : "";
+    }
     const upstream =
       method === "GET" && suppliers ? path : `admin/${path}${query}`;
     const result = await backend<unknown>(
-      accounts ? "user" : "supplier",
+      accounts || reports ? "user" : "supplier",
       upstream,
       { token, method, body },
     );

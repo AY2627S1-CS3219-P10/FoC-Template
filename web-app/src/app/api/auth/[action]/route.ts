@@ -114,9 +114,9 @@ export async function POST(request: NextRequest, context: Context) {
   } catch (error) {
     const response = errorResponse(error);
     if (
-      action === "refresh" &&
+      ["login", "refresh"].includes(action) &&
       error instanceof BackendError &&
-      [400, 401, 403].includes(error.status)
+      [401, 403].includes(error.status)
     )
       clearSession(response);
     return response;
