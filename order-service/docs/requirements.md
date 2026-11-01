@@ -202,6 +202,17 @@ Implemented rows live in `src/domain/lifecycle.ts` `TRANSITIONS`.
 | NFR9 | ≥80% coverage on critical logic; invalid-transition + concurrency tests | done | `test:coverage` (80% gate on domain/application; 96.7% statements, 92.2% branches); `tests/unit/lifecycle.spec.ts` matrix; race tests "S4 race…", "S5 race…", "S6a race…", "S6b race…", "F race: …" (cancel, courier cancel, reopen, expiry) |
 | NFR10 | Containerised, restart-safe | done | `Dockerfile`, `docker-entrypoint.sh` (`migrate deploy`); image verified 2026-10-18 (9 migrations, ready after restart). Compose RabbitMQ wiring: Q-018 |
 
+### Courier review feature (2026-11-01)
+
+Submit-one-review and aggregate-rating backend: done. Evidence:
+`OrderController.createReview`, `CourierRatingsController.ratingSummary`,
+`PrismaOrderRepository.createReview` / `ratingSummary`, the migration
+`202610300001_courier_reviews`, and the `courier reviews and ratings` integration
+suite in `tests/integration/errands.spec.ts`. Tests cover HTTP validation and
+authorization, persistence, concurrent identical/conflicting requests, averages,
+and database constraints. Existing domain rules are covered by
+`tests/unit/review.spec.ts`. Review listing, edits, and deletion are not in scope.
+
 ## 5. Known defects and risks
 | ID | Problem | Where | Fix slice |
 |---|---|---|---|

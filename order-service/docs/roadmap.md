@@ -35,6 +35,15 @@ answered, re-evaluate every slice that lists it.
 
 ## Slice details
 
+### Courier reviews and ratings (DONE, 2026-11-01)
+
+Requester review submission and authenticated courier average/count retrieval
+are implemented. The `courier reviews and ratings` integration suite verifies
+the real PostgreSQL migration, HTTP endpoints, concurrency and database guards.
+No new dependencies, credit effects, or existing API changes. Written-review
+listing and editing/deletion remain outside this slice. Next existing READY
+slice: S1 Hygiene.
+
 ### S0 — Agent docs (DONE)
 Docs and `.agents/` tooling. No code. Log: `logs/2026-10-18-S0-agent-docs.md`.
 

@@ -1,5 +1,43 @@
 # Order Service
 
+## Courier reviews and ratings
+
+Authenticated requesters can review the assigned courier after an errand reaches
+`COMPLETED`. Reviews contain an integer `stars` value from 1 to 5 and an optional
+string `comment` of at most 1000 characters after trimming. Blank comments are
+stored as `null`. Courier and requester IDs come from the errand and authenticated
+session, never from the request body.
+
+```http
+POST /api/errands/:id/review
+Authorization: Bearer <requester-access-token>
+Content-Type: application/json
+
+{"stars":5,"comment":"Quick delivery, thank you!"}
+```
+
+Returns HTTP 200 with `id`, `errandId`, `requesterId`, `courierId`, `stars`,
+`comment`, and `createdAt`. One review is permitted per errand. An identical
+normalised retry returns the same review; different content returns 409
+`REVIEW_ALREADY_EXISTS`. No `Idempotency-Key` header is needed. Non-owners receive
+403 (including administrators); missing/deleted errands receive 404;
+non-completed errands receive 409. Reviews never change credit balances.
+
+```http
+GET /api/couriers/:courierId/rating-summary
+Authorization: Bearer <access-token>
+```
+
+Returns `courierId`, `averageStars`, and `reviewCount`. With no reviews the average
+is `null` and the count is 0. This endpoint aggregates local reviews; it does not
+check whether the courier UUID exists in User Service. Written-review listing,
+review editing/deletion, and frontend controls are outside this implementation.
+
+Before starting locally, run `pnpm db:generate` and `pnpm db:migrate` from this
+folder to generate the review model and apply `202610300001_courier_reviews`.
+The review integration tests in `tests/integration/errands.spec.ts` use isolated
+PostgreSQL containers: run `pnpm test:integration` with Docker available.
+
 > Requirements, decisions, contracts and roadmap: [`docs/`](docs/). Agent workflow and skills: [`.agents/README.md`](.agents/README.md). Change history with rationale: [`logs/`](logs/).
 
 FR4 creation, authenticated open browsing and requester editing. Uses Node 24, TypeScript, NestJS/Fastify, Prisma 7, PostgreSQL, and Redis/BullMQ recovery. Services own separate databases; credit changes use the Credit Service HTTP API.

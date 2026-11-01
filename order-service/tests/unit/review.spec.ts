@@ -1,7 +1,4 @@
-import {
-  assertReviewable,
-  normaliseReview,
-} from '../../src/domain/review';
+import { assertReviewable, normaliseReview } from '../../src/domain/review';
 import type { ErrandRecord } from '../../src/domain/errand';
 
 const completedErrand: ErrandRecord = {
@@ -26,20 +23,18 @@ const completedErrand: ErrandRecord = {
 
 describe('review eligibility', () => {
   it('allows the requester to review a completed errand', () => {
-    expect(() =>
-      assertReviewable(completedErrand, 'requester'),
-    ).not.toThrow();
+    expect(() => assertReviewable(completedErrand, 'requester')).not.toThrow();
   });
 
   it.each(['courier', 'another-user'])(
     'rejects a review from %s',
     (actorId: string) => {
-      expect(() =>
-        assertReviewable(completedErrand, actorId),
-      ).toThrow(expect.objectContaining({
-        code: 'REVIEW_REQUESTER_REQUIRED',
-        status: 403,
-      }));
+      expect(() => assertReviewable(completedErrand, actorId)).toThrow(
+        expect.objectContaining({
+          code: 'REVIEW_REQUESTER_REQUIRED',
+          status: 403,
+        }),
+      );
     },
   );
 
@@ -54,21 +49,22 @@ describe('review eligibility', () => {
   ])('rejects an errand in %s state', (status: ErrandRecord['status']) => {
     expect(() =>
       assertReviewable({ ...completedErrand, status }, 'requester'),
-    ).toThrow(expect.objectContaining({
-      code: 'ERRAND_NOT_REVIEWABLE',
-      status: 409,
-    }));
+    ).toThrow(
+      expect.objectContaining({
+        code: 'ERRAND_NOT_REVIEWABLE',
+        status: 409,
+      }),
+    );
   });
 
   it('rejects a completed errand without a courier', () => {
     expect(() =>
-      assertReviewable(
-        { ...completedErrand, courierId: null },
-        'requester',
-      ),
-    ).toThrow(expect.objectContaining({
-      code: 'ERRAND_NOT_REVIEWABLE',
-    }));
+      assertReviewable({ ...completedErrand, courierId: null }, 'requester'),
+    ).toThrow(
+      expect.objectContaining({
+        code: 'ERRAND_NOT_REVIEWABLE',
+      }),
+    );
   });
 
   it('rejects a deleted errand', () => {
@@ -77,10 +73,12 @@ describe('review eligibility', () => {
         { ...completedErrand, deletedAt: new Date() },
         'requester',
       ),
-    ).toThrow(expect.objectContaining({
-      code: 'ERRAND_NOT_FOUND',
-      status: 404,
-    }));
+    ).toThrow(
+      expect.objectContaining({
+        code: 'ERRAND_NOT_FOUND',
+        status: 404,
+      }),
+    );
   });
 });
 
@@ -119,8 +117,7 @@ describe('review input', () => {
   );
 
   it('accepts exactly 1000 characters', () => {
-    expect(normaliseReview(5, 'a'.repeat(1000)).comment)
-      .toHaveLength(1000);
+    expect(normaliseReview(5, 'a'.repeat(1000)).comment).toHaveLength(1000);
   });
 
   it('rejects more than 1000 characters', () => {

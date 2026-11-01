@@ -43,12 +43,7 @@ export class OrderService {
     stars: number,
     comment?: string,
   ) {
-    return this.repository.createReview(
-      errandId,
-      requesterId,
-      stars,
-      comment,
-    );
+    return this.repository.createReview(errandId, requesterId, stars, comment);
   }
 
   async ratingSummary(courierId: string) {

@@ -6,6 +6,7 @@ One file per working pass: a summary for humans at the top, then one entry per c
 
 | Log | Slice | Status |
 |---|---|---|
+| [2026-11-01-courier-reviews.md](2026-11-01-courier-reviews.md) | Courier reviews | done — 25 new PostgreSQL/HTTP cases, contract docs, 468 tests pass |
 | [2026-10-18-S0-agent-docs.md](2026-10-18-S0-agent-docs.md) | S0 | done — docs and agent tooling, no code |
 | [2026-10-18-D3-order-lifecycle.md](2026-10-18-D3-order-lifecycle.md) | S1, N1, S3–S6b, D3 queries, Docker, Postman | done — lifecycle, accept race, outbox + relay, 4 h timer, Postman; cancel/expiry blocked (Q-006/7/8) |
 | [2026-10-18-S7-cancel-expiry.md](2026-10-18-S7-cancel-expiry.md) | S7, S8 | done — requester/courier cancel, 30-min reopen, item-type expiry, IN_PROGRESS removed, 4 h timer fix; Q-020/Q-021 parked |

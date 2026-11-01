@@ -1,5 +1,22 @@
 # Contract: what web-app depends on (do not break)
 
+## Additive review endpoints (2026-11-01)
+
+- `POST /api/errands/:id/review`: requester JWT; body `{stars: number, comment?: string}`.
+  Stars are whole numbers 1–5; comment is trimmed, limited to 1000 characters,
+  and stored as null when omitted/blank. HTTP 200 returns the saved review
+  (`id`, `errandId`, `requesterId`, `courierId`, `stars`, `comment`, `createdAt`).
+  The errand must be COMPLETED with a courier. Repeating identical normalised
+  content replays the same record; changing it returns 409. No Idempotency-Key.
+  Errors: 400 invalid input/UUID/extra fields, 401 inactive session, 403 non-owner,
+  404 missing/deleted errand, 409 ineligible errand or different existing review.
+- `GET /api/couriers/:courierId/rating-summary`: authenticated session; UUID v4.
+  Returns `{courierId, averageStars: number | null, reviewCount: number}`.
+  No reviews yields null/0, including unknown user UUIDs; no User Service lookup.
+
+Both responses use Cache-Control: no-store. Existing errand endpoints and shapes
+are unchanged. Review retrieval/listing, edits, and deletion are not exposed.
+
 `web-app/` belongs to a teammate and **cannot be edited** by order-service work. Any
 change to an order-service response that web-app reads is a **hard stop** (ask the user
 first). New routes and new optional fields are fine. Verified 2026-10-18.

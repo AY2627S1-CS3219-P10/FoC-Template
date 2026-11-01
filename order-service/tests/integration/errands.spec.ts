@@ -484,6 +484,233 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       url: `/api/errands/${id}/${action}`,
       headers: { authorization: `Bearer ${token}` },
     });
+  describe('courier reviews and ratings', () => {
+    async function completedErrandForReview() {
+      const created = await create();
+      expect(created.statusCode).toBe(201);
+      const id: string = created.json().errand.id;
+      expect((await accept(id)).statusCode).toBe(200);
+      expect((await act(id, 'pickup', 'courier')).statusCode).toBe(200);
+      expect((await act(id, 'deliver', 'courier')).statusCode).toBe(200);
+      const confirmed = await act(id, 'confirm', 'requester');
+      expect(confirmed.statusCode).toBe(200);
+      expect(confirmed.json().status).toBe('COMPLETED');
+      return id;
+    }
+
+    const review = (id: string, payload: object, token = 'requester') =>
+      app.inject({
+        method: 'POST',
+        url: `/api/errands/${id}/review`,
+        headers: { authorization: `Bearer ${token}` },
+        payload,
+      });
+    const summary = (id = courierId) =>
+      app.inject({
+        method: 'GET',
+        url: `/api/couriers/${id}/rating-summary`,
+        headers: auth,
+      });
+
+    it('persists a normalised review, derives its actors, and leaves credits unchanged', async () => {
+      const id = await completedErrandForReview();
+      const before = await balances();
+      const response = await review(id, {
+        stars: 5,
+        comment: '  Quick delivery!  ',
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        errandId: id,
+        requesterId,
+        courierId,
+        stars: 5,
+        comment: 'Quick delivery!',
+      });
+      expect(
+        await prisma.courierReview.findUnique({ where: { errandId: id } }),
+      ).toMatchObject({
+        id: response.json().id,
+        requesterId,
+        courierId,
+        stars: 5,
+      });
+      expect(await balances()).toEqual(before);
+      const result = await summary();
+      expect(result.statusCode).toBe(200);
+      expect(result.json()).toEqual({
+        courierId,
+        averageStars: 5,
+        reviewCount: 1,
+      });
+    });
+
+    it('replays concurrent identical submissions as one persisted review', async () => {
+      const id = await completedErrandForReview();
+      const results = await Promise.all([
+        review(id, { stars: 4, comment: '  Thanks!  ' }),
+        review(id, { stars: 4, comment: 'Thanks!' }),
+      ]);
+      expect(results.map((result) => result.statusCode)).toEqual([200, 200]);
+      expect(results[0].json().id).toBe(results[1].json().id);
+      expect(
+        await prisma.courierReview.count({ where: { errandId: id } }),
+      ).toBe(1);
+    });
+
+    it('allows only one of two concurrent different reviews', async () => {
+      const id = await completedErrandForReview();
+      const results = await Promise.all([
+        review(id, { stars: 5 }),
+        review(id, { stars: 1 }),
+      ]);
+      expect(results.map((result) => result.statusCode).sort()).toEqual([
+        200, 409,
+      ]);
+      expect(
+        results.find((result) => result.statusCode === 409)?.json().code,
+      ).toBe('REVIEW_ALREADY_EXISTS');
+      expect(
+        await prisma.courierReview.count({ where: { errandId: id } }),
+      ).toBe(1);
+    });
+
+    it.each(['courier', 'other', 'admin'])(
+      'rejects a review by non-owner %s',
+      async (token) => {
+        const id = await completedErrandForReview();
+        const response = await review(id, { stars: 5 }, token);
+        expect(response.statusCode).toBe(403);
+        expect(response.json().code).toBe('REVIEW_REQUESTER_REQUIRED');
+        expect(await prisma.courierReview.count()).toBe(0);
+      },
+    );
+
+    it('requires authentication on both endpoints', async () => {
+      const id = await completedErrandForReview();
+      for (const request of [
+        {
+          method: 'POST' as const,
+          url: `/api/errands/${id}/review`,
+          payload: { stars: 5 },
+        },
+        {
+          method: 'GET' as const,
+          url: `/api/couriers/${courierId}/rating-summary`,
+        },
+      ])
+        expect((await app.inject(request)).statusCode).toBe(401);
+    });
+
+    it.each([
+      {},
+      { stars: 0 },
+      { stars: 6 },
+      { stars: 2.5 },
+      { stars: '5' },
+      { stars: null },
+      { stars: 5, comment: null },
+      { stars: 5, comment: 12 },
+      { stars: 5, comment: 'a'.repeat(1001) },
+      { stars: 5, courierId: otherId },
+      { stars: 5, requesterId: otherId },
+    ])(
+      'rejects invalid or caller-supplied identity fields (case %#)',
+      async (payload) => {
+        const id = await completedErrandForReview();
+        expect((await review(id, payload)).statusCode).toBe(400);
+        expect(await prisma.courierReview.count()).toBe(0);
+      },
+    );
+
+    it('stores blank comments as null and replays an omitted comment', async () => {
+      const id = await completedErrandForReview();
+      const first = await review(id, { stars: 3, comment: '   ' });
+      const replay = await review(id, { stars: 3 });
+      expect(first.statusCode).toBe(200);
+      expect(replay.statusCode).toBe(200);
+      expect(first.json().comment).toBeNull();
+      expect(replay.json().id).toBe(first.json().id);
+    });
+
+    it('accepts a 1000-character comment after trimming', async () => {
+      const id = await completedErrandForReview();
+      const response = await review(id, {
+        stars: 5,
+        comment: `  ${'a'.repeat(1000)}  `,
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().comment).toHaveLength(1000);
+    });
+
+    it('rejects reviews before completion', async () => {
+      const id = (await create()).json().errand.id;
+      for (const stage of ['open', 'accept', 'pickup', 'deliver']) {
+        if (stage === 'accept') expect((await accept(id)).statusCode).toBe(200);
+        if (stage === 'pickup' || stage === 'deliver')
+          expect((await act(id, stage, 'courier')).statusCode).toBe(200);
+        const response = await review(id, { stars: 5 });
+        expect(response.statusCode).toBe(409);
+        expect(response.json().code).toBe('ERRAND_NOT_REVIEWABLE');
+      }
+    });
+
+    it('returns 404 for missing or deleted errands', async () => {
+      const missing = await review(randomUUID(), { stars: 5 });
+      expect(missing.statusCode).toBe(404);
+      const id = await completedErrandForReview();
+      await prisma.errand.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      const deleted = await review(id, { stars: 5 });
+      expect(deleted.statusCode).toBe(404);
+      expect(await prisma.courierReview.count()).toBe(0);
+    });
+
+    it('returns null average for no reviews and calculates a fractional average', async () => {
+      expect((await summary()).json()).toEqual({
+        courierId,
+        averageStars: null,
+        reviewCount: 0,
+      });
+      const first = await completedErrandForReview();
+      const second = await completedErrandForReview();
+      expect((await review(first, { stars: 5 })).statusCode).toBe(200);
+      expect((await review(second, { stars: 4 })).statusCode).toBe(200);
+      expect((await summary()).json()).toEqual({
+        courierId,
+        averageStars: 4.5,
+        reviewCount: 2,
+      });
+      expect((await summary(otherId)).json()).toEqual({
+        courierId: otherId,
+        averageStars: null,
+        reviewCount: 0,
+      });
+    });
+
+    it('rejects malformed errand and courier UUIDs', async () => {
+      expect((await review('invalid', { stars: 5 })).statusCode).toBe(400);
+      expect((await summary('invalid')).statusCode).toBe(400);
+    });
+
+    it('enforces stars, unique errand, and no-self-review constraints in PostgreSQL', async () => {
+      const id = await completedErrandForReview();
+      const data = { errandId: id, requesterId, courierId, stars: 5 };
+      await expect(
+        prisma.courierReview.create({ data: { ...data, stars: 0 } }),
+      ).rejects.toThrow();
+      await expect(
+        prisma.courierReview.create({
+          data: { ...data, courierId: requesterId },
+        }),
+      ).rejects.toThrow();
+      await prisma.courierReview.create({ data });
+      await expect(prisma.courierReview.create({ data })).rejects.toThrow();
+      expect(await prisma.courierReview.count()).toBe(1);
+    });
+  });
   it('S5: courier picks up and delivers, requester disputes; timestamps and history, no credit movement', async () => {
     const id = (await create()).json().errand.id;
     expect((await accept(id)).statusCode).toBe(200);

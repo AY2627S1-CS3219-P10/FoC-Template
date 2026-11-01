@@ -77,7 +77,12 @@ function validate(env: Record<string, unknown>) {
       },
     }),
   ],
-  controllers: [OrderController, OperationController, HealthController, CourierRatingsController],
+  controllers: [
+    OrderController,
+    OperationController,
+    HealthController,
+    CourierRatingsController,
+  ],
   providers: [
     PrismaService,
     AuthGuard,
@@ -93,6 +98,11 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(CorrelationMiddleware)
-      .forRoutes(OrderController, OperationController, HealthController, CourierRatingsController);
+      .forRoutes(
+        OrderController,
+        OperationController,
+        HealthController,
+        CourierRatingsController,
+      );
   }
 }
