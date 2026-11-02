@@ -49,6 +49,14 @@ export interface CourierReviewOverview extends CourierRatingSummary {
 }
 
 export interface OrderRepository {
+  bookmark(errandId: string, userId: string, starred: boolean): Promise<void>;
+  bookmarkedIds(userId: string, ids: string[]): Promise<string[]>;
+  listStarred(
+    userId: string,
+    limit: number,
+    offset: number,
+    sort: ErrandSort,
+  ): Promise<ErrandRecord[]>;
   /** Administrators only: soft-delete in any state and release (Q-011 parked). */
   deleteIntent(
     actorId: string,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest, request } from "@/services/api";
@@ -10,6 +10,9 @@ import { ErrandStatus } from "./errand-status";
 
 type ErrandState = {
   viewer?: string;
+  key?: string;
+  scope?: string;
+  loaded?: boolean;
   errands: ErrandPreview[];
   busy: boolean;
   error: string;
@@ -31,6 +34,35 @@ export function ErrandsPage() {
   const [sort, setSort] = useState("newest");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [savingStars, setSavingStars] = useState<string[]>([]);
+  const starRequests = useRef(new Set<string>());
+  const [starError, setStarError] = useState("");
+
+  async function toggleStar(errand: ErrandPreview) {
+    if (starRequests.current.has(errand.id)) return;
+    starRequests.current.add(errand.id);
+    setSavingStars((ids) => [...ids, errand.id]);
+    setStarError("");
+    try {
+      const result = await authenticatedRequest<{ isStarred: boolean }>(
+        `errands/${errand.id}/star`,
+        {},
+        errand.isStarred ? "DELETE" : "POST",
+      );
+      setState((previous) => previous.viewer !== viewer ? previous : ({
+        ...previous,
+        errands: previous.errands.map((item) => item.id === errand.id ? { ...item, isStarred: result.isStarred } : item),
+      }));
+      if (!result.isStarred && scope === "starred" && state.errands.filter((item) => item.isStarred).length === 1 && offset > 0) {
+        setOffset((value) => Math.max(0, value - 20));
+      }
+    } catch (error) {
+      setStarError(error instanceof Error ? error.message : "Unable to save your star. Try again.");
+    } finally {
+      starRequests.current.delete(errand.id);
+      setSavingStars((ids) => ids.filter((id) => id !== errand.id));
+    }
+  }
 
   useEffect(() => {
     if (auth.loading) return;
@@ -43,10 +75,15 @@ export function ErrandsPage() {
     let active = true;
     const visibleScope = auth.user ? scope : "open";
     const load = auth.user ? authenticatedRequest : request;
+    const key = JSON.stringify([viewer, visibleScope, offset, sort]);
 
     void Promise.resolve().then(async () => {
       if (!active) return;
-      setState({ viewer, errands: [], busy: true, error: "", more: false });
+      setState((previous) => previous.key === key
+        ? previous
+        : previous.viewer === viewer && previous.loaded
+          ? { ...previous, busy: true, error: "" }
+          : { viewer, errands: [], busy: true, error: "", more: false });
       try {
         const errands = await load<ErrandPreview[]>(
           `errands?limit=21&offset=${offset}&scope=${visibleScope}&sort=${sort}`,
@@ -54,6 +91,9 @@ export function ErrandsPage() {
         if (active) {
           setState({
             viewer,
+            key,
+            scope: visibleScope,
+            loaded: true,
             errands: errands.slice(0, 20),
             busy: false,
             error: "",
@@ -68,6 +108,9 @@ export function ErrandsPage() {
             failure.message.includes("errand-previews");
           setState({
             viewer,
+            key,
+            scope: visibleScope,
+            loaded: true,
             errands: [],
             busy: false,
             error: missingGuestPreview
@@ -90,6 +133,7 @@ export function ErrandsPage() {
     state.viewer === viewer
       ? state
       : { errands: [], busy: true, error: "", more: false };
+  const displayedScope = "scope" in current ? current.scope ?? scope : scope;
 
   if (auth.loading) {
     return (
@@ -101,6 +145,8 @@ export function ErrandsPage() {
 
   const description = !auth.user
     ? "See what your neighbours need. Log in when you want to view or accept an errand."
+    : scope === "starred"
+      ? "Your saved errands. Stars are private to your account. Only errands you can still view appear here."
     : scope === "open"
       ? "See what your neighbours need. These errands are open and waiting for a courier."
       : scope === "assigned"
@@ -110,7 +156,10 @@ export function ErrandsPage() {
           : "View and manage your errand requests.";
 
   const search = query.trim().toLowerCase();
-  const visibleErrands = current.errands.filter((errand) =>
+  const eligibleErrands = current.errands.filter((errand) =>
+    displayedScope !== "starred" || !auth.user || (errand.isStarred && errand.status !== "COMPLETED" && errand.status !== "EXPIRED"),
+  );
+  const visibleErrands = eligibleErrands.filter((errand) =>
     `${errand.description} ${errand.pickupSupplierName} ${errand.pickupLocationLabel} ${errand.deliveryDestination}`
       .toLowerCase()
       .includes(search),
@@ -172,6 +221,16 @@ export function ErrandsPage() {
             {auth.user && (
               <>
                 <button
+                  aria-pressed={scope === "starred"}
+                  onClick={() => {
+                    setScope("starred");
+                    setOffset(0);
+                    setSelectedId("");
+                  }}
+                >
+                  ★ Starred errands
+                </button>
+                <button
                   aria-pressed={scope === "manage"}
                   onClick={() => {
                     setScope("manage");
@@ -231,7 +290,9 @@ export function ErrandsPage() {
         </aside>
       )}
 
-      {current.busy ? (
+      {starError && <p role="alert">{starError}</p>}
+      <div className="errand-view-results" aria-busy={current.busy}>
+      {current.busy && !("loaded" in current && current.loaded) ? (
         <p className="empty-state" role="status">
           Loading open errands…
         </p>
@@ -249,20 +310,24 @@ export function ErrandsPage() {
         <div className="empty-state">
           <Icon name="bag" />
           <h2>
-            {current.errands.length > 0
+            {eligibleErrands.length > 0
               ? "No errands match your search"
-              : scope === "open"
+              : displayedScope === "starred"
+                ? "No starred errands to show"
+              : displayedScope === "open"
                 ? "No open errands right now"
                 : "No requests to show"}
           </h2>
           <p>
-            {current.errands.length > 0
+            {eligibleErrands.length > 0
               ? "Try a different keyword or clear your search."
-              : "Check back soon for new requests from your campus community."}
+              : displayedScope === "starred"
+                ? "Star errands you are interested in from Open errands. They will appear here while you can still view them."
+                : "Check back soon for new requests from your campus community."}
           </p>
         </div>
       ) : (
-        <div className="errand-board">
+        <div className="errand-board" inert={current.busy}>
           <div className="errand-results">
             <div className="errand-results-heading">
               <strong>
@@ -291,6 +356,20 @@ export function ErrandsPage() {
                     </div>
                   )}
                   <div className="errand-list-action">
+                    {auth.user && displayedScope !== "assigned" && errand.status !== "EXPIRED" && errand.status !== "COMPLETED" && (
+                      <button
+                        className="errand-star-button"
+                        title={errand.isStarred ? "Unstar" : "Star"}
+                        aria-label={`${errand.isStarred ? "Unstar" : "Star"} errand: ${errand.description}`}
+                        aria-pressed={Boolean(errand.isStarred)}
+                        disabled={savingStars.includes(errand.id)}
+                        onClick={() => void toggleStar(errand)}
+                      >
+                        <svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24">
+                          <path d="m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z" />
+                        </svg>
+                      </button>
+                    )}
                     <Link
                       className="text-link"
                       href={auth.user ? `/errands/${errand.id}` : "/login"}
@@ -391,6 +470,7 @@ export function ErrandsPage() {
           </aside>
         </div>
       )}
+      </div>
     </section>
   );
 }

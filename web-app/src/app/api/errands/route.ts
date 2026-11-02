@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         "Please log in to continue.",
         "SESSION_REQUIRED",
       );
-    const path = !token
+    const path = scope === "starred" && token ? "errands/starred" : !token
       ? "errand-previews"
       : scope === "manage"
         ? "errands/manage"

@@ -1,5 +1,15 @@
 # Order-service requirements
 
+## Courier bookmarks (2026-11-01, implemented; database verification blocked)
+
+Users can privately star/unstar accessible errands and filter saved errands with
+existing sorting/pagination. Evidence: `OrderController.star`, `unstar`, `starred`;
+`OrderService.bookmark`; `PrismaOrderRepository.listStarred`; migration
+`202611010001_errand_bookmarks`; frontend `ErrandsPage` and `bookmarks.spec.ts`.
+Real PostgreSQL integration coverage is added in `tests/integration/errands.spec.ts`
+(privacy, concurrent replay, filtering/pagination, inaccessible/deleted errands),
+but could not run because Docker Desktop is not running.
+
 Consolidated from **D1** (CS3219 Project Milestone 1 Product Backlog, latest version —
 the graded document) and the **Responsibilities** doc ("Order Service Responsibilities &
 Integration Contract"). Neither PDF is in the repo; the relevant text is transcribed

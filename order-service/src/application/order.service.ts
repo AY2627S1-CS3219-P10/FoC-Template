@@ -192,8 +192,55 @@ export class OrderService {
           : null,
     };
   }
-  list(limit: number, offset: number, sort: ErrandSort = 'newest') {
-    return this.repository.listOpen(limit, offset, sort);
+  private async withBookmarks(errands: ErrandRecord[], userId: string) {
+    const ids = new Set(
+      await this.repository.bookmarkedIds(
+        userId,
+        errands.map((errand) => errand.id),
+      ),
+    );
+    return errands.map((errand) => ({
+      ...errand,
+      isStarred: ids.has(errand.id),
+    }));
+  }
+  async bookmark(id: string, userId: string, starred: boolean) {
+    // Removing a private bookmark is allowed even after access to the errand ends.
+    if (starred) {
+      const errand = await this.find(id, userId);
+      if (errand.status === 'COMPLETED' || errand.status === 'EXPIRED') {
+        throw new OrderError(
+          'ERRAND_NOT_BOOKMARKABLE',
+          'Completed or expired errands cannot be starred.',
+          409,
+        );
+      }
+    }
+    await this.repository.bookmark(id, userId, starred);
+    return { isStarred: starred };
+  }
+  async starred(
+    userId: string,
+    limit: number,
+    offset: number,
+    sort: ErrandSort = 'newest',
+  ) {
+    const errands = await this.repository.listStarred(
+      userId,
+      limit,
+      offset,
+      sort,
+    );
+    return errands.map((errand) => ({ ...errand, isStarred: true }));
+  }
+  async list(
+    limit: number,
+    offset: number,
+    sort: ErrandSort = 'newest',
+    userId?: string,
+  ) {
+    const errands = await this.repository.listOpen(limit, offset, sort);
+    return userId ? this.withBookmarks(errands, userId) : errands;
   }
   async managed(
     userId: string,
@@ -210,21 +257,27 @@ export class OrderService {
         "Only administrators may list another requester's errands.",
         403,
       );
-    return this.repository.listManaged(
-      requesterId ?? (admin ? null : userId),
-      limit,
-      offset,
-      sort,
+    return this.withBookmarks(
+      await this.repository.listManaged(
+        requesterId ?? (admin ? null : userId),
+        limit,
+        offset,
+        sort,
+      ),
+      userId,
     );
   }
   /** Errands the caller is (or was) the courier for, in any status. */
-  assigned(
+  async assigned(
     userId: string,
     limit: number,
     offset: number,
     sort: ErrandSort = 'newest',
   ) {
-    return this.repository.listAssigned(userId, limit, offset, sort);
+    return this.withBookmarks(
+      await this.repository.listAssigned(userId, limit, offset, sort),
+      userId,
+    );
   }
   /** FR5/FR6: claim an OPEN errand; exactly one concurrent courier wins. */
   async accept(id: string, userId: string, token: string) {

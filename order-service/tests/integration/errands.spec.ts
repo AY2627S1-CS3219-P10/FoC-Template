@@ -296,6 +296,99 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     }
   });
   const auth = { authorization: 'Bearer requester' };
+  it('persists private bookmarks, replays mutations, and filters before pagination', async () => {
+    const first = (await create()).json().errand;
+    const second = (await create({ ...input, offeredCredits: 30 })).json()
+      .errand;
+    const star = (
+      id: string,
+      method: 'POST' | 'DELETE' = 'POST',
+      token = 'courier',
+    ) =>
+      app.inject({
+        method,
+        url: `/api/errands/${id}/star`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/errands/${first.id}/star`,
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect((await star('invalid')).statusCode).toBe(400);
+    expect((await star(randomUUID())).statusCode).toBe(404);
+    const saves = await Promise.all([
+      star(first.id),
+      star(first.id),
+      star(second.id),
+    ]);
+    expect(saves.map((response) => response.statusCode)).toEqual([
+      200, 200, 200,
+    ]);
+    expect(
+      await prisma.errandBookmark.count({ where: { userId: courierId } }),
+    ).toBe(2);
+    const list = (token = 'courier', query = '') =>
+      app.inject({
+        method: 'GET',
+        url: `/api/errands/starred${query}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+    expect((await list('other')).json()).toEqual([]);
+    const page = await list(
+      'courier',
+      '?sort=credits-highest&limit=1&offset=1',
+    );
+    expect(page.json()).toEqual([
+      expect.objectContaining({ id: first.id, isStarred: true }),
+    ]);
+    const open = await app.inject({
+      method: 'GET',
+      url: '/api/errands',
+      headers: { authorization: 'Bearer courier' },
+    });
+    expect(
+      open.json().every((row: { isStarred: boolean }) => row.isStarred),
+    ).toBe(true);
+    await accept(first.id, 'other');
+    expect((await list()).json().map((row: { id: string }) => row.id)).toEqual([
+      second.id,
+    ]);
+    expect((await star(first.id)).statusCode).toBe(404);
+    expect((await star(first.id, 'DELETE')).json()).toEqual({
+      isStarred: false,
+    });
+    expect((await star(first.id, 'DELETE')).statusCode).toBe(200);
+    await prisma.errandBookmark.create({
+      data: { errandId: second.id, userId: requesterId },
+    });
+    for (const status of ['COMPLETED', 'EXPIRED'] as const) {
+      const now = new Date();
+      await prisma.errand.update({
+        where: { id: second.id },
+        data: {
+          status,
+          courierId: status === 'COMPLETED' ? courierId : null,
+          acceptedAt: status === 'COMPLETED' ? now : null,
+          pickedUpAt: status === 'COMPLETED' ? now : null,
+          completedAt: status === 'COMPLETED' ? now : null,
+          completionMethod:
+            status === 'COMPLETED' ? 'REQUESTER_CONFIRMED' : null,
+          expiredAt: status === 'EXPIRED' ? now : null,
+        },
+      });
+      expect((await list('requester')).json()).toEqual([]);
+      expect((await star(second.id, 'POST', 'requester')).statusCode).toBe(409);
+    }
+    await prisma.errand.update({
+      where: { id: second.id },
+      data: { deletedAt: new Date() },
+    });
+    expect((await list()).json()).toEqual([]);
+  });
   const create = (
     payload: object = input,
     key = randomUUID(),

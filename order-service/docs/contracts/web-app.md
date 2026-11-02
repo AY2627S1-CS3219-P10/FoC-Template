@@ -1,5 +1,28 @@
 # Contract: what web-app depends on (do not break)
 
+## Private errand bookmarks (2026-11-01)
+
+- `POST /api/errands/:id/star`: save an accessible errand; 200 `{isStarred: true}`.
+- `DELETE /api/errands/:id/star`: remove your star; 200 `{isStarred: false}`,
+  including when already removed or the errand is no longer accessible.
+- `GET /api/errands/starred?limit&offset&sort`: caller's saved, accessible errands.
+  Filters before sorting/pagination. Returns `Errand[]` with `isStarred: true`.
+- Authenticated open, managed, and assigned lists add `isStarred: boolean` for
+  the current caller. Guest previews are unchanged.
+
+All new routes require a live session, derive identity from AuthGuard, validate
+UUID v4 path parameters, and return Cache-Control: no-store. Saving is idempotent,
+including concurrent saves (composite primary key). Missing/deleted/inaccessible
+errands return 404 on save; pending changes return 409. No credit or lifecycle
+changes. Stars remain stored if an errand becomes inaccessible, but lists omit
+deleted/pending errands and non-open errands where the caller is not a participant.
+The starred view uses participant/public visibility, including for administrators.
+COMPLETED and EXPIRED errands are always excluded before pagination, even for
+participants. Saving either status returns 409 `ERRAND_NOT_BOOKMARKABLE`.
+The frontend hides star controls for these statuses and in My deliveries.
+The web proxy maps `scope=starred` to this endpoint and protects both mutations
+with session cookies and same-origin checks. No userId is accepted from clients.
+
 ## Personal courier rating overview
 
 `GET /api/couriers/me/review-overview` requires a session (401 otherwise).
