@@ -6,6 +6,7 @@ export interface ErrandOperation {
   errorCode?: string;
 }
 export interface Errand {
+  isStarred?: boolean;
   availableForAcceptance?: boolean;
   acceptedAt?: string | null;
   pickedUpAt?: string | null;
@@ -59,6 +60,7 @@ export interface CourierReviewOverview extends CourierRatingSummary {
 export type ErrandPreview = Pick<
   Errand,
   | "id"
+  | "isStarred"
   | "status"
   | "description"
   | "pickupSupplierName"
