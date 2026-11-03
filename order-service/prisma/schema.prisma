@@ -81,10 +81,22 @@ model Errand {
   history             ErrandHistory[]
   excludedCouriers    ErrandExcludedCourier[]
   review CourierReview?
+  bookmarks ErrandBookmark[]
 
   @@index([status, courierId, createdAt, id])
   @@index([requesterId, createdAt])
   @@map("errands")
+}
+
+model ErrandBookmark {
+  errandId String @map("errand_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  errand Errand @relation(fields: [errandId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([errandId, userId])
+  @@index([userId, errandId])
+  @@map("errand_bookmarks")
 }
 
 model ErrandOperation {

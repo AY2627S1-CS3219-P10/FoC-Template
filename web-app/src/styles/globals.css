@@ -2109,8 +2109,16 @@ button.errand-select-button:hover { background: #fbfcfa; }
 .errand-list-meta span { display: flex; align-items: center; gap: 7px; overflow-wrap: anywhere; }
 .errand-list-meta svg { width: 16px; height: 16px; }
 .errand-list-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; }
-.errand-list-action { display: flex; justify-content: flex-end; padding: 10px 20px 13px; border-top: 1px solid var(--border); }
+.errand-list-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 20px 13px; border-top: 1px solid var(--border); }
+.errand-star-button { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 6px; border: 0; border-radius: 10px; background: transparent; color: #78716c; cursor: pointer; }
+.errand-star-button svg { fill: transparent; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; transition: fill 150ms ease, color 150ms ease; }
+.errand-star-button:hover { background: #fff5cf; }
+.errand-star-button:focus-visible { outline: 2px solid var(--foreground, #292524); outline-offset: 2px; }
+.errand-star-button[aria-pressed="true"] { color: #d49a00; }
+.errand-star-button[aria-pressed="true"] svg { fill: currentColor; }
+.errand-star-button:disabled { cursor: wait; opacity: .6; }
 .errand-list-action .text-link { font-size: 12px; }
+.errand-view-results { min-height: 560px; }
 .errand-preview { position: sticky; top: 20px; padding: 28px; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: 0 12px 35px #233b330d; }
 .errand-preview-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .errand-preview h2 { margin: 22px 0 6px; font-size: 30px; line-height: 1.25; overflow-wrap: anywhere; }

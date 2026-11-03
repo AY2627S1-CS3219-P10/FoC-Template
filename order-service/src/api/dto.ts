@@ -115,6 +115,8 @@ export class ManageErrandsDto extends ListErrandsDto {
   requesterId?: string;
 }
 export class ErrandResponse extends CreateErrandDto {
+  @ApiPropertyOptional({ type: Boolean })
+  isStarred?: boolean;
   @ApiPropertyOptional({ type: String, nullable: true })
   requesterUsername?: string | null;
   @ApiProperty({ format: 'uuid' }) id!: string;

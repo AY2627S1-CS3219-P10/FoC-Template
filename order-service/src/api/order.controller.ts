@@ -120,8 +120,50 @@ export class OrderController {
   })
   @ApiOkResponse({ type: [ErrandResponse] })
   @ApiUnauthorizedResponse()
-  list(@Query() query: ListErrandsDto) {
-    return this.service.list(query.limit ?? 50, query.offset ?? 0, query.sort);
+  list(@Query() query: ListErrandsDto, @Req() request: AuthenticatedRequest) {
+    return this.service.list(
+      query.limit ?? 50,
+      query.offset ?? 0,
+      query.sort,
+      request.userId,
+    );
+  }
+  @Get('starred')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'List your accessible starred errands' })
+  @ApiOkResponse({ type: [ErrandResponse] })
+  starred(
+    @Query() query: ListErrandsDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.starred(
+      request.userId,
+      query.limit ?? 50,
+      query.offset ?? 0,
+      query.sort,
+    );
+  }
+  @Post(':id/star')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary: 'Save an accessible errand to your stars (idempotent)',
+  })
+  star(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.bookmark(id, request.userId, true);
+  }
+  @Delete(':id/star')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Remove an errand from your stars (idempotent)' })
+  unstar(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.service.bookmark(id, request.userId, false);
   }
   @Get('manage')
   @Header('Cache-Control', 'no-store')

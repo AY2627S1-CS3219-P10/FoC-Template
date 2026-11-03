@@ -105,6 +105,45 @@ function actorGuard(row: Transition, actorId: string | null) {
 @Injectable()
 export class PrismaOrderRepository implements OrderRepository {
   constructor(private readonly prisma: PrismaService) {}
+  async bookmark(errandId: string, userId: string, starred: boolean) {
+    if (starred) {
+      await this.prisma.errandBookmark.createMany({
+        data: { errandId, userId },
+        skipDuplicates: true,
+      });
+    } else {
+      await this.prisma.errandBookmark.deleteMany({
+        where: { errandId, userId },
+      });
+    }
+  }
+
+  async bookmarkedIds(userId: string, ids: string[]) {
+    const rows = await this.prisma.errandBookmark.findMany({
+      where: { userId, errandId: { in: ids } },
+      select: { errandId: true },
+    });
+    return rows.map((row) => row.errandId);
+  }
+
+  listStarred(userId: string, limit: number, offset: number, sort: ErrandSort) {
+    return this.prisma.errand.findMany({
+      where: {
+        deletedAt: null,
+        pendingOperationId: null,
+        bookmarks: { some: { userId } },
+        status: { notIn: ['COMPLETED', 'EXPIRED'] },
+        OR: [
+          { status: 'OPEN', courierId: null },
+          { requesterId: userId },
+          { courierId: userId },
+        ],
+      },
+      orderBy: sortOrder(sort),
+      take: limit,
+      skip: offset,
+    });
+  }
   async createReview(
     errandId: string,
     requesterId: string,

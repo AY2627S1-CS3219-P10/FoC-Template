@@ -35,6 +35,13 @@ answered, re-evaluate every slice that lists it.
 
 ## Slice details
 
+### Courier bookmarks (IMPLEMENTED, 2026-11-01)
+
+Private persistent stars, authenticated save/remove routes, starred list with
+server-side sorting/pagination, and frontend buttons/filter. Migration:
+`202611010001_errand_bookmarks`. Integration test execution and migration
+verification await a running Docker/PostgreSQL environment. No product questions.
+
 ### Courier reviews and ratings (DONE, 2026-11-01)
 
 Home-page overview follow-up: self-only GET `/api/couriers/me/review-overview`
