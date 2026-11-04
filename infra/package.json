@@ -1,0 +1,39 @@
+{
+  "name": "@foc/infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK deployment for Friend on Campus",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24.11 <25",
+    "pnpm": ">=12 <13"
+  },
+  "scripts": {
+    "cdk": "cdk",
+    "diff": "cdk diff",
+    "format": "prettier --write \"bin/**/*.ts\" \"lib/**/*.ts\" \"tests/**/*.ts\" \"*.{json,mjs,cjs,yaml}\"",
+    "format:check": "prettier --check \"bin/**/*.ts\" \"lib/**/*.ts\" \"tests/**/*.ts\" \"*.{json,mjs,cjs,yaml}\"",
+    "lint": "eslint \"{bin,lib,tests}/**/*.ts\"",
+    "synth": "cdk synth --quiet",
+    "test": "jest --no-watchman",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.275.0",
+    "constructs": "10.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/jest": "30.0.0",
+    "@types/node": "24.19.2",
+    "aws-cdk": "2.1147.0",
+    "eslint": "10.14.0",
+    "jest": "30.5.2",
+    "prettier": "3.9.10",
+    "ts-jest": "29.4.15",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1"
+  }
+}
