@@ -78,6 +78,13 @@ export class NetworkStack extends Stack {
       'Traffic from inside the VPC to forward',
     );
 
+    // Resizing must replace the instance: its forwarding setup is user data,
+    // which runs only on first boot, so a stop and start would not repeat it.
+    natInstance?.gatewayInstances.forEach((gateway, index) => {
+      const size = (gateway.instance.instanceType ?? '').replace(/\W/g, '');
+      gateway.instance.overrideLogicalId(`NatInstance${index}${size}`);
+    });
+
     this.cluster = new ecs.Cluster(this, 'Cluster', {
       vpc: this.vpc,
       clusterName: 'foc',

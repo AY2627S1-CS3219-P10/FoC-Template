@@ -139,7 +139,8 @@ export const PROFILES: Record<ProfileName, Profile> = {
   demo: {
     name: 'demo',
     availabilityZones: ['ap-southeast-1a', 'ap-southeast-1b'],
-    nat: { kind: 'instance', instanceType: 't4g.nano' },
+    // yum runs out of memory installing iptables at boot on a t4g.nano.
+    nat: { kind: 'instance', instanceType: 't4g.micro' },
     natCount: 1,
     backendTask: { cpu: 256, memoryMiB: 512 },
     webTask: { cpu: 512, memoryMiB: 1024 },

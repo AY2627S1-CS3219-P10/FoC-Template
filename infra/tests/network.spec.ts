@@ -101,14 +101,21 @@ describe('network', () => {
     expect(ingressSources(network, 'OrderServiceSg')).toEqual(['WebApp:3004']);
   });
 
-  it('uses one t4g.nano NAT instance and no NAT gateway in demo', () => {
+  it('uses one t4g.micro NAT instance and no NAT gateway in demo', () => {
     const { network } = synthesize('demo');
     network.resourceCountIs('AWS::EC2::NatGateway', 0);
     network.hasResourceProperties('AWS::EC2::Instance', {
-      InstanceType: 't4g.nano',
+      InstanceType: 't4g.micro',
       SourceDestCheck: false,
     });
     network.resourceCountIs('AWS::EC2::Subnet', 6);
+  });
+
+  it('replaces the NAT instance when it is resized', () => {
+    const { network } = synthesize('demo');
+    expect(Object.keys(network.findResources('AWS::EC2::Instance'))).toEqual([
+      'NatInstance0t4gmicro',
+    ]);
   });
 
   it('uses a NAT gateway per zone across three zones in scale', () => {
