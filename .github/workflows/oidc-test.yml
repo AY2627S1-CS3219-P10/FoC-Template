@@ -1,0 +1,39 @@
+# TEMPORARY: proves whether the AWS sandbox allows GitHub OIDC. The deploy role
+# trusts only main, so this must be run from main. Delete it after the test.
+name: OIDC test (temporary)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  oidc:
+    if: github.repository == 'AY2627S1-CS3219-P10/FoC-Template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Sign in to AWS with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-southeast-1
+          mask-aws-account-id: true
+
+      - name: Check the signed-in identity, printing nothing
+        run: |
+          aws sts get-caller-identity > /dev/null
+          echo "get-caller-identity succeeded"
+
+      - name: Try CDK's deploy role, redacting account IDs from any error
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          ROLE="arn:aws:iam::${ACCOUNT}:role/cdk-hnb659fds-deploy-role-${ACCOUNT}-ap-southeast-1"
+          if aws sts assume-role --role-arn "$ROLE" --role-session-name oidc-test > /dev/null 2> error.txt; then
+            echo "assume-role on the CDK deploy role succeeded"
+          else
+            echo "assume-role on the CDK deploy role failed:"
+            sed -E 's/[0-9]{12}/<account>/g' error.txt
+          fi
