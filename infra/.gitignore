@@ -1,0 +1,7 @@
+node_modules/
+coverage/
+*.tsbuildinfo
+
+# CDK synth output and asset staging
+cdk.out/
+.cdk.staging/

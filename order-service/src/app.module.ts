@@ -21,7 +21,7 @@ import { OutboxRelay } from './infrastructure/outbox.relay';
 import { TimerWorker } from './infrastructure/timer.worker';
 import { CourierRatingsController } from './api/courier-ratings.controller';
 
-function validate(env: Record<string, unknown>) {
+export function validate(env: Record<string, unknown>) {
   for (const name of [
     'DATABASE_URL',
     'REDIS_URL',
@@ -38,6 +38,7 @@ function validate(env: Record<string, unknown>) {
     USER_SERVICE_URL: 'http://127.0.0.1:3001',
     SUPPLIER_SERVICE_URL: 'http://127.0.0.1:3002',
     CREDIT_SERVICE_URL: 'http://127.0.0.1:3003',
+    DATABASE_POOL_MAX: 20,
     ...env,
   };
   for (const name of [
@@ -56,7 +57,11 @@ function validate(env: Record<string, unknown>) {
   const port = Number(values.PORT);
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     throw new Error('PORT is invalid');
-  return values;
+  // Replicas x pool size must stay below Postgres max_connections.
+  const poolMax = Number(values.DATABASE_POOL_MAX);
+  if (!Number.isInteger(poolMax) || poolMax < 1 || poolMax > 100)
+    throw new Error('DATABASE_POOL_MAX must be an integer from 1 to 100');
+  return { ...values, DATABASE_POOL_MAX: poolMax };
 }
 @Module({
   imports: [
