@@ -12,6 +12,7 @@ export interface Templates {
   readonly data: Template;
   readonly jobs: Template;
   readonly app: Template;
+  readonly ci: Template;
 }
 
 export interface Container {
@@ -58,6 +59,7 @@ export function synthesize(
     data: Template.fromStack(stacks.data),
     jobs: Template.fromStack(stacks.jobs),
     app: Template.fromStack(stacks.app),
+    ci: Template.fromStack(stacks.ci),
   };
   cache.set(key, templates);
   return templates;
