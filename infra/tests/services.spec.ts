@@ -224,8 +224,8 @@ describe('secret values', () => {
     expect(urlOf('scale')).toContain('amqps://foc:');
   });
 
-  it('total 18 in demo, for the cost estimate', () => {
-    expect(secretsOf('demo')).toHaveLength(18);
+  it('totals 19 in demo, for the cost estimate', () => {
+    expect(secretsOf('demo')).toHaveLength(19);
   });
 });
 
@@ -403,6 +403,22 @@ describe('jobs', () => {
     const seed = mainContainer(jobs, 'foc-seed-administrators');
     expect(seed.Command).toEqual(['node', 'dist/seed-administrators.js']);
     expect(secretNames(seed)).toEqual(['ADMIN_SEED_ACCOUNTS', 'DATABASE_URL']);
+    expect(secretSource(seed, 'DATABASE_URL')).toContain(
+      'UserServiceDatabaseUrl',
+    );
+  });
+
+  it('seeds staging load-test accounts from the user-service image', () => {
+    const seed = mainContainer(jobs, 'foc-seed-test-accounts');
+    expect(seed.Command).toEqual(['node', 'dist/seed-test-accounts.js']);
+    expect(environmentOf(seed)).toEqual({
+      ALLOW_TEST_ACCOUNT_SEED: 'true',
+      NODE_ENV: 'staging',
+    });
+    expect(secretNames(seed)).toEqual([
+      'DATABASE_URL',
+      'TEST_ACCOUNT_SEED_ACCOUNTS',
+    ]);
     expect(secretSource(seed, 'DATABASE_URL')).toContain(
       'UserServiceDatabaseUrl',
     );

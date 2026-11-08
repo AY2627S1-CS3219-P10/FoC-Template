@@ -60,6 +60,8 @@ export interface ApplicationSecrets {
   readonly smtp: secretsmanager.ISecret;
   /** The ADMIN_SEED_ACCOUNTS JSON. Set by hand before the admin seed runs. */
   readonly adminSeedAccounts: secretsmanager.ISecret;
+  /** The TEST_ACCOUNT_SEED_ACCOUNTS JSON. Staging load tests only. */
+  readonly testAccountSeedAccounts: secretsmanager.ISecret;
 }
 
 /**
@@ -350,6 +352,10 @@ export class DataStack extends Stack {
       'AdminSeedAccounts',
       'ADMIN_SEED_ACCOUNTS JSON. Replace the placeholder value before running the admin seed task',
     );
+    const testAccountSeedAccounts = generated(
+      'TestAccountSeedAccounts',
+      'TEST_ACCOUNT_SEED_ACCOUNTS JSON. Staging load tests only',
+    );
 
     this.secrets = {
       databaseUrls,
@@ -380,11 +386,15 @@ export class DataStack extends Stack {
       ),
       smtp,
       adminSeedAccounts,
+      testAccountSeedAccounts,
     };
 
     new CfnOutput(this, 'SmtpSecretArn', { value: smtp.secretArn });
     new CfnOutput(this, 'AdminSeedAccountsSecretArn', {
       value: adminSeedAccounts.secretArn,
+    });
+    new CfnOutput(this, 'TestAccountSeedAccountsSecretArn', {
+      value: testAccountSeedAccounts.secretArn,
     });
     new CfnOutput(this, 'BootstrapSecurityGroupId', {
       value: bootstrapSecurityGroup.securityGroupId,

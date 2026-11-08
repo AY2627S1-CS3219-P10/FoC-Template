@@ -86,7 +86,7 @@ Region: `ap-southeast-1` (Singapore).
 | Load balancer (ALB) | One target: `web-app` | Health checks and spreading traffic across tasks |
 | CloudFront | The public URL | HTTPS without a custom domain |
 | ECR | 7 image repositories, immutable tags, last 10 images kept | Stores the built images |
-| Secrets Manager | 18 secrets | Injected into containers when they start |
+| Secrets Manager | 19 secrets | Injected into containers when they start |
 | Cloud Map | `foc.internal` DNS | Lets services find each other |
 | CloudWatch and SNS | 15 alarms, a dashboard named `foc`, logs kept 1 week, email alerts | Monitoring |
 | CloudFormation | 5 stacks | Applies the CDK code to AWS |
@@ -196,7 +196,7 @@ The stacks must be deployed in this order:
 | `FocNetwork`, `FocRegistry` | VPC, cluster, security groups, image repositories | Everything else needs them |
 | Build and push images | All 7 images go to ECR | Tasks can't start without them |
 | `FocData`, then database bootstrap | Database, cache, broker, secrets, then 4 logins and databases | Services need somewhere to connect |
-| Set 2 secrets by hand | SMTP and admin accounts | Keeps the values out of the repo |
+| Set 3 secrets by hand | SMTP, admin accounts and staging test accounts | Keeps the values out of the repo |
 | `FocJobs`, then migrations and seeds | User and supplier migrations, supplier locations, 5 admins | Those two services don't migrate at startup |
 | `FocApp` | 5 services, load balancer, CloudFront, alarms | Order and credit run their own migrations as they start |
 
@@ -268,7 +268,7 @@ These are estimates. Real billing data hadn't arrived when this was written.
 | Fargate, broker | 0.44 |
 | 3 public IPs | 0.36 |
 | NAT instance and disk* | 0.29 |
-| 18 secrets | 0.24 |
+| 19 secrets | 0.25 |
 | CloudWatch* | 0.13 |
 | Route 53 zone and ECR* | 0.04 |
 | **Total** | **About 6.14** |
