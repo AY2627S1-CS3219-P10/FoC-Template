@@ -16,6 +16,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed:admins": "node dist/seed-administrators.js",
+    "db:seed:test-accounts": "node dist/seed-test-accounts.js",
     "db:studio": "prisma studio",
     "format": "prisma format && prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"*.{json,mjs,ts,yaml}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"*.{json,mjs,ts,yaml}\"",
