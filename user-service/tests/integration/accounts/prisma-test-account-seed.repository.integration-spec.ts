@@ -58,7 +58,7 @@ describe('PrismaTestAccountSeedRepository', () => {
   });
 
   beforeEach(async () => {
-    await prisma.$executeRaw`TRUNCATE TABLE "users" CASCADE`;
+    await prisma.$executeRaw`TRUNCATE TABLE "outbox_events", "users" CASCADE`;
   });
 
   it('creates verified non-admin accounts and verification outbox events', async () => {
