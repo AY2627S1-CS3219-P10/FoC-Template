@@ -15,6 +15,12 @@
     "format": "prettier --write \"bin/**/*.ts\" \"lib/**/*.ts\" \"tests/**/*.ts\" \"*.{json,mjs,cjs,yaml}\"",
     "format:check": "prettier --check \"bin/**/*.ts\" \"lib/**/*.ts\" \"tests/**/*.ts\" \"*.{json,mjs,cjs,yaml}\"",
     "lint": "eslint \"{bin,lib,tests}/**/*.ts\"",
+    "load:accept-race": "k6 run load/errand-accept-race.js",
+    "load:credit-idempotency": "k6 run load/credit-idempotency.js",
+    "load:prepare-fixtures": "node load/prepare-fixtures.mjs",
+    "load:preflight": "k6 run load/preflight.js",
+    "load:smoke": "k6 run load/smoke.js",
+    "load:stress": "k6 run load/read-stress.js",
     "synth": "cdk synth --quiet",
     "test": "jest --no-watchman",
     "typecheck": "tsc --noEmit"
