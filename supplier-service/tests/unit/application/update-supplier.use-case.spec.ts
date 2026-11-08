@@ -1,3 +1,4 @@
+import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
 import type {
   CreateSupplierRecord,
   SupplierManagementRepositoryPort,
@@ -35,6 +36,9 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
 
     return Promise.resolve({
       category: record.category ?? 'FOOD_COFFEE',
+      categories:
+        record.categories ??
+        categoriesFromLegacy(record.category ?? 'FOOD_COFFEE'),
       id: record.id,
       locations: [],
       name: record.name ?? 'Starbucks',
@@ -48,6 +52,16 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
 }
 
 describe('UpdateSupplierUseCase', () => {
+  it('replaces tags with beverages only', async () => {
+    const repository = new StubSupplierManagementRepository();
+    await new UpdateSupplierUseCase(repository).execute(SUPPLIER_ID, {
+      categories: ['BEVERAGES'],
+    });
+    expect(repository.records[0]).toMatchObject({
+      categories: ['BEVERAGES'],
+      category: 'FOOD_COFFEE',
+    });
+  });
   it('normalizes and updates a supplier name and category', async () => {
     const repository = new StubSupplierManagementRepository();
     const useCase = new UpdateSupplierUseCase(repository);
@@ -64,6 +78,7 @@ describe('UpdateSupplierUseCase', () => {
     expect(repository.records).toEqual([
       {
         category: 'FOOD_COFFEE',
+        categories: ['FOOD', 'BEVERAGES'],
         id: SUPPLIER_ID,
         name: 'Starbucks Coffee',
       },
@@ -79,6 +94,7 @@ describe('UpdateSupplierUseCase', () => {
     expect(repository.records).toEqual([
       {
         category: 'SHOPPING',
+        categories: ['SHOPPING'],
         id: SUPPLIER_ID,
         name: undefined,
       },

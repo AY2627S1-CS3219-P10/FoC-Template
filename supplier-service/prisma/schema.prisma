@@ -17,13 +17,23 @@ enum SupplierCategory {
   @@map("supplier_category")
 }
 
+enum SupplierTag {
+  FOOD
+  BEVERAGES
+  PRINTING
+  SHOPPING
+
+  @@map("supplier_tag")
+}
+
 model Supplier {
-  id        String           @id @default(uuid()) @db.Uuid
-  name      String           @unique @db.Citext
-  category  SupplierCategory
-  isActive  Boolean          @default(true) @map("is_active")
-  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id         String           @id @default(uuid()) @db.Uuid
+  name       String           @unique @db.Citext
+  category   SupplierCategory
+  categories SupplierTag[]
+  isActive   Boolean          @default(true) @map("is_active")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   locations SupplierLocation[]
 

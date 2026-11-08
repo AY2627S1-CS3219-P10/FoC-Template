@@ -4,6 +4,58 @@ Owns suppliers, campus pickup locations, categories, and availability state.
 The seed CSV under `data/` is represented by the service-owned database
 migration; image paths remain catalog metadata.
 
+## Multiple category tags
+
+Supplier responses now include `categories`, a nonempty array containing any of
+`FOOD`, `BEVERAGES`, `PRINTING`, and `SHOPPING`. A cafe selling food and drinks has
+`["FOOD", "BEVERAGES"]` and should match either filter. Drinks-only suppliers may
+have `["BEVERAGES"]`. Filtering currently happens in the web client; it must use
+membership in this array when the frontend portion is implemented.
+
+Admin POST/PATCH requests accept `categories` instead of `category`. PATCH replaces
+the complete set of tags; omitting classification leaves it unchanged. Duplicate,
+empty, null, or unknown tags return 400. Supplying both fields returns 400. Example:
+
+```json
+{ "categories": ["FOOD", "BEVERAGES"] }
+```
+
+The single `category` field remains available for existing clients and legacy
+admin writes. `FOOD_COFFEE` maps to both tags; other legacy values map to one tag.
+Responses project tags back to a legacy category with priority BEVERAGES
+(`FOOD_COFFEE`), FOOD, PRINTING, then SHOPPING. A legacy classification write
+replaces all tags, so new clients should send only `categories`. The new tags never
+include `FOOD_COFFEE`.
+
+Possible-duplicate checks match any overlapping tag in the same building/floor.
+Adding another outlet to an existing supplier requires the same complete tag set,
+regardless of input order. Category changes and location moves retain the existing
+serializable transaction/retry protections.
+
+Apply `20261108000100_supplier_category_tags` before deploying this code:
+
+```sh
+pnpm prisma:validate
+pnpm db:migrate:deploy
+pnpm prisma:generate
+```
+
+The migration maps existing `FOOD_COFFEE` records to both tags and preserves every
+supplier/outlet UUID. FOOD, PRINTING, and SHOPPING retain their original tags;
+broader reclassification needs a catalog review rather than guesses about menus.
+CSV reimports derive tags from the CSV Type and replace matching suppliers' tags;
+outlet separation copies the original tag set. No live database is migrated just
+by checking out the code. For an application rollback, leave the column and data
+intact and stop legacy writers that do not populate categories; restore the previous
+database schema only via a reviewed forward migration after backing up tag data.
+
+The PostgreSQL integration suite needs a disposable, empty database. It applies
+all migrations and deletes fixtures; never point it at the local app database:
+
+```sh
+SUPPLIER_OUTLET_TEST_URL=postgresql://localhost/disposable_supplier_tests pnpm test --runTestsByPath tests/integration/outlet-identity.spec.ts
+```
+
 ## Current scope
 
 The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and

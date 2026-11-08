@@ -34,6 +34,7 @@ const JWT_AUDIENCE = 'foc-api';
 const CATALOG: SupplierCatalogEntry[] = [
   {
     category: 'FOOD_COFFEE',
+    categories: ['FOOD', 'BEVERAGES'],
     id: '10000000-0000-4000-8000-000000000006',
     locations: [
       {

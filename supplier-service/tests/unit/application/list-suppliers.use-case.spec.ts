@@ -5,6 +5,7 @@ import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.
 const CATALOG: SupplierCatalogEntry[] = [
   {
     category: 'SHOPPING',
+    categories: ['SHOPPING'],
     id: '10000000-0000-4000-8000-000000000002',
     locations: [
       {

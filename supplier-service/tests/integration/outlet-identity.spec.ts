@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaSupplierCatalogRepository } from '../../src/infrastructure/persistence/prisma-supplier-catalog.repository.js';
 import type { CreateSupplierRecord } from '../../src/application/ports/supplier-management.repository.port.js';
+import { categoriesFromLegacy } from '../../src/domain/supplier-categories.js';
 
 // Only supply a disposable, empty database; this suite applies migrations and resets fixtures.
 const databaseUrl = process.env.SUPPLIER_OUTLET_TEST_URL;
@@ -20,9 +21,43 @@ integration('match and confirm against PostgreSQL', () => {
     for (const entry of (await readdir(root, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
       .sort((a, b) => a.name.localeCompare(b.name))) {
+      const before =
+        entry.name === '20261108000100_supplier_category_tags'
+          ? await pool.query(
+              'SELECT id, category::text AS category FROM suppliers ORDER BY id',
+            )
+          : undefined;
+      const outletsBefore = before
+        ? await pool.query(
+            'SELECT id, supplier_id FROM supplier_locations ORDER BY id',
+          )
+        : undefined;
       await pool.query(
         await readFile(new URL(`${entry.name}/migration.sql`, root), 'utf8'),
       );
+      if (before) {
+        const after = await pool.query(
+          'SELECT id, category::text AS category, categories::text[] AS categories FROM suppliers ORDER BY id',
+        );
+        expect(after.rows).toEqual(
+          before.rows.map(
+            (row: {
+              id: string;
+              category: Parameters<typeof categoriesFromLegacy>[0];
+            }) => ({
+              ...row,
+              categories: categoriesFromLegacy(row.category),
+            }),
+          ),
+        );
+        expect(
+          (
+            await pool.query(
+              'SELECT id, supplier_id FROM supplier_locations ORDER BY id',
+            )
+          ).rows,
+        ).toEqual(outletsBefore?.rows);
+      }
     }
     prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: databaseUrl }),
@@ -37,6 +72,115 @@ integration('match and confirm against PostgreSQL', () => {
   afterAll(async () => {
     await prisma?.$disconnect();
     await pool?.end();
+  });
+
+  it('stores both food and beverages, then replaces tags without changing outlet IDs', async () => {
+    const cafe = await repository.createSupplier({
+      ...record('Cafe', 'CLB', 1),
+      category: 'FOOD_COFFEE',
+      categories: ['BEVERAGES', 'FOOD'],
+    });
+    expect(cafe.categories).toEqual(['FOOD', 'BEVERAGES']);
+    const drinks = await repository.updateSupplier({
+      id: cafe.id,
+      categories: ['BEVERAGES'],
+    });
+    expect(drinks.categories).toEqual(['BEVERAGES']);
+    expect(drinks.locations.map((location) => location.id)).toEqual(
+      cafe.locations.map((location) => location.id),
+    );
+    const renamed = await repository.updateSupplier({
+      id: cafe.id,
+      name: 'Drinks',
+    });
+    expect(renamed.categories).toEqual(['BEVERAGES']);
+    expect((await repository.findActiveSuppliers())[0]?.categories).toEqual([
+      'BEVERAGES',
+    ]);
+    await expect(
+      repository.updateSupplier({ id: cafe.id, category: 'FOOD' }),
+    ).resolves.toMatchObject({ categories: ['FOOD'] });
+  });
+
+  it('detects overlapping categories during creates, category changes and moves', async () => {
+    const cafe = await repository.createSupplier({
+      ...record('Cafe', 'CLB', 1, 'Cafe door'),
+      category: 'FOOD_COFFEE',
+      categories: ['FOOD', 'BEVERAGES'],
+    });
+    await expect(
+      repository.createSupplier({
+        ...record('Drinks', 'CLB', 1),
+        category: 'FOOD_COFFEE',
+        categories: ['BEVERAGES'],
+      }),
+    ).rejects.toMatchObject({ code: 'POSSIBLE_SUPPLIER_DUPLICATE' });
+    const drinks = await repository.createSupplier({
+      ...record('Drinks', 'Other', 1),
+      category: 'FOOD_COFFEE',
+      categories: ['BEVERAGES'],
+    });
+    await expect(
+      repository.updateSupplierLocation({
+        supplierId: drinks.id,
+        locationId: drinks.locations[0]!.id,
+        building: 'CLB',
+      }),
+    ).rejects.toMatchObject({ code: 'POSSIBLE_SUPPLIER_DUPLICATE' });
+    const shop = await repository.createSupplier({
+      ...record('Shop', 'CLB', 1),
+      category: 'SHOPPING',
+    });
+    await expect(
+      repository.updateSupplier({ id: shop.id, categories: ['BEVERAGES'] }),
+    ).rejects.toMatchObject({ code: 'POSSIBLE_SUPPLIER_DUPLICATE' });
+    expect(
+      (await repository.findActiveSuppliers()).find(
+        (supplier) => supplier.id === cafe.id,
+      )?.categories,
+    ).toEqual(['FOOD', 'BEVERAGES']);
+  });
+
+  it('compares all tags when adding an outlet, independently of input order', async () => {
+    const cafe = await repository.createSupplier({
+      ...record('Cafe', 'CLB', 1),
+      category: 'FOOD_COFFEE',
+      categories: ['FOOD', 'BEVERAGES'],
+    });
+    await expect(
+      repository.createSupplier({
+        ...record('Cafe', 'Other', 1),
+        category: 'FOOD_COFFEE',
+        categories: ['BEVERAGES'],
+      }),
+    ).rejects.toMatchObject({ code: 'SUPPLIER_CATEGORY_MISMATCH' });
+    await expect(
+      repository.createSupplier({
+        ...record('Cafe', 'Other', 1),
+        category: 'FOOD_COFFEE',
+        categories: ['BEVERAGES', 'FOOD'],
+      }),
+    ).resolves.toMatchObject({
+      id: cafe.id,
+      categories: ['FOOD', 'BEVERAGES'],
+    });
+  });
+
+  it('enforces nonempty unique tags and legacy compatibility in PostgreSQL', async () => {
+    const supplier = await repository.createSupplier(
+      record('Printing', 'CLB', 1),
+    );
+    for (const categories of [[], ['PRINTING', 'PRINTING'], [null], ['FOOD']]) {
+      await expect(
+        pool.query(
+          'UPDATE suppliers SET categories = $1::supplier_tag[] WHERE id = $2',
+          [categories, supplier.id],
+        ),
+      ).rejects.toThrow();
+    }
+    expect((await repository.findActiveSuppliers())[0]?.categories).toEqual([
+      'PRINTING',
+    ]);
   });
 
   it('allows new buildings and floors under the same case-insensitive supplier name', async () => {
