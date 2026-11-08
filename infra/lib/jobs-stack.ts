@@ -24,7 +24,8 @@ export class JobsStack extends Stack {
     super(scope, id, props);
     const { registry, data, imageTag } = props;
     this.addDependency(registry);
-    const { databaseUrls, adminSeedAccounts } = data.secrets;
+    const { databaseUrls, adminSeedAccounts, testAccountSeedAccounts } =
+      data.secrets;
     const logGroup = new logs.LogGroup(this, 'Logs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: RemovalPolicy.DESTROY,
@@ -35,6 +36,7 @@ export class JobsStack extends Stack {
       databaseUrls['supplier-service'],
     );
     const migrateSupplierImage = imageOf(this, 'migrate-supplier', imageTag);
+    const userServiceImage = imageOf(this, 'user-service', imageTag);
 
     new OneOffTask(this, 'MigrateUser', {
       family: 'foc-migrate-user',
@@ -57,12 +59,28 @@ export class JobsStack extends Stack {
     });
     new OneOffTask(this, 'SeedAdministrators', {
       family: 'foc-seed-administrators',
-      image: imageOf(this, 'user-service', imageTag),
+      image: userServiceImage,
       logGroup,
       command: ['node', 'dist/seed-administrators.js'],
       secrets: {
         DATABASE_URL: userUrl,
         ADMIN_SEED_ACCOUNTS: ecs.Secret.fromSecretsManager(adminSeedAccounts),
+      },
+    });
+    new OneOffTask(this, 'SeedTestAccounts', {
+      family: 'foc-seed-test-accounts',
+      image: userServiceImage,
+      logGroup,
+      command: ['node', 'dist/seed-test-accounts.js'],
+      environment: {
+        ALLOW_TEST_ACCOUNT_SEED: 'true',
+        NODE_ENV: 'staging',
+      },
+      secrets: {
+        DATABASE_URL: userUrl,
+        TEST_ACCOUNT_SEED_ACCOUNTS: ecs.Secret.fromSecretsManager(
+          testAccountSeedAccounts,
+        ),
       },
     });
   }
