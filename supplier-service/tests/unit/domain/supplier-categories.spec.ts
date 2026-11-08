@@ -34,7 +34,7 @@ describe('supplier category tags', () => {
     [null],
   ])('rejects invalid tags: %j', (categories) => {
     expect(() => normaliseCategories(categories)).toThrow(
-        SupplierValidationError,
+      SupplierValidationError,
     );
   });
 
