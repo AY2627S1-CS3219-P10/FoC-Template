@@ -6,6 +6,8 @@ import { Icon } from "@/components/icon";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import { categoryLabels, type Supplier } from "@/services/contracts";
+import { supplierCategories } from "@/services/supplier-categories";
+import { SupplierTags } from "./supplier-tags";
 import { guestSupplierPreviews } from "./guest-supplier-previews";
 import { outletAddress, supplierCards } from "./outlet-display";
 
@@ -143,7 +145,9 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
         <Link className="text-link back-link" href="/suppliers">
           ← Back to suppliers
         </Link>
-        <p className="eyebrow">{categoryLabels[supplier.category]}</p>
+        <p className="eyebrow">
+          <SupplierTags supplier={supplier} />
+        </p>
         <h1>{supplier.name}</h1>
         <p className="page-description">
           Available pickup locations · All hours in Singapore time.
@@ -180,7 +184,8 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
   const search = query.trim().toLowerCase();
   const filtered = supplierCards(catalogSuppliers).filter(
     ({ supplier, title, locations }) =>
-      (category === "ALL" || supplier.category === category) &&
+      (category === "ALL" ||
+        supplierCategories(supplier).some((tag) => tag === category)) &&
       `${title} ${locations.map((location) => `${outletAddress(location)} ${location.supplierAtLocation}`).join(" ")}`
         .toLowerCase()
         .includes(search),
@@ -270,20 +275,20 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
               <article className="supplier-card" key={id}>
                 <div className="card-top">
                   <span
-                    className={`category-icon ${supplier.category === "PRINTING" ? "lilac" : supplier.category === "SHOPPING" ? "peach" : "mint"}`}
+                    className={`category-icon ${supplierCategories(supplier).includes("PRINTING") ? "lilac" : supplierCategories(supplier).includes("SHOPPING") ? "peach" : "mint"}`}
                   >
                     <Icon
                       name={
-                        supplier.category === "PRINTING"
+                        supplierCategories(supplier).includes("PRINTING")
                           ? "print"
-                          : supplier.category === "SHOPPING"
+                          : supplierCategories(supplier).includes("SHOPPING")
                             ? "bag"
                             : "coffee"
                       }
                     />
                   </span>
                   <span className="category-label">
-                    {categoryLabels[supplier.category]}
+                    <SupplierTags supplier={supplier} />
                   </span>
                 </div>
                 <h2>
@@ -347,13 +352,15 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                         href={auth.user ? href : "/login"}
                       >
                         <span
-                          className={`category-icon ${supplier.category === "PRINTING" ? "lilac" : supplier.category === "SHOPPING" ? "peach" : "mint"}`}
+                          className={`category-icon ${supplierCategories(supplier).includes("PRINTING") ? "lilac" : supplierCategories(supplier).includes("SHOPPING") ? "peach" : "mint"}`}
                         >
                           <Icon
                             name={
-                              supplier.category === "PRINTING"
+                              supplierCategories(supplier).includes("PRINTING")
                                 ? "print"
-                                : supplier.category === "SHOPPING"
+                                : supplierCategories(supplier).includes(
+                                      "SHOPPING",
+                                    )
                                   ? "bag"
                                   : "coffee"
                             }
@@ -364,7 +371,7 @@ export function SupplierCatalog({ supplierId }: { supplierId?: string }) {
                     </td>
                     <td>
                       <span className="category-label">
-                        {categoryLabels[supplier.category]}
+                        <SupplierTags supplier={supplier} />
                       </span>
                     </td>
                     <td>

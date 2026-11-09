@@ -97,9 +97,8 @@ test("adding the same name on another floor automatically renders a separate adm
   ).toBeVisible();
   await page.getByRole("button", { name: "Add supplier", exact: true }).click();
   await page.getByLabel("Supplier name").fill("MedSci Printing");
-  await page
-    .getByRole("combobox", { name: "Category" })
-    .selectOption("PRINTING");
+  await page.getByRole("checkbox", { name: "Food", exact: true }).uncheck();
+  await page.getByRole("checkbox", { name: "Printing", exact: true }).check();
   await page
     .getByRole("combobox", { name: "Building" })
     .selectOption(locationId);
