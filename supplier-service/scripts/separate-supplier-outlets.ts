@@ -49,9 +49,10 @@ export async function separateSupplierOutlets(
     const supplier = await client.query<{
       name: string;
       category: string;
+      categories: string[];
       is_active: boolean;
     }>(
-      'SELECT name, category, is_active FROM suppliers WHERE id = $1 FOR UPDATE',
+      'SELECT name, category, categories, is_active FROM suppliers WHERE id = $1 FOR UPDATE',
       [supplierId],
     );
     const owner = supplier.rows[0];
@@ -98,8 +99,14 @@ export async function separateSupplierOutlets(
           );
         } else {
           await client.query(
-            'INSERT INTO suppliers (id, name, category, is_active, updated_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)',
-            [outlet.supplierId, outlet.name, owner.category, owner.is_active],
+            'INSERT INTO suppliers (id, name, category, categories, is_active, updated_at) VALUES ($1, $2, $3, $4::supplier_tag[], $5, CURRENT_TIMESTAMP)',
+            [
+              outlet.supplierId,
+              outlet.name,
+              owner.category,
+              owner.categories,
+              owner.is_active,
+            ],
           );
         }
         await client.query(

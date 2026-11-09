@@ -1,10 +1,12 @@
 import type { SupplierCatalogRepositoryPort } from '../../../src/application/ports/supplier-catalog.repository.port.js';
 import { ListSuppliersUseCase } from '../../../src/application/use-cases/list-suppliers.use-case.js';
 import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
+import type { SupplierTag } from '../../../src/domain/supplier-categories.js';
 
 const CATALOG: SupplierCatalogEntry[] = [
   {
     category: 'SHOPPING',
+    categories: ['SHOPPING'],
     id: '10000000-0000-4000-8000-000000000002',
     locations: [
       {
@@ -27,9 +29,11 @@ const CATALOG: SupplierCatalogEntry[] = [
 
 class StubSupplierCatalogRepository implements SupplierCatalogRepositoryPort {
   calls = 0;
+  category?: SupplierTag;
 
-  findActiveSuppliers(): Promise<SupplierCatalogEntry[]> {
+  findActiveSuppliers(category?: SupplierTag): Promise<SupplierCatalogEntry[]> {
     this.calls += 1;
+    this.category = category;
     return Promise.resolve(CATALOG);
   }
 
@@ -39,6 +43,11 @@ class StubSupplierCatalogRepository implements SupplierCatalogRepositoryPort {
 }
 
 describe('ListSuppliersUseCase', () => {
+  it('forwards the tag filter to persistence', async () => {
+    const repository = new StubSupplierCatalogRepository();
+    await new ListSuppliersUseCase(repository).execute('BEVERAGES');
+    expect(repository.category).toBe('BEVERAGES');
+  });
   it('returns the active supplier catalog from its repository', async () => {
     const repository = new StubSupplierCatalogRepository();
     const useCase = new ListSuppliersUseCase(repository);

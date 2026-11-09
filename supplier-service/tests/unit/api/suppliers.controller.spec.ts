@@ -26,6 +26,7 @@ import { RolesGuard } from '../../../src/platform/auth/roles.guard.js';
 import { UserRole } from '../../../src/platform/auth/user-role.js';
 import { validateEnvironment } from '../../../src/platform/config/environment.schema.js';
 import { configureHttpApplication } from '../../../src/platform/http/configure-http-application.js';
+import type { SupplierTag } from '../../../src/domain/supplier-categories.js';
 
 const JWT_ACCESS_TOKEN_SECRET =
   'test-access-token-secret-at-least-32-characters';
@@ -34,6 +35,7 @@ const JWT_AUDIENCE = 'foc-api';
 const CATALOG: SupplierCatalogEntry[] = [
   {
     category: 'FOOD_COFFEE',
+    categories: ['FOOD', 'BEVERAGES'],
     id: '10000000-0000-4000-8000-000000000006',
     locations: [
       {
@@ -73,9 +75,11 @@ class StubListCampusLocationsUseCase {
 
 class StubListSuppliersUseCase {
   calls = 0;
+  category?: SupplierTag;
 
-  execute(): Promise<SupplierCatalogEntry[]> {
+  execute(category?: SupplierTag): Promise<SupplierCatalogEntry[]> {
     this.calls += 1;
+    this.category = category;
     return Promise.resolve(CATALOG);
   }
 }
@@ -161,6 +165,36 @@ describe('SuppliersController authentication and RBAC', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(CAMPUS_LOCATIONS);
     expect(listCampusLocations.calls).toBe(1);
+  });
+
+  it.each(['FOOD', 'BEVERAGES', 'PRINTING', 'SHOPPING'])(
+    'passes the %s filter to the application',
+    async (category) => {
+      const response = await app.inject({
+        headers: { authorization: `Bearer ${createToken(false)}` },
+        method: 'GET',
+        url: `/api/suppliers?category=${category}`,
+      });
+      expect(response.statusCode).toBe(200);
+      expect(listSuppliers.category).toBe(category);
+    },
+  );
+
+  it.each([
+    'category=FOOD_COFFEE',
+    'category=OTHER',
+    'category=',
+    'category=food',
+    'category=FOOD&category=BEVERAGES',
+    'unknown=FOOD',
+  ])('rejects invalid filters: %s', async (query) => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(false)}` },
+      method: 'GET',
+      url: `/api/suppliers?${query}`,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(listSuppliers.calls).toBe(0);
   });
 
   it('rejects an unauthenticated supplier-list request', async () => {

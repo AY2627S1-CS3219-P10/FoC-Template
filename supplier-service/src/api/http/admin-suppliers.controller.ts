@@ -110,7 +110,9 @@ export class AdminSuppliersController {
   }
 
   @Patch(':supplierId')
-  @ApiOperation({ summary: 'Update a supplier name or category' })
+  @ApiOperation({
+    summary: 'Update a supplier name or replace its category tags',
+  })
   @ApiOkResponse({ type: SupplierResponse })
   @ApiBadRequestResponse({ description: 'Supplier update is invalid.' })
   @ApiUnauthorizedResponse({

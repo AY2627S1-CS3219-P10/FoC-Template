@@ -1,4 +1,5 @@
 import type { SupplierCategory } from './supplier-input.js';
+import type { SupplierTag } from './supplier-categories.js';
 
 export type { SupplierCategory } from './supplier-input.js';
 
@@ -24,6 +25,7 @@ export interface SupplierLocationCatalogEntry {
 }
 
 export interface SupplierCatalogEntry {
+  categories: SupplierTag[];
   category: SupplierCategory;
   id: string;
   locations: SupplierLocationCatalogEntry[];

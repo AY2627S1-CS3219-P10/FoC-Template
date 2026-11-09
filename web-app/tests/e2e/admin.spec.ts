@@ -18,6 +18,7 @@ const supplier = {
   id: "20000000-0000-4000-8000-000000000001",
   name: "Campus Coffee",
   category: "FOOD_COFFEE",
+  categories: ["FOOD", "BEVERAGES"],
   locations: [
     {
       id: "30000000-0000-4000-8000-000000000001",
@@ -113,14 +114,12 @@ test("admin supplier workflows submit service contracts and show failures", asyn
     /raw\.githubusercontent\.com\/CS3219-AY2627S1\/FoC-Template\/main\/data\/images\/ROBOT_CAFE\.jpeg/,
   );
   await page.getByRole("button", { name: "Food", exact: true }).click();
-  await expect(page.getByText("No suppliers found.")).toBeVisible();
-  await page.getByRole("button", { name: "Food & coffee" }).click();
+  await expect(page.getByText("Campus Coffee", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Beverages", exact: true }).click();
   await expect(page.getByText("Campus Coffee", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add supplier", exact: true }).click();
   await page.getByLabel("Supplier name").fill("New Coffee");
-  await page
-    .getByRole("combobox", { name: "Category" })
-    .selectOption("FOOD_COFFEE");
+  await page.getByRole("checkbox", { name: "Beverages", exact: true }).check();
   await page
     .getByRole("combobox", { name: "Building" })
     .selectOption(campusLocations[1].id);
@@ -139,7 +138,7 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   ).toBeVisible();
   expect(writes[1].body).toEqual({
     name: "New Coffee",
-    category: "FOOD_COFFEE",
+    categories: ["FOOD", "BEVERAGES"],
     location: {
       campusLocationId: campusLocations[1].id,
       floor: 2,
@@ -158,7 +157,7 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   ).toBeVisible();
   expect(writes[2]).toMatchObject({
     method: "PATCH",
-    body: { name: "Renamed Coffee", category: "FOOD_COFFEE" },
+    body: { name: "Renamed Coffee", categories: ["FOOD", "BEVERAGES"] },
   });
   await page.getByRole("button", { name: "Edit pickup location" }).click();
   await page
@@ -232,9 +231,7 @@ test("matches show descriptions and require fresh confirmation after form edits"
   await page.goto("/admin");
   await page.getByRole("button", { name: "Add supplier", exact: true }).click();
   await page.getByLabel("Supplier name").fill("Another Coffee");
-  await page
-    .getByRole("combobox", { name: "Category" })
-    .selectOption("FOOD_COFFEE");
+  await page.getByRole("checkbox", { name: "Beverages", exact: true }).check();
   await page
     .getByRole("combobox", { name: "Building" })
     .selectOption(campusLocations[0].id);

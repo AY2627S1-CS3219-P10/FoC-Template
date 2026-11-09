@@ -1,6 +1,7 @@
 export type SupplierValidationField =
   | 'campusLocationId'
   | 'category'
+  | 'categories'
   | 'closesAt'
   | 'floor'
   | 'imageUrl'

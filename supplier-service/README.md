@@ -4,11 +4,85 @@ Owns suppliers, campus pickup locations, categories, and availability state.
 The seed CSV under `data/` is represented by the service-owned database
 migration; image paths remain catalog metadata.
 
+## Multiple category tags
+
+Supplier responses now include `categories`, a nonempty array containing any of
+`FOOD`, `BEVERAGES`, `PRINTING`, and `SHOPPING`. A cafe selling food and drinks has
+`["FOOD", "BEVERAGES"]` and should match either filter. Drinks-only suppliers may
+have `["BEVERAGES"]`. The browse API accepts an optional single tag:
+
+```http
+GET /api/suppliers?category=FOOD
+GET /api/suppliers?category=BEVERAGES
+```
+
+A supplier with both tags appears in either result. Omitting `category` lists all
+active suppliers with active pickup locations. Invalid, empty, repeated, or legacy
+combined filter values return 400. The frontend still needs separate buttons and
+must either forward the filter or check membership in the response array.
+
+Admin POST/PATCH requests accept `categories` instead of `category`. PATCH replaces
+the complete set of tags; omitting classification leaves it unchanged. Duplicate,
+empty, null, or unknown tags return 400. Supplying both fields returns 400. Example:
+
+```json
+{ "categories": ["FOOD", "BEVERAGES"] }
+```
+
+The single `category` field remains available for existing clients and legacy
+admin writes. `FOOD_COFFEE` maps to both tags; other legacy values map to one tag.
+Responses project tags back to a legacy category with priority BEVERAGES
+(`FOOD_COFFEE`), FOOD, PRINTING, then SHOPPING. A legacy classification write
+replaces all tags, so new clients should send only `categories`. The new tags never
+include `FOOD_COFFEE`.
+
+Possible-duplicate checks match any overlapping tag in the same building/floor.
+Adding another outlet to an existing supplier requires the same complete tag set,
+regardless of input order. Category changes and location moves retain the existing
+serializable transaction/retry protections.
+
+Apply `20261108000100_supplier_category_tags` before deploying this code:
+
+```sh
+pnpm prisma:validate
+pnpm db:migrate:deploy
+pnpm prisma:generate
+```
+
+The migration maps existing `FOOD_COFFEE` records to both tags and preserves every
+supplier/outlet UUID. FOOD, PRINTING, and SHOPPING retain their original tags;
+broader reclassification needs a catalog review rather than guesses about menus.
+The follow-up `20261109000100_correct_cafe_categories` migration explicitly keeps
+Starbucks, Poonsti Cafe, The Coffee Bean and Tea Leaf, and TOMORO COFFEE under both
+Food and Beverages, and places Wonderful Cafe (CDE and S16) under Food only.
+The seed CSV uses the same classifications for future imports.
+The next migration, `20261109000200_refine_food_beverage_categories`, puts Cool
+Spot, Mr Bean / Do Qoo, Nine Fresh, Fine Food, Flavours @ UTown and Central Square
+@ YIH under both tags, and Mixue, CHAGEE and Cafe+ Robot Cafe under Beverages only.
+CSV Type accepts `Beverages` and `Food/Beverages` as well as legacy `Food/Coffee`.
+Migration `20261109000300_add_techno_edge` ensures he by He Brews has both tags and
+adds Techno Edge with both tags and a pickup location at CDE. Techno Edge's weekday
+hours and weekend exceptions come from the [NUS dining directory](https://uci.nus.edu.sg/campus-life/campus-services/retail-dining/kent-ridge/).
+Unverified floor and coordinates remain null; existing Techno Edge outlets, if any,
+are preserved. The CSV contains the same entry for fresh imports.
+CSV reimports derive tags from the CSV Type and replace matching suppliers' tags;
+outlet separation copies the original tag set. No live database is migrated just
+by checking out the code. For an application rollback, leave the column and data
+intact and stop legacy writers that do not populate categories; restore the previous
+database schema only via a reviewed forward migration after backing up tag data.
+
+The PostgreSQL integration suite needs a disposable, empty database. It applies
+all migrations and deletes fixtures; never point it at the local app database:
+
+```sh
+SUPPLIER_OUTLET_TEST_URL=postgresql://localhost/disposable_supplier_tests pnpm test --runTestsByPath tests/integration/outlet-identity.spec.ts
+```
+
 ## Current scope
 
 The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and
 service-owned migrations. They create suppliers and pickup locations, then load
-all 74 suppliers and their CSV pickup-location records from
+all 75 suppliers and their CSV pickup-location records from
 `../data/csv/supplier-seed-data.csv`. A location may have an unknown floor or
 coordinates when the source does not publish them; the browse API explicitly
 returns those values as `null` rather than fabricating details.
@@ -28,8 +102,8 @@ the request identifies a location from `GET /api/suppliers/campus-locations`,
 and the service resolves its building and coordinates. Admins therefore do not
 enter latitude or longitude. The service also derives the `supplier@location`
 label and overnight-hours flag. A case-insensitive existing supplier name adds
-an outlet to that supplier instead of creating a second supplier. Its category
-must match. Matching category, building and floor returns HTTP 409 with
+an outlet to that supplier instead of creating a second supplier. Its complete tag set
+must match. Overlapping tags, building and floor returns HTTP 409 with
 `POSSIBLE_SUPPLIER_DUPLICATE` and public match details, including names and
 location descriptions. The admin can use an existing outlet, edit it, or
 explicitly confirm a different physical pickup point. Setting
@@ -48,7 +122,7 @@ Edits can use the same confirmation field after reviewing matches. Confirmation
 is cleared in the client whenever form details change. No name-similarity
 threshold is used. Existing entries and errand location IDs are preserved.
 
-Administrators may update a supplier's name and/or category with
+Administrators may update a supplier's name and/or category tags with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
 associated `supplier@location` label in the same atomic database operation. An
 empty update returns HTTP 400, an unknown supplier returns HTTP 404, and a name
@@ -75,7 +149,7 @@ Example request:
 ```json
 {
   "name": "Starbucks",
-  "category": "FOOD_COFFEE",
+  "categories": ["FOOD", "BEVERAGES"],
   "location": {
     "campusLocationId": "20000000-0000-4000-8000-000000000008",
     "floor": 1,
@@ -92,7 +166,7 @@ Example update request:
 ```json
 {
   "name": "Starbucks Coffee",
-  "category": "FOOD_COFFEE"
+  "categories": ["FOOD", "BEVERAGES"]
 }
 ```
 

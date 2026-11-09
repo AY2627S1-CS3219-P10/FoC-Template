@@ -127,10 +127,12 @@ export interface Authentication {
 
 export const categoryLabels = {
   FOOD: "Food",
-  FOOD_COFFEE: "Food & coffee",
+  BEVERAGES: "Beverages",
   PRINTING: "Printing",
   SHOPPING: "Shopping",
 } as const;
+
+export type SupplierCategory = keyof typeof categoryLabels;
 
 export interface CampusLocation {
   id: string;
@@ -156,6 +158,8 @@ export interface PickupLocation {
 export interface Supplier {
   id: string;
   name: string;
-  category: keyof typeof categoryLabels;
+  /** Legacy projection kept while older service responses are supported. */
+  category: "FOOD" | "FOOD_COFFEE" | "PRINTING" | "SHOPPING";
+  categories?: SupplierCategory[];
   locations: PickupLocation[];
 }

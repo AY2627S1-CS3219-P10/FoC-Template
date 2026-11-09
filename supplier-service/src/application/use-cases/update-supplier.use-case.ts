@@ -1,15 +1,13 @@
 import type { SupplierCatalogEntry } from '../../domain/supplier-catalog.js';
-import {
-  assertSupplierCategory,
-  normalizeRequiredText,
-} from '../../domain/supplier-input.js';
-import type { SupplierCategory } from '../../domain/supplier-input.js';
+import { normalizeRequiredText } from '../../domain/supplier-input.js';
+import { resolveCategories } from '../../domain/supplier-categories.js';
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
 export interface UpdateSupplierInput {
   confirmDistinctOutlet?: boolean;
   category?: string;
+  categories?: string[];
   name?: string;
 }
 
@@ -20,7 +18,11 @@ export class UpdateSupplierUseCase {
     supplierId: string,
     input: UpdateSupplierInput,
   ): Promise<SupplierCatalogEntry> {
-    if (input.name === undefined && input.category === undefined) {
+    if (
+      input.name === undefined &&
+      input.category === undefined &&
+      input.categories === undefined
+    ) {
       throw new SupplierValidationError(
         'supplier',
         'SUPPLIER_UPDATE_EMPTY',
@@ -33,18 +35,17 @@ export class UpdateSupplierUseCase {
         ? undefined
         : normalizeRequiredText(input.name, 'name', 160);
 
-    let category: SupplierCategory | undefined;
-
-    if (input.category !== undefined) {
-      assertSupplierCategory(input.category);
-      category = input.category;
-    }
+    const classification =
+      input.category !== undefined || input.categories !== undefined
+        ? resolveCategories(input)
+        : undefined;
 
     return this.repository.updateSupplier({
       ...(input.confirmDistinctOutlet === true
         ? { confirmDistinctOutlet: true }
         : {}),
-      category,
+      category: classification?.category,
+      ...(classification ? { categories: classification.categories } : {}),
       id: supplierId,
       name,
     });
