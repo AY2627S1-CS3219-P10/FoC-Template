@@ -59,6 +59,65 @@ integration('match and confirm against PostgreSQL', () => {
         ).toEqual(outletsBefore?.rows);
       }
     }
+    // Check the seeded catalog before per-test cleanup removes it.
+    const cafeNames = [
+      'Starbucks @ S9',
+      'Starbucks @ CDE',
+      'Starbucks @ UTown',
+      'Poonsti Cafe',
+      'The Coffee Bean and Tea Leaf',
+      'TOMORO COFFEE',
+      'TOMORO COFFEE @ NUS College',
+      'he by He Brews',
+      'Techno Edge',
+      'Wonderful Cafe @ CDE',
+      'Wonderful Cafe @ S16',
+    ];
+    const corrected = await pool.query<{
+      name: string;
+      category: string;
+      categories: string[];
+    }>(
+      'SELECT name, category::text AS category, categories::text[] AS categories FROM suppliers WHERE name = ANY($1::citext[])',
+      [cafeNames],
+    );
+    expect(corrected.rows).toHaveLength(cafeNames.length);
+    for (const supplier of corrected.rows) {
+      const foodOnly = supplier.name.startsWith('Wonderful Cafe');
+      expect(supplier.categories).toEqual(
+        foodOnly ? ['FOOD'] : ['FOOD', 'BEVERAGES'],
+      );
+      expect(supplier.category).toBe(foodOnly ? 'FOOD' : 'FOOD_COFFEE');
+    }
+    const both = [
+      'Cool Spot',
+      'Mr Bean / Do Qoo',
+      'Nine Fresh',
+      'Fine Food',
+      'Flavours @ UTown',
+      'Central Square @ YIH',
+    ];
+    const beveragesOnly = ['Mixue', 'CHAGEE', 'Cafe+ Robot Cafe'];
+    const refined = await pool.query<{ name: string; categories: string[] }>(
+      'SELECT name, categories::text[] AS categories FROM suppliers WHERE name = ANY($1::citext[])',
+      [[...both, ...beveragesOnly]],
+    );
+    expect(refined.rows).toHaveLength(both.length + beveragesOnly.length);
+    for (const supplier of refined.rows) {
+      expect(supplier.categories).toEqual(
+        both.includes(supplier.name) ? ['FOOD', 'BEVERAGES'] : ['BEVERAGES'],
+      );
+    }
+    const technoEdge = await pool.query<{
+      floor: number | null;
+      latitude: string | null;
+      longitude: string | null;
+    }>(
+      "SELECT location.floor, location.latitude, location.longitude FROM supplier_locations AS location JOIN suppliers AS supplier ON supplier.id = location.supplier_id WHERE supplier.name = 'Techno Edge'",
+    );
+    expect(technoEdge.rows).toEqual([
+      { floor: null, latitude: null, longitude: null },
+    ]);
     prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: databaseUrl }),
     });

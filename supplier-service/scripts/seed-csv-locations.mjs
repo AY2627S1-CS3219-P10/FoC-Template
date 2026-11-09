@@ -47,6 +47,8 @@ const columns = [
 const categories = {
   Food: 'FOOD',
   'Food/Coffee': 'FOOD_COFFEE',
+  'Food/Beverages': 'FOOD_COFFEE',
+  Beverages: 'FOOD_COFFEE',
   Shopping: 'SHOPPING',
   Printing: 'PRINTING',
 };
@@ -103,6 +105,12 @@ const rows = records.map((cells, index) => {
   return {
     name,
     category: categories[type],
+    categories:
+      type === 'Beverages'
+        ? ['BEVERAGES']
+        : categories[type] === 'FOOD_COFFEE'
+          ? ['FOOD', 'BEVERAGES']
+          : [categories[type]],
     building,
     floor: number(floor, 'floor', row, -100, 1000, true),
     description,
@@ -131,12 +139,7 @@ try {
     const supplier = await client.query(
       `INSERT INTO suppliers (id,name,category,categories,updated_at) VALUES ($1,$2,$3,$4::supplier_tag[],CURRENT_TIMESTAMP)
       ON CONFLICT (name) DO UPDATE SET category=EXCLUDED.category,categories=EXCLUDED.categories,updated_at=CURRENT_TIMESTAMP RETURNING id`,
-      [
-        randomUUID(),
-        row.name,
-        row.category,
-        row.category === 'FOOD_COFFEE' ? ['FOOD', 'BEVERAGES'] : [row.category],
-      ],
+      [randomUUID(), row.name, row.category, row.categories],
     );
     const supplierId = supplier.rows[0].id;
     const existing = await client.query(

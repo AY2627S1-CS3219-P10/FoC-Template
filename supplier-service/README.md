@@ -52,6 +52,19 @@ pnpm prisma:generate
 The migration maps existing `FOOD_COFFEE` records to both tags and preserves every
 supplier/outlet UUID. FOOD, PRINTING, and SHOPPING retain their original tags;
 broader reclassification needs a catalog review rather than guesses about menus.
+The follow-up `20261109000100_correct_cafe_categories` migration explicitly keeps
+Starbucks, Poonsti Cafe, The Coffee Bean and Tea Leaf, and TOMORO COFFEE under both
+Food and Beverages, and places Wonderful Cafe (CDE and S16) under Food only.
+The seed CSV uses the same classifications for future imports.
+The next migration, `20261109000200_refine_food_beverage_categories`, puts Cool
+Spot, Mr Bean / Do Qoo, Nine Fresh, Fine Food, Flavours @ UTown and Central Square
+@ YIH under both tags, and Mixue, CHAGEE and Cafe+ Robot Cafe under Beverages only.
+CSV Type accepts `Beverages` and `Food/Beverages` as well as legacy `Food/Coffee`.
+Migration `20261109000300_add_techno_edge` ensures he by He Brews has both tags and
+adds Techno Edge with both tags and a pickup location at CDE. Techno Edge's weekday
+hours and weekend exceptions come from the [NUS dining directory](https://uci.nus.edu.sg/campus-life/campus-services/retail-dining/kent-ridge/).
+Unverified floor and coordinates remain null; existing Techno Edge outlets, if any,
+are preserved. The CSV contains the same entry for fresh imports.
 CSV reimports derive tags from the CSV Type and replace matching suppliers' tags;
 outlet separation copies the original tag set. No live database is migrated just
 by checking out the code. For an application rollback, leave the column and data
@@ -69,7 +82,7 @@ SUPPLIER_OUTLET_TEST_URL=postgresql://localhost/disposable_supplier_tests pnpm t
 
 The database foundation is initialized with PostgreSQL 18, Prisma ORM 7, and
 service-owned migrations. They create suppliers and pickup locations, then load
-all 74 suppliers and their CSV pickup-location records from
+all 75 suppliers and their CSV pickup-location records from
 `../data/csv/supplier-seed-data.csv`. A location may have an unknown floor or
 coordinates when the source does not publish them; the browse API explicitly
 returns those values as `null` rather than fabricating details.

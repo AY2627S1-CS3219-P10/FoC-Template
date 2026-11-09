@@ -61,8 +61,8 @@ export const guestSupplierPreviews: Supplier[] = [
   {
     id: "10000000-0000-4000-8000-000000000004",
     name: "Cool Spot",
-    category: "FOOD",
-    categories: ["FOOD"],
+    category: "FOOD_COFFEE",
+    categories: ["FOOD", "BEVERAGES"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000004",
@@ -88,7 +88,7 @@ export const guestSupplierPreviews: Supplier[] = [
     id: "10000000-0000-4000-8000-000000000006",
     name: "Cafe+ Robot Cafe",
     category: "FOOD_COFFEE",
-    categories: ["FOOD", "BEVERAGES"],
+    categories: ["BEVERAGES"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000006",
