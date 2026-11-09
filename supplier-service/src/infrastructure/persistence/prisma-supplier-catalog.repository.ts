@@ -81,8 +81,16 @@ export class PrismaSupplierCatalogRepository
     >,
   ) {}
 
-  async findActiveSuppliers(): Promise<SupplierCatalogEntry[]> {
-    const suppliers = await this.prisma.supplier.findMany(ACTIVE_CATALOG_QUERY);
+  async findActiveSuppliers(
+    category?: SupplierTag,
+  ): Promise<SupplierCatalogEntry[]> {
+    const suppliers = await this.prisma.supplier.findMany({
+      ...ACTIVE_CATALOG_QUERY,
+      where: {
+        ...ACTIVE_CATALOG_QUERY.where,
+        ...(category === undefined ? {} : { categories: { has: category } }),
+      },
+    });
 
     return suppliers.map((supplier) => this.mapSupplier(supplier));
   }

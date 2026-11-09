@@ -74,6 +74,52 @@ integration('match and confirm against PostgreSQL', () => {
     await pool?.end();
   });
 
+  it('includes a cafe in both filters and excludes inactive suppliers and outlets', async () => {
+    const cafe = await repository.createSupplier({
+      ...record('Cafe', 'CLB', 1),
+      category: 'FOOD_COFFEE',
+      categories: ['FOOD', 'BEVERAGES'],
+    });
+    const food = await repository.createSupplier({
+      ...record('Food', 'Other', 1),
+      category: 'FOOD',
+      categories: ['FOOD'],
+    });
+    const drinks = await repository.createSupplier({
+      ...record('Drinks', 'Other', 2),
+      category: 'FOOD_COFFEE',
+      categories: ['BEVERAGES'],
+    });
+    const printing = await repository.createSupplier(
+      record('Print', 'Print building', 1),
+    );
+    const ids = (suppliers: { id: string }[]): string[] =>
+      suppliers.map((supplier) => supplier.id).sort();
+    expect(ids(await repository.findActiveSuppliers('FOOD'))).toEqual(
+      [cafe.id, food.id].sort(),
+    );
+    expect(ids(await repository.findActiveSuppliers('BEVERAGES'))).toEqual(
+      [cafe.id, drinks.id].sort(),
+    );
+    expect(ids(await repository.findActiveSuppliers('PRINTING'))).toEqual([
+      printing.id,
+    ]);
+    expect(await repository.findActiveSuppliers('SHOPPING')).toEqual([]);
+    expect(await repository.findActiveSuppliers()).toHaveLength(4);
+    await prisma.supplier.update({
+      where: { id: cafe.id },
+      data: { isActive: false },
+    });
+    await prisma.supplierLocation.updateMany({
+      where: { supplierId: drinks.id },
+      data: { isActive: false },
+    });
+    expect(await repository.findActiveSuppliers('BEVERAGES')).toEqual([]);
+    expect(ids(await repository.findActiveSuppliers('FOOD'))).toEqual([
+      food.id,
+    ]);
+  });
+
   it('stores both food and beverages, then replaces tags without changing outlet IDs', async () => {
     const cafe = await repository.createSupplier({
       ...record('Cafe', 'CLB', 1),

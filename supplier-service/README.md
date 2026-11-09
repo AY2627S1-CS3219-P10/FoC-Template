@@ -9,8 +9,17 @@ migration; image paths remain catalog metadata.
 Supplier responses now include `categories`, a nonempty array containing any of
 `FOOD`, `BEVERAGES`, `PRINTING`, and `SHOPPING`. A cafe selling food and drinks has
 `["FOOD", "BEVERAGES"]` and should match either filter. Drinks-only suppliers may
-have `["BEVERAGES"]`. Filtering currently happens in the web client; it must use
-membership in this array when the frontend portion is implemented.
+have `["BEVERAGES"]`. The browse API accepts an optional single tag:
+
+```http
+GET /api/suppliers?category=FOOD
+GET /api/suppliers?category=BEVERAGES
+```
+
+A supplier with both tags appears in either result. Omitting `category` lists all
+active suppliers with active pickup locations. Invalid, empty, repeated, or legacy
+combined filter values return 400. The frontend still needs separate buttons and
+must either forward the filter or check membership in the response array.
 
 Admin POST/PATCH requests accept `categories` instead of `category`. PATCH replaces
 the complete set of tags; omitting classification leaves it unchanged. Duplicate,
@@ -80,8 +89,8 @@ the request identifies a location from `GET /api/suppliers/campus-locations`,
 and the service resolves its building and coordinates. Admins therefore do not
 enter latitude or longitude. The service also derives the `supplier@location`
 label and overnight-hours flag. A case-insensitive existing supplier name adds
-an outlet to that supplier instead of creating a second supplier. Its category
-must match. Matching category, building and floor returns HTTP 409 with
+an outlet to that supplier instead of creating a second supplier. Its complete tag set
+must match. Overlapping tags, building and floor returns HTTP 409 with
 `POSSIBLE_SUPPLIER_DUPLICATE` and public match details, including names and
 location descriptions. The admin can use an existing outlet, edit it, or
 explicitly confirm a different physical pickup point. Setting
@@ -100,7 +109,7 @@ Edits can use the same confirmation field after reviewing matches. Confirmation
 is cleared in the client whenever form details change. No name-similarity
 threshold is used. Existing entries and errand location IDs are preserved.
 
-Administrators may update a supplier's name and/or category with
+Administrators may update a supplier's name and/or category tags with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
 associated `supplier@location` label in the same atomic database operation. An
 empty update returns HTTP 400, an unknown supplier returns HTTP 404, and a name
@@ -127,7 +136,7 @@ Example request:
 ```json
 {
   "name": "Starbucks",
-  "category": "FOOD_COFFEE",
+  "categories": ["FOOD", "BEVERAGES"],
   "location": {
     "campusLocationId": "20000000-0000-4000-8000-000000000008",
     "floor": 1,
@@ -144,7 +153,7 @@ Example update request:
 ```json
 {
   "name": "Starbucks Coffee",
-  "category": "FOOD_COFFEE"
+  "categories": ["FOOD", "BEVERAGES"]
 }
 ```
 
