@@ -61,6 +61,34 @@ export function outletAddress(location: PickupLocation): string {
   return `${location.building} · ${location.floor === null ? "Floor not specified" : `Floor ${location.floor}`}`;
 }
 
+// AI-assisted: shorten location-qualified names only in pickup option labels.
+export function pickupSupplierDisplayName(
+  name: string,
+  building: string,
+): string {
+  const match = /^(.*\S)\s+@\s+(.+)$/.exec(name);
+  if (!match) return name;
+
+  const key = (value: string) =>
+    value.trim().replace(/\s+/g, " ").toLowerCase();
+  const suffix = key(match[2]);
+  const buildingKey = key(building);
+  const aliases: Record<string, string[]> = {
+    yih: ["yusof ishak house"],
+    md11: ["medicine block md11"],
+    s9: ["science block s9"],
+    s16: ["science block s16"],
+    cde: ["college of design and engineering"],
+    utown: ["stephen riady centre", "education resource centre"],
+    science: ["science lt27"],
+  };
+
+  return suffix === buildingKey ||
+    (Object.hasOwn(aliases, suffix) && aliases[suffix].includes(buildingKey))
+    ? match[1].trim()
+    : name;
+}
+
 export function supplierImageUrl(imageUrl: string | null): string | null {
   if (!imageUrl) return null;
   try {
