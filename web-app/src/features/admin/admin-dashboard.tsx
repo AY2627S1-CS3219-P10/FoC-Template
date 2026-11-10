@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
+import { Icon } from "@/components/icon";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import { ReportsModeration } from "./reports-moderation";
 import { DisputedErrands } from "./disputed-errands";
@@ -48,14 +49,24 @@ const message = (error: unknown) =>
 
 function AdminSupplierImage({
   locations,
+  supplier,
   title,
 }: {
   locations: PickupLocation[];
+  supplier: Supplier;
   title: string;
 }) {
   const imageUrl = supplierImageUrl(
     locations.find((location) => location.imageUrl)?.imageUrl ?? null,
   );
+  const categories = supplierCategories(supplier);
+  const placeholderIcon = categories.includes("FOOD")
+    ? "burger"
+    : categories.includes("BEVERAGES")
+      ? "coffee"
+      : categories.includes("PRINTING")
+        ? "print"
+        : "bag";
   return imageUrl ? (
     <div
       className="admin-card-image"
@@ -68,7 +79,12 @@ function AdminSupplierImage({
       className="admin-card-image admin-card-image-empty"
       role="img"
       aria-label={`No image available for ${title}`}
-    />
+    >
+      <Icon
+        name={placeholderIcon}
+        className={`admin-card-placeholder-icon admin-card-placeholder-${placeholderIcon}`}
+      />
+    </div>
   );
 }
 
@@ -369,7 +385,11 @@ function SupplierManagement() {
         <div className="admin-list">
           {filtered.map(({ id, supplier, title, locations }) => (
             <article className="admin-card" key={id}>
-              <AdminSupplierImage locations={locations} title={title} />
+              <AdminSupplierImage
+                locations={locations}
+                supplier={supplier}
+                title={title}
+              />
               <div className="admin-card-content">
                 <div className="admin-heading">
                   <div>
