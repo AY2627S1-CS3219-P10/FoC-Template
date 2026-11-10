@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma moderation repository code (PrismaModerationRepository).
+ * Author review: Validated PrismaModerationRepository query parameters, record mappings, and returned values for listReports, findReport; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import { ModerationError } from '../../application/errors/moderation.error.js';
 import type {
   ListReportsInput,

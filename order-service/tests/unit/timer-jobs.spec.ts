@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of timer jobs test cases.
+ * Author review: Validated the assertions and setup for "regression: the earlier "; clarified test descriptions and assertion formatting.
+ */
+
 import { Job } from 'bullmq';
 import { timerJob } from '../../src/infrastructure/timer.worker';
 

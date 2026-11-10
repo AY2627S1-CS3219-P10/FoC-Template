@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of administrator seed config test cases.
+ * Author review: Validated the assertions and setup for "parses structured administrator definitions"; clarified test descriptions and assertion formatting.
+ */
+
 import { parseAdministratorSeedConfig } from '../../../../../src/modules/accounts/infrastructure/config/administrator-seed-config.js';
 
 const VALID_ENTRY = {

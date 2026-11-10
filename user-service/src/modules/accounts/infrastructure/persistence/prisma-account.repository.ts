@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma account repository code (PrismaAccountRepository).
+ * Author review: Validated PrismaAccountRepository query parameters, record mappings, and returned values for create, isEmailTaken, isPhoneNumberTaken; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import type {
   AccountRepositoryPort,
   NewAccountRecord,

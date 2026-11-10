@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of suppliers controller test cases.
+ * Author review: Validated the assertions and setup for "returns fixed NUS campus locations without a request body"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   Controller,
   Get,
@@ -49,7 +56,7 @@ const CATALOG: SupplierCatalogEntry[] = [
         locationDescription: 'Opp to central library entrance',
         longitude: 103.773032,
         opensAt: '00:00',
-        supplierAtLocation: 'Cafe+ Robot Cafe@Central Library',
+        supplierAtLocation: 'Cafe+ Robot Cafe',
       },
     ],
     name: 'Cafe+ Robot Cafe',

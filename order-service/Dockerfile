@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of C:\ container build commands.
+# Author review: Validated order-service build stages (node:24.11-alpine AS build, node:24.11-alpine) and the COPY, RUN, and startup commands; cleaned up instruction layout.
+
 FROM node:24.11-alpine AS build
 RUN npm install --global pnpm@12.11.2
 WORKDIR /workspace

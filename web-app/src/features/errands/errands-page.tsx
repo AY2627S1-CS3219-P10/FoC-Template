@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errands page rendering and interaction code (ErrandsPage).
+ * Author review: Validated ErrandsPage state updates, click handlers, request results in web-app/errands-page.tsx; refined JSX layout and user-facing wording. Additional review item: Check loading and error states, and displayed values after successful actions.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -343,13 +350,22 @@ export function ErrandsPage() {
                   key={errand.id}
                 >
                   {auth.user ? (
-                    <button
-                      className="errand-select-button"
-                      onClick={() => setSelectedId(errand.id)}
-                      aria-label={`Preview errand: ${errand.description}`}
-                    >
-                      <ErrandCardContent errand={errand} />
-                    </button>
+                    <>
+                      <button
+                        className="errand-select-button errand-select-desktop"
+                        onClick={() => setSelectedId(errand.id)}
+                        aria-label={`Preview errand: ${errand.description}`}
+                      >
+                        <ErrandCardContent errand={errand} />
+                      </button>
+                      <Link
+                        className="errand-select-button errand-select-mobile"
+                        href={`/errands/${errand.id}`}
+                        aria-label={`View errand: ${errand.description}`}
+                      >
+                        <ErrandCardContent errand={errand} />
+                      </Link>
+                    </>
                   ) : (
                     <div className="errand-select-button">
                       <ErrandCardContent errand={errand} />

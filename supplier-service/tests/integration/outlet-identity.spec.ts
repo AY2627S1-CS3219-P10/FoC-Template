@@ -1,4 +1,16 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of outlet identity test cases.
+ * Author review: Validated the assertions and setup for "allows new buildings and floors under the same case-insensitive supplier name" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../src/generated/prisma/client.js';
@@ -118,10 +130,42 @@ integration('match and confirm against PostgreSQL', () => {
     expect(technoEdge.rows).toEqual([
       { floor: null, latitude: null, longitude: null },
     ]);
+    const hotHideout = await pool.query<{
+      building: string;
+      floor: number | null;
+      supplier_at_location: string;
+    }>(
+      `SELECT location.supplier_at_location, location.building, location.floor
+       FROM supplier_locations AS location
+       JOIN suppliers AS supplier ON supplier.id = location.supplier_id
+       WHERE supplier.name = 'A Hot Hideout'`,
+    );
+    expect(hotHideout.rows).toEqual([
+      {
+        building: "Prince George's Park",
+        floor: 2,
+        supplier_at_location: 'A Hot Hideout',
+      },
+    ]);
     prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: databaseUrl }),
     });
     repository = new PrismaSupplierCatalogRepository(prisma);
+    const coolSpot = await prisma.supplierLocation.findUnique({
+      where: { id: '20000000-0000-4000-8000-000000000004' },
+    });
+    expect(coolSpot).toMatchObject({
+      supplierId: '10000000-0000-4000-8000-000000000004',
+      building: 'Com 2',
+      supplierAtLocation: 'Cool Spot@Com 2',
+    });
+    const campusLocations = await repository.findCampusLocations();
+    expect(
+      campusLocations.filter((location) => location.building === 'Com 2'),
+    ).toHaveLength(1);
+    expect(
+      campusLocations.some((location) => location.building === 'Com2'),
+    ).toBe(false);
   }, 30000);
 
   beforeEach(async () => {
@@ -131,6 +175,55 @@ integration('match and confirm against PostgreSQL', () => {
   afterAll(async () => {
     await prisma?.$disconnect();
     await pool?.end();
+  });
+
+  it('reimports CSV whitespace variants without adding suppliers or changing pickup IDs', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'foc-supplier-whitespace-'));
+    const csv = join(directory, 'suppliers.csv');
+    const script = fileURLToPath(
+      new URL('../../scripts/seed-csv-locations.mjs', import.meta.url),
+    );
+    const header =
+      'Name,Type,Building,Floor,Location Description,Latitude,Longitude,StartingTime,ClosingTime,ImageURL\n';
+    const original =
+      "A Hot Hideout,Food,Prince George's Park,2,Near PGP entrance,1.29,103.77,1100hrs,2130hrs,\n";
+    const variant =
+      "  A  Hot\tHideout  , Food , Prince  George's  Park , 2 , Near   PGP\tentrance , 1.29 , 103.77 , 1100hrs , 2130hrs , \n";
+    const runImporter = (): Promise<{ stdout: string; stderr: string }> =>
+      promisify(execFile)(process.execPath, [script, '--file', csv], {
+        env: { ...process.env, DATABASE_URL: databaseUrl },
+      });
+    try {
+      await writeFile(csv, header + original);
+      await runImporter();
+      const first = await prisma.supplier.findMany({
+        include: { locations: true },
+      });
+      expect(first).toHaveLength(1);
+      const supplierId = first[0]!.id;
+      const pickupId = first[0]!.locations[0]!.id;
+      await writeFile(csv, header + original + variant);
+      for (let run = 0; run < 2; run++) {
+        const result = await runImporter();
+        expect(result.stdout).toContain('0 pickup locations created');
+        const suppliers = await prisma.supplier.findMany({
+          include: { locations: true },
+        });
+        expect(suppliers).toHaveLength(1);
+        expect(suppliers[0]).toMatchObject({
+          id: supplierId,
+          name: 'A Hot Hideout',
+        });
+        expect(suppliers[0]!.locations).toHaveLength(1);
+        expect(suppliers[0]!.locations[0]).toMatchObject({
+          id: pickupId,
+          building: "Prince George's Park",
+          locationDescription: 'Near PGP entrance',
+        });
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('includes a cafe in both filters and excludes inactive suppliers and outlets', async () => {
@@ -456,7 +549,7 @@ function record(
       closesAt: new Date('1970-01-01T20:00:00Z'),
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: `${name}@${building}`,
+      supplierAtLocation: name,
     },
   };
 }

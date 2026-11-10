@@ -1,4 +1,11 @@
 #!/usr/bin/env node
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of CDK application entry point.
+ * Author review: Checked foc.ts property values and existing resource references in foc.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { Annotations, App } from 'aws-cdk-lib';
 import { REGION, getProfile } from '../lib/config';
 import { createFocStacks } from '../lib/stacks';

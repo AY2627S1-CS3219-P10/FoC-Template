@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of moderation controller test cases.
+ * Author review: Validated the assertions and setup for "derives the reporter from the authenticated account and rejects spoofed reporter IDs"; clarified test descriptions and assertion formatting.
+ */
+
 import { Test } from '@nestjs/testing';
 import {
   FastifyAdapter,

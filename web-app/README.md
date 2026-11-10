@@ -1,3 +1,4 @@
+<!-- AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md. -->
 # Friend on Campus web app
 
 Responsive React client built with Next.js App Router, TypeScript, and Tailwind

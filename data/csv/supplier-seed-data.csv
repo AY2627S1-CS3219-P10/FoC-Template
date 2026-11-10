@@ -2,7 +2,7 @@ Name,Type,Building,Floor,Location Description,Latitude,Longitude,StartingTime,Cl
 Anna's x Soup Union,Food,Central Library,1,Next to NUS Co-op,1.296444,103.773032,0900hrs,1800hrs,https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/ANNA.jpeg
 NUS Co-op,Shopping,Central Library,1,Inside the library on the right side,1.2967866,103.7732677,0900hrs,1600hrs,https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/NUS_COOP.jpeg
 Printer @ Com 2,Printing,Com 2,1,Next to LT19,1.2938347,103.7744572,0000hrs,2359hrs,https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/PRINTER_COM2.jpeg
-Cool Spot,Food/Beverages,Com2,1,Opp LT16,1.2940156,103.7738478,0900hrs,2130hrs,https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/COOL_SPOT.jpeg
+Cool Spot,Food/Beverages,Com 2,1,Opp LT16,1.2940156,103.7738478,0900hrs,2130hrs,https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/COOL_SPOT.jpeg
 InstaChef,Food,Terrace,1,Next to foyer,1.2938898,103.7736305,0000hrs,2359hrs,https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/INSTACHEF.jpeg
 Cafe+ Robot Cafe,Beverages,Central Library,1,Opp to central library entrance,1.296444,103.773032,0000hrs,2359hrs,https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/ROBOT_CAFE.jpeg
 A Hot Hideout,Food,Prince George's Park,2,Near PGP entrance,1.2908445,103.7770891,1100hrs,2130hrs,

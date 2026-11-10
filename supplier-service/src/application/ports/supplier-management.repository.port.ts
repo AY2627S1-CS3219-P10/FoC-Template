@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier management repository port code (CreateSupplierRecord, UpdateSupplierRecord, UpdateSupplierLocationRecord).
+ * Author review: Checked existing CreateSupplierRecord, UpdateSupplierRecord parameter and return types against their callers; edited type declaration layout and member naming.
+ */
+
 import type {
   CampusLocationCatalogEntry,
   SupplierCatalogEntry,

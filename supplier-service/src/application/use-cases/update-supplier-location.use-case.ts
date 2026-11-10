@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update supplier location code (UpdateSupplierLocationInput, UpdateSupplierLocationUseCase).
+ * Author review: Validated UpdateSupplierLocationInput, UpdateSupplierLocationUseCase input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import type {
   CampusLocationCatalogEntry,
   SupplierLocationCatalogEntry,
@@ -12,6 +19,8 @@ import {
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
 import { CampusLocationNotFoundError } from '../errors/campus-location-not-found.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
+
+import { normalizeCatalogText } from '../../domain/catalog-text.js';
 
 export interface UpdateSupplierLocationInput {
   confirmDistinctOutlet?: boolean;
@@ -73,7 +82,9 @@ export class UpdateSupplierLocationUseCase {
       ...(input.confirmDistinctOutlet === true
         ? { confirmDistinctOutlet: true }
         : {}),
-      building: campusLocation?.building,
+      building: campusLocation
+        ? normalizeCatalogText(campusLocation.building)
+        : undefined,
       closesAt,
       floor: input.floor,
       imageUrl,

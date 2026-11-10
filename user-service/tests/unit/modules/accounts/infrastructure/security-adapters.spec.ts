@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of security adapters test cases.
+ * Author review: Validated the assertions and setup for "hashes passwords with the configured Argon2id parameters"; clarified test descriptions and assertion formatting.
+ */
+
 import { verify } from 'argon2';
 import { decodeProtectedHeader, jwtVerify, SignJWT } from 'jose';
 

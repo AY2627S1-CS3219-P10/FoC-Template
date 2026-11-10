@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of support test assertions and fixtures.
+ * Author review: Checked support test setup and assertions against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { App } from 'aws-cdk-lib';

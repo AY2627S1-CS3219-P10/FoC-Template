@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of public endpoint rate limiter test cases.
+ * Author review: Validated the assertions and setup for "atomically limits hashed client and subject identifiers"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   PUBLIC_ENDPOINT_RATE_LIMIT_POLICIES,
   type PublicEndpointRedisClient,

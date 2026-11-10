@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit events controller code (CreditEventsController).
+ * Author review: Validated CreditEventsController request handlers, parameter handling, and returned values; edited handler naming and formatting.
+ */
+
 import { Controller, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import {
   Ctx,

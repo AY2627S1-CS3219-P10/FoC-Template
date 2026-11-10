@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of check email availability code (CheckEmailAvailabilityInput, CheckEmailAvailabilityResult, CheckEmailAvailabilityDependencies).
+ * Author review: Validated CheckEmailAvailabilityInput, CheckEmailAvailabilityResult input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { NusEmail } from '../../domain/nus-email.js';
 import { EmailAvailabilityRateLimitError } from '../errors/email-availability-rate-limit.error.js';
 import type { AccountUniquenessPort } from '../ports/account-uniqueness.port.js';

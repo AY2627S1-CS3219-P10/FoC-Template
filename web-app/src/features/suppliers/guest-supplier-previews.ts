@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of guest supplier previews code (guestSupplierPreviews).
+ * Author review: Validated guestSupplierPreviews existing type members and constant values in web-app/guest-supplier-previews.ts; edited naming and formatting for readability.
+ */
+
 import type { Supplier } from "@/services/contracts";
 
 const location = (
@@ -27,7 +34,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000001",
-        "Anna's x Soup Union@Central Library",
+        "Anna's x Soup Union",
         "Central Library",
       ),
     ],
@@ -40,7 +47,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000002",
-        "NUS Co-op@Central Library",
+        "NUS Co-op",
         "Central Library",
       ),
     ],
@@ -53,7 +60,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000003",
-        "Printer @ Com 2@Com 2",
+        "Printer @ Com 2",
         "Com 2",
       ),
     ],
@@ -66,8 +73,8 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000004",
-        "Cool Spot@Com2",
-        "Com2",
+        "Com 2",
+        "Cool Spot",
       ),
     ],
   },
@@ -79,7 +86,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000005",
-        "InstaChef@Terrace",
+        "InstaChef",
         "Terrace",
       ),
     ],
@@ -92,7 +99,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000006",
-        "Cafe+ Robot Cafe@Central Library",
+        "Cafe+ Robot Cafe",
         "Central Library",
       ),
     ],

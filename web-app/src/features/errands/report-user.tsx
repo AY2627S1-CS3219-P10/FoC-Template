@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of report user rendering and interaction code (ReportTarget, ReportUser).
+ * Author review: Validated ReportTarget, ReportUser state updates, form submission, click handlers in web-app/report-user.tsx; refined JSX layout and user-facing wording. Additional review item: Check invalid-input messages and repeated submissions.
+ */
+
 "use client";
 
 import { useRef, useState } from "react";

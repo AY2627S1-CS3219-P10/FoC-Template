@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of test-account seed configuration parsing.
+ * Author review: Checked assertTestAccountSeedAllowed, parseTestAccountSeedConfig input parsing, defaults, and rejected values; edited option naming and configuration formatting.
+ */
+
 import { TestAccountSeedError } from '../../application/errors/test-account-seed.error.js';
 import type { TestAccountSeedInput } from '../../application/use-cases/seed-test-accounts.use-case.js';
 

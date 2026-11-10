@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of deploy workflow commands and job configuration.
+# Author review: Checked deploy.yml job steps, command paths, and referenced inputs; standardized YAML indentation and step wording.
+
 # Deploys main to AWS: CI, then build and push the 7 images tagged with the
 # commit, deploy FocJobs, run the user and supplier migrations, deploy FocApp,
 # check every service runs the new tag, and smoke-test /login.
@@ -11,6 +16,11 @@
 name: Deploy
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:

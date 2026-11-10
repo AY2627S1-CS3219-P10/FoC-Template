@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of email verification use cases test cases.
+ * Author review: Validated the assertions and setup for "issues a hashed six-digit code that expires after ten minutes"; clarified test descriptions and assertion formatting.
+ */
+
 import type { EmailVerificationError } from '../../../../../src/modules/accounts/application/errors/email-verification.error.js';
 import type { ClockPort } from '../../../../../src/modules/accounts/application/ports/clock.port.js';
 import type {

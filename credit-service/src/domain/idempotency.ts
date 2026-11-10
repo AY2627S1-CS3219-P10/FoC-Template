@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of idempotency code (assertDistinctSettlementParties, assertMatchingReservation, assertAdjustmentAllowed).
+ * Author review: Validated assertDistinctSettlementParties, assertMatchingReservation existing type members and constant values in credit-service/idempotency.ts; edited naming and formatting for readability.
+ */
+
 import {
   IdempotencyConflictError,
   ReservationStateConflictError,

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of administrator privilege error code (AdministratorPrivilegeErrorCode, AdministratorPrivilegeError).
+ * Author review: Checked AdministratorPrivilegeErrorCode, AdministratorPrivilegeError error messages and codes ACCOUNT_NOT_FOUND, ADMINISTRATOR_PRIVILEGES_REQUIRED, ADMINISTRATOR_SELF_CHANGE_FORBIDDEN; standardized exception naming and formatting.
+ */
+
 export type AdministratorPrivilegeErrorCode =
   | 'ACCOUNT_NOT_FOUND'
   | 'ADMINISTRATOR_PRIVILEGES_REQUIRED'

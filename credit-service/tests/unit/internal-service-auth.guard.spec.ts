@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of internal service auth guard test cases.
+ * Author review: Validated the assertions and setup for "accepts the configured bearer token"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   ExecutionContext,
   ForbiddenException,

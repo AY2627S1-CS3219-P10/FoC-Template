@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account already exists error code (UniqueAccountField, AccountAlreadyExistsError).
+ * Author review: Checked UniqueAccountField, AccountAlreadyExistsError error messages and codes EMAIL_ALREADY_REGISTERED, PHONE_NUMBER_ALREADY_REGISTERED, USERNAME_ALREADY_REGISTERED; standardized exception naming and formatting.
+ */
+
 export type UniqueAccountField = 'email' | 'phoneNumber' | 'username';
 
 const ERROR_CODES: Record<UniqueAccountField, string> = {

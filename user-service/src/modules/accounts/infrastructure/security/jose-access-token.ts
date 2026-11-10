@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of jose access token code (JoseAccessToken).
+ * Author review: Validated JoseAccessToken input handling, return values, and thrown errors in user-service/jose-access-token.ts; edited naming and formatting for readability.
+ */
+
 import { jwtVerify, SignJWT } from 'jose';
 
 import {

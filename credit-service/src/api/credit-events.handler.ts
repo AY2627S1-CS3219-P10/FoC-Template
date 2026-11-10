@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit events handler code (USER_VERIFIED_EVENT, ERRAND_COMPLETED_EVENT, UserVerifiedData).
+ * Author review: Validated USER_VERIFIED_EVENT, ERRAND_COMPLETED_EVENT input handling, return values, and thrown errors in credit-service/credit-events.handler.ts; edited naming and formatting for readability.
+ */
+
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { isUUID } from 'class-validator';

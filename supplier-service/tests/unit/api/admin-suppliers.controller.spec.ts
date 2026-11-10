@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of admin suppliers controller test cases.
+ * Author review: Validated the assertions and setup for "allows an administrator to create a supplier"; clarified test descriptions and assertion formatting.
+ */
+
 import type { INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -57,7 +64,7 @@ const ORIGINAL_LOCATION: SupplierLocationCatalogEntry = {
   locationDescription: 'Near the main entrance',
   longitude: 103.7739,
   opensAt: '08:00',
-  supplierAtLocation: 'Starbucks@UTown',
+  supplierAtLocation: 'Starbucks',
 };
 const CREATED: SupplierCatalogEntry = {
   categories: ['FOOD', 'BEVERAGES'],
@@ -73,7 +80,7 @@ const UPDATED_LOCATION: SupplierLocationCatalogEntry = {
   latitude: 1.2966,
   locationDescription: 'Beside the main entrance',
   longitude: 103.7801,
-  supplierAtLocation: 'Starbucks@Science',
+  supplierAtLocation: 'Starbucks',
 };
 
 class StubCreateSupplierUseCase {

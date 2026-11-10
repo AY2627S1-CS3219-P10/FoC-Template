@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of username code (USERNAME_MAXIMUM_LENGTH, Username).
+ * Author review: Validated USERNAME_MAXIMUM_LENGTH, Username input handling, return values, and thrown errors in user-service/username.ts; edited naming and formatting for readability.
+ */
+
 import { AccountValidationError } from './account-validation.error.js';
 
 const ALPHANUMERIC_PATTERN = /^[A-Za-z0-9]+$/;

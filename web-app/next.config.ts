@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of web-app/next.config.ts tooling configuration.
+ * Author review: Validated web-app/next.config.ts settings for key, value, poweredByHeader; edited configuration layout and naming for consistency.
+ */
+
 import type { NextConfig } from "next";
 
 const isDevelopment = process.env.NODE_ENV === "development";

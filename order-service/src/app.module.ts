@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of app module code (AppModule).
+ * Author review: Checked AppModule imports, provider registrations, and exports against the existing references; organized module declaration formatting (order-service/src/app.module.ts).
+ */
+
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';

@@ -1,0 +1,62 @@
+AI Assistance Disclosure — session record
+Date: 2026-11-10 (Asia/Singapore)
+Tool: OpenAI Codex (GPT-6 family; exact model unavailable).
+Mode: generate — file-specific disclosure comments and this session record.
+
+Author-provided history and evidence limits
+The author identified the original AI tool as GPT-6.1 Sol and confirmed that author
+review mainly involved validating correctness and editing style. File headers
+reflect that author-provided history; it was not independently verified here.
+The original assistance date and generate/refactor/debug breakdown are unrecorded.
+Original prompts and key responses were not retained. Each header provides a
+file-specific reconstructed example prompt, explicitly labeled as such. These are
+illustrative prompts, not recovered transcripts. No original response is invented.
+The disclosure date is the current editing date, not an original generation date.
+Scopes describe implementation assistance and exclude requirements work,
+architecture/design decisions, and decision rationales. These limited scope
+statements do not establish whether other assistance occurred historically.
+
+P1 — exact user prompt
+Source & mode: which tool(s), how it was used (generate/refactor/debug/explain).
+• Prompts: the exact prompts + key responses.
+• Location(s):
+ place the attribution comment at the top of each AI-influenced file (see below)
+as a comment
+
+Example: Short File-Header Attribution (in each affected file)
+AI Assistance Disclosure:
+Tool: ChatGPT (model: GPT-5.6 Luna Light), date: 2026-08-11
+Scope: Generated initial implementation of modules X and Y; suggested test cases for Z.
+Author review: I validated correctness, edited for style, and added boundary checks.
+
+help me add this as a comment to every code file in this project based on the description and based on the example given, modfying the scope and author review based on what the file is doing. take note that the scope must not include the things mentioned below
+
+Requirements work: wholesale outsourcing of requirements elicitation to AI tools,
+prioritizing project requirements; consolidating backlog, sprint planning.
+• Architecture & design: proposing/changing system architecture, component
+boundaries, selecting design patterns, deciding data schemas, defining interfaces,
+or making performance/security trade-offs.
+• Decision rationales: drafting your trade-off analyses, risk mentions, or justification
+mentions.
+
+R1 — key assistant responses (verbatim excerpts)
+“I’ll inspect the project and add file-specific disclosure comments using each language’s comment syntax. I’ll keep the scopes focused on implementation and avoid claiming reviews or validation that haven’t been confirmed.”
+
+“The project contains roughly 420 code, test, script, and migration files. I’ll add headers describing each file’s purpose, with a shared record for the exact prompt. Since the original AI history and human reviews aren’t available, I’ll mark them as unverified rather than inventing model names, prompts, or validation claims.”
+
+P2 — exact author clarification
+the ai tool is gpt 6.1 sol, no exact prompts, help me input general prompts that will result in the code. author review is mainly validate correctness, edit styles. use your discretion when modifying what the author review is, thats the general stuff that author did
+
+R2 — key assistant response
+“I’ll update the headers to GPT-6.1 Sol and use your confirmation that the author validated correctness and edited style. I’ll add file-specific example prompts, clearly labeled as reconstructed because the original prompts weren’t retained.”
+
+Result and verification
+Added file-specific comment headers to 432 tracked source, test, configuration,
+container, script, Prisma, and SQL files. JSON manifests, lockfiles, generated
+artifacts, data assets, and existing prose were excluded. Strict JSON cannot
+contain comments. Interpreter and Docker parser directives retain first position.
+Verified that removing each newly inserted header reproduces its original file
+content byte for byte. No application tests were run for these comment-only edits.
+Human review statements are based on the author's clarification above.
+Comments in historical SQL migrations change migration file checksums; check any
+database with previously applied migrations before using the edited history.

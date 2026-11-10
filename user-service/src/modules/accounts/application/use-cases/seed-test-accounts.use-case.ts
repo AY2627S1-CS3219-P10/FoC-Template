@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of test-account seed input handling and execution.
+ * Author review: Checked SeedTestAccountsUseCase seed input validation, dependency calls, and result values; clarified control-flow layout and local names.
+ */
+
 import { AccountStatus } from '../../domain/account-status.js';
 import { NusEmail } from '../../domain/nus-email.js';
 import { assertPasswordMeetsPolicy } from '../../domain/password-policy.js';

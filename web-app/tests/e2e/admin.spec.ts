@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of admin test cases.
+ * Author review: Validated the assertions and setup for "admin supplier workflows submit service contracts and show failures" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { expect, test, type Page } from "@playwright/test";
 
 const admin = {
@@ -32,7 +39,7 @@ const supplier = {
       isOpenOvernight: false,
       imageUrl:
         "https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/ROBOT_CAFE.jpeg",
-      supplierAtLocation: "Campus Coffee@UTown",
+      supplierAtLocation: "Campus Coffee",
     },
   ],
 };
@@ -188,6 +195,38 @@ test("admin supplier workflows submit service contracts and show failures", asyn
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("suppliers without photos show a category placeholder icon", async ({
+  page,
+}) => {
+  await session(page, admin);
+  await page.route("**/api/admin/suppliers**", (route) =>
+    route.fulfill({
+      json: new URL(route.request().url()).pathname.endsWith(
+        "/campus-locations",
+      )
+        ? campusLocations
+        : [
+            {
+              ...supplier,
+              locations: supplier.locations.map((location) => ({
+                ...location,
+                imageUrl: null,
+              })),
+            },
+          ],
+    }),
+  );
+
+  await page.goto("/admin");
+  const placeholder = page.getByRole("img", {
+    name: "No image available for Campus Coffee",
+  });
+  await expect(placeholder).toBeVisible();
+  await expect(
+    placeholder.locator(".admin-card-placeholder-burger"),
+  ).toBeVisible();
 });
 
 test("matches show descriptions and require fresh confirmation after form edits", async ({

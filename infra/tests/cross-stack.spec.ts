@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of cross stack test assertions and fixtures.
+ * Author review: Checked cross stack spec test setup and assertions against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import type { Template } from 'aws-cdk-lib/assertions';
 import { synthesize } from './support';
 

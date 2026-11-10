@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user access token guard code (UserAccessTokenGuard).
+ * Author review: Checked UserAccessTokenGuard request checks, accepted credentials, and rejection branches; clarified condition layout and error wording.
+ */
+
 import {
   CanActivate,
   ExecutionContext,

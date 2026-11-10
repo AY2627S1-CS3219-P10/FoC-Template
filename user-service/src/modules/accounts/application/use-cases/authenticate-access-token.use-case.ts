@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of authenticate access token code (AuthenticateAccessTokenDependencies, AuthenticateAccessTokenUseCase).
+ * Author review: Validated AuthenticateAccessTokenDependencies, AuthenticateAccessTokenUseCase input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { AuthenticationError } from '../errors/authentication.error.js';
 import type { AccessTokenPort } from '../ports/access-token.port.js';
 import type {

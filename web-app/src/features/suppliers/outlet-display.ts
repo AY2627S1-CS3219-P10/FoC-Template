@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of outlet display code (supplierCards, outletTitle, outletAddress).
+ * Author review: Validated supplierCards, outletTitle existing type members and constant values in web-app/outlet-display.ts; edited naming and formatting for readability.
+ */
+
 import type { PickupLocation, Supplier } from "@/services/contracts";
 
 export function supplierCards(suppliers: Supplier[]) {
@@ -52,6 +59,34 @@ export function outletTitle(name: string, location: PickupLocation): string {
 
 export function outletAddress(location: PickupLocation): string {
   return `${location.building} · ${location.floor === null ? "Floor not specified" : `Floor ${location.floor}`}`;
+}
+
+// AI-assisted: shorten location-qualified names only in pickup option labels.
+export function pickupSupplierDisplayName(
+  name: string,
+  building: string,
+): string {
+  const match = /^(.*\S)\s+@\s+(.+)$/.exec(name);
+  if (!match) return name;
+
+  const key = (value: string) =>
+    value.trim().replace(/\s+/g, " ").toLowerCase();
+  const suffix = key(match[2]);
+  const buildingKey = key(building);
+  const aliases: Record<string, string[]> = {
+    yih: ["yusof ishak house"],
+    md11: ["medicine block md11"],
+    s9: ["science block s9"],
+    s16: ["science block s16"],
+    cde: ["college of design and engineering"],
+    utown: ["stephen riady centre", "education resource centre"],
+    science: ["science lt27"],
+  };
+
+  return suffix === buildingKey ||
+    (Object.hasOwn(aliases, suffix) && aliases[suffix].includes(buildingKey))
+    ? match[1].trim()
+    : name;
 }
 
 export function supplierImageUrl(imageUrl: string | null): string | null {

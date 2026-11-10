@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of moderation use cases code (ReportUserUseCase, ViewReportsUseCase, ResolveReportUseCase).
+ * Author review: Validated ReportUserUseCase, ViewReportsUseCase input handling, return values, and thrown errors in user-service/moderation.use-cases.ts; edited naming and formatting for readability.
+ */
+
 import { ModerationError } from '../errors/moderation.error.js';
 import type { ClockPort } from '../ports/clock.port.js';
 import type {

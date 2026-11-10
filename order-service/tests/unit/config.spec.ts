@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of config test assertions and fixtures.
+ * Author review: Checked "defaults DATABASE_POOL_MAX to 20 when unset" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { validate } from '../../src/app.module';
 
 const env = {

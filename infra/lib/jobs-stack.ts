@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing background-job resource definitions.
+ * Author review: Checked JobsStack property values and existing resource references in jobs-stack.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { RemovalPolicy, Stack } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import * as ecs from 'aws-cdk-lib/aws-ecs';

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user outbox relay test cases.
+ * Author review: Validated the assertions and setup for "publishes the Credit Service envelope and marks the row after confirmation"; clarified test descriptions and assertion formatting.
+ */
+
 import type { ConfigService } from '@nestjs/config';
 import type { ChannelModel, ConfirmChannel } from 'amqplib';
 

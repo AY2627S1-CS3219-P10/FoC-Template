@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account rules test cases.
+ * Author review: Validated the assertions and setup for "accepts an alphanumeric username"; clarified test descriptions and assertion formatting.
+ */
+
 import { AccountValidationError } from '../../../../../src/modules/accounts/domain/account-validation.error.js';
 import { EmailVerificationCode } from '../../../../../src/modules/accounts/domain/email-verification-code.js';
 import {

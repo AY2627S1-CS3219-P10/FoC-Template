@@ -1,4 +1,9 @@
 #!/bin/sh
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of docker entrypoint script commands.
+# Author review: Validated credit-service migration invocation and process handoff in docker-entrypoint.sh; edited command layout and status-message wording.
+
 set -eu
 
 startup_timeout="${DATABASE_STARTUP_TIMEOUT_SECONDS:-55}"

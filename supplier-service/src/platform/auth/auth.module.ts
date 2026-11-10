@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of auth module code (AuthModule).
+ * Author review: Checked AuthModule imports, provider registrations, and exports against the existing references; organized module declaration formatting.
+ */
+
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of ports code (ORDER_REPOSITORY, SERVICE_CLIENTS, ErrandSort).
+ * Author review: Checked existing ORDER_REPOSITORY, SERVICE_CLIENTS parameter and return types against their callers; edited type declaration layout and member naming.
+ */
+
 import type {
   CreateErrand,
   EditErrand,

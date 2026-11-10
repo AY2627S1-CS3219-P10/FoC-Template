@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit balance rendering and interaction code (CreditBalanceCard).
+ * Author review: Validated CreditBalanceCard click handlers, error rendering in web-app/credit-balance.tsx; refined JSX layout and user-facing wording.
+ */
+
 "use client";
 
 import { useCredits } from "./credit-provider";

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of register with email verification code (RegisterWithEmailVerificationDependencies, RegisterWithEmailVerificationUseCase).
+ * Author review: Validated RegisterWithEmailVerificationDependencies, RegisterWithEmailVerificationUseCase input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import type { VerificationEmailDeliveryPort } from '../ports/verification-email-delivery.port.js';
 import type {
   RegisterAccountInput,

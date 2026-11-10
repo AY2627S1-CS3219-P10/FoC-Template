@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of resend verification email use case test cases.
+ * Author review: Validated the assertions and setup for "normalizes the email, issues a replacement code, and queues it"; clarified test descriptions and assertion formatting.
+ */
+
 import { EmailVerificationError } from '../../../../../src/modules/accounts/application/errors/email-verification.error.js';
 import type { VerificationEmailMessage } from '../../../../../src/modules/accounts/application/ports/verification-email-delivery.port.js';
 import type { RateLimitDecision } from '../../../../../src/modules/accounts/application/ports/verification-email-resend-rate-limiter.port.js';

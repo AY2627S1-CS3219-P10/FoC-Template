@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma email verification repository code (PrismaEmailVerificationRepository).
+ * Author review: Validated PrismaEmailVerificationRepository query parameters, record mappings, and returned values for issueCode, verifyAndActivate; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import type {
   EmailVerificationRepositoryPort,
   IssueEmailVerificationCodeRecord,

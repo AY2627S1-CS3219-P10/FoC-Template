@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of moderation test cases.
+ * Author review: Validated the assertions and setup for "creates an OPEN report with session-derived reporter, safe identities and timestamps, without suspending" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import type { UserReportResponse } from '../../../src/modules/accounts/presentation/http/dto/moderation.dto.js';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of seed test accounts use case test assertions and fixtures.
+ * Author review: Checked "creates active verified non-admin accounts and verification events" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import type { ClockPort } from '../../../../../src/modules/accounts/application/ports/clock.port.js';
 import type { IdGeneratorPort } from '../../../../../src/modules/accounts/application/ports/id-generator.port.js';
 import type { PasswordHasherPort } from '../../../../../src/modules/accounts/application/ports/password-hasher.port.js';

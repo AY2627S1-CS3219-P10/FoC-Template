@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user-service/eslint.config.mjs tooling configuration.
+ * Author review: Validated user-service/eslint.config.mjs settings for ignores, languageOptions, parserOptions; edited configuration layout and naming for consistency.
+ */
+
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of dto code (CreateErrandDto, EditErrandDto, ListErrandsDto).
+ * Author review: Validated CreateErrandDto, EditErrandDto existing type members and constant values in order-service/dto.ts; edited naming and formatting for readability.
+ */
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit-service/src/infrastructure/configuration.ts tooling configuration.
+ * Author review: Validated credit-service/configuration.ts settings for name, rawValue, fallback; edited configuration layout and naming for consistency.
+ */
+
 import { MAX_CREDIT_BALANCE } from '../domain/credit.constants';
 
 const parseInteger = (

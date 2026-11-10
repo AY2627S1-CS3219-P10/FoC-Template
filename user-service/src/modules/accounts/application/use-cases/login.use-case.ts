@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of login code (LoginInput, AuthenticationResult, LoginDependencies).
+ * Author review: Validated LoginInput, AuthenticationResult input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { AccountStatus } from '../../domain/account-status.js';
 import { effectiveAccountStatus } from '../../domain/temporary-suspension.js';
 import { NusEmail } from '../../domain/nus-email.js';

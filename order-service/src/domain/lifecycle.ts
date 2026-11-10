@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of lifecycle code (ERRAND_STATUSES, ErrandStatus, LIFECYCLE_ACTIONS).
+ * Author review: Validated ERRAND_STATUSES, ErrandStatus existing type members and constant values in order-service/lifecycle.ts; edited naming and formatting for readability.
+ */
+
 import { OrderError } from './errand';
 
 /** Every value of the Postgres `ErrandStatus` enum (D-013). */

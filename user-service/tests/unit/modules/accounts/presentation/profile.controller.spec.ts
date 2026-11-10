@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of profile controller test cases.
+ * Author review: Validated the assertions and setup for "rejects a protected request without a bearer token"; clarified test descriptions and assertion formatting.
+ */
+
 import type { INestApplication } from '@nestjs/common';
 import {
   FastifyAdapter,

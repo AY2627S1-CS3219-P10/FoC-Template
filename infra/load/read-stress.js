@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of read-request load scenarios.
+ * Author review: Validated read-stress.js request values, response checks, and fixture handling where used; edited helper naming and script formatting.
+ */
+
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { SharedArray } from 'k6/data';

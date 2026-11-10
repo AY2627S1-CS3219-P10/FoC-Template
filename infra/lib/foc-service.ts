@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing service deployment properties.
+ * Author review: Checked FocService property values and existing resource references in foc-service.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import type * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';

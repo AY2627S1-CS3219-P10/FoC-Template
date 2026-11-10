@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier categories test assertions and fixtures.
+ * Author review: Checked "food and beverages filter independently in list, cards and details" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { expect, test } from "@playwright/test";
 
 const cafe = {
@@ -17,7 +24,7 @@ const cafe = {
       closesAt: "20:00",
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: "Campus Cafe@UTown",
+      supplierAtLocation: "Campus Cafe",
     },
   ],
 };

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of api code (ApiError, request, sessionLock).
+ * Author review: Validated ApiError, request existing type members and constant values in web-app/api.ts; edited naming and formatting for readability.
+ */
+
 import { supplierMatches, type SupplierMatch } from "./supplier-matches";
 
 export class ApiError extends Error {

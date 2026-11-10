@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit service test cases.
+ * Author review: Validated the assertions and setup for "initializes with the configured starting balance"; clarified test descriptions and assertion formatting.
+ */
+
 import type { ConfigService } from '@nestjs/config';
 import type { CreditRepository } from '../../src/application/credit.repository';
 import { CreditService } from '../../src/application/credit.service';

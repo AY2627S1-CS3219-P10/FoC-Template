@@ -1,7 +1,15 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier input code (SUPPLIER_CATEGORIES, SupplierCategory, assertUuid).
+ * Author review: Validated SUPPLIER_CATEGORIES, SupplierCategory existing type members and constant values in supplier-service/supplier-input.ts; edited naming and formatting for readability.
+ */
+
 import {
   type SupplierValidationField,
   SupplierValidationError,
 } from './supplier-validation.error.js';
+import { normalizeCatalogText } from './catalog-text.js';
 
 export const SUPPLIER_CATEGORIES = [
   'FOOD',
@@ -31,7 +39,7 @@ export function normalizeRequiredText(
   field: SupplierValidationField,
   maximumLength: number,
 ): string {
-  const normalized = value.trim();
+  const normalized = normalizeCatalogText(value);
 
   if (normalized.length === 0) {
     throw new SupplierValidationError(

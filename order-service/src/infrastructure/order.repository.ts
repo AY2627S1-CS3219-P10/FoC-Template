@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of order repository code (operationRecord, sameInput, PrismaOrderRepository).
+ * Author review: Validated operationRecord, sameInput query parameters, record mappings, and returned values for bookmark, bookmarkedIds, listStarred; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { OrderRepository, OperationRecord } from '../application/ports';
