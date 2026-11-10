@@ -160,7 +160,7 @@ try {
     const values = [
       existing.rows[0]?.id ?? randomUUID(),
       supplierId,
-      `${row.name}@${row.building}`,
+      row.name,
       row.building,
       row.floor,
       row.description,
