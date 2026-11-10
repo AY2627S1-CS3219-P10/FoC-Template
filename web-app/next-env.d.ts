@@ -1,10 +1,3 @@
-/*
- * AI Assistance Disclosure:
- * Tool: GPT-6.1 Sol.
- * Scope: AI-assisted implementation of next env d code.
- * Author review: Checked web-app ambient Next.js type references and generated route-type import for consistency; retained the generated declaration style.
- */
-
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
 import "./.next/dev/types/routes.d.ts";
