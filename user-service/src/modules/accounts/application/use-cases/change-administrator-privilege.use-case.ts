@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of change administrator privilege code (ChangeAdministratorPrivilegeInput, ChangeAdministratorPrivilegeDependencies, ChangeAdministratorPrivilegeUseCase).
+ * Author review: Validated ChangeAdministratorPrivilegeInput, ChangeAdministratorPrivilegeDependencies input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { AdministratorPrivilegeError } from '../errors/administrator-privilege.error.js';
 import type {
   AdministratorPrivilegeAccount,

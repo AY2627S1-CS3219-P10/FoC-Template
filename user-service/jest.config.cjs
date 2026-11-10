@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user-service/jest.config.cjs tooling configuration.
+ * Author review: Validated user-service/jest.config.cjs settings for clearMocks, collectCoverageFrom, coverageDirectory; edited configuration layout and naming for consistency.
+ */
+
 /** @type {import('jest').Config} */
 module.exports = {
   clearMocks: true,

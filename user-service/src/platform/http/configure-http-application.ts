@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user-service/src/platform/http/configure-http-application.ts tooling configuration (HttpApplicationOptions, configureHttpApplication).
+ * Author review: Validated user-service/configure-http-application.ts settings for app, options, origin; edited configuration layout and naming for consistency.
+ */
+
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';

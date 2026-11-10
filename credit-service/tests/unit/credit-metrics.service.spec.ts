@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit metrics service test cases.
+ * Author review: Validated the assertions and setup for "renders bounded Prometheus counters"; clarified test descriptions and assertion formatting.
+ */
+
 import { CreditMetricsService } from '../../src/infrastructure/credit-metrics.service';
 
 describe('CreditMetricsService', () => {

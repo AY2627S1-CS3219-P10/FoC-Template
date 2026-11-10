@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of redis email availability rate limiter code (EMAIL_AVAILABILITY_RATE_LIMIT_WINDOW_MS, MAXIMUM_EMAIL_AVAILABILITY_CHECKS_PER_CLIENT, MAXIMUM_EMAIL_AVAILABILITY_CHECKS_PER_EMAIL).
+ * Author review: Validated EMAIL_AVAILABILITY_RATE_LIMIT_WINDOW_MS, MAXIMUM_EMAIL_AVAILABILITY_CHECKS_PER_CLIENT input handling, return values, and thrown errors in user-service/redis-email-availability-rate-limiter.ts; edited naming and formatting for readability.
+ */
+
 import { createHash } from 'node:crypto';
 
 import type { OnModuleDestroy } from '@nestjs/common';

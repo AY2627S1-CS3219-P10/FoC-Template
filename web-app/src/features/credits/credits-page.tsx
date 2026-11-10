@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credits page rendering and interaction code (CreditsPage).
+ * Author review: Validated CreditsPage click handlers, error rendering in web-app/credits-page.tsx; refined JSX layout and user-facing wording.
+ */
+
 "use client";
 
 import Link from "next/link";

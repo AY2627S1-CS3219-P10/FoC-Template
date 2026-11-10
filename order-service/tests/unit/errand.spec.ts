@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errand test cases.
+ * Author review: Validated the assertions and setup for "gives FOOD 2 h and NON_PERISHABLE 24 h from creation"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   assertEditable,
   assertEditFields,

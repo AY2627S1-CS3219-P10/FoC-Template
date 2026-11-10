@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of bookmarks test cases.
+ * Author review: Validated the assertions and setup for "courier stars, reloads, filters, and removes saved errands" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { test, expect } from "@playwright/test";
 
 const user = { id: "10000000-0000-4000-8000-000000000001", username: "Courier", isAdmin: false };

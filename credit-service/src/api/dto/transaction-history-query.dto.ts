@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of transaction history query dto code (TransactionHistoryQueryDto).
+ * Author review: Checked TransactionHistoryQueryDto validation decorators (IsOptional, IsInt, Min) and optional fields; standardized property formatting and annotations.
+ */
+
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';

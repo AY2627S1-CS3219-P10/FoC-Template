@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of service clients test cases.
+ * Author review: Validated the assertions and setup for "uses the current Credit reserve, adjustment, and release contracts"; clarified test descriptions and assertion formatting.
+ */
+
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import {

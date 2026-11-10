@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of register account code (RegisterAccountInput, RegisterAccountResult, RegisterAccountDependencies).
+ * Author review: Validated RegisterAccountInput, RegisterAccountResult input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { NEW_ACCOUNT_DEFAULTS } from '../../domain/account-status.js';
 import type { AccountStatus } from '../../domain/account-status.js';
 import { NusEmail } from '../../domain/nus-email.js';

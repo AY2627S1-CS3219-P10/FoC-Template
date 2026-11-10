@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of check email availability use case test cases.
+ * Author review: Validated the assertions and setup for "rejects a non-NUS email before rate limiting or lookup"; clarified test descriptions and assertion formatting.
+ */
+
 import type { AccountUniquenessPort } from '../../../../../src/modules/accounts/application/ports/account-uniqueness.port.js';
 import type {
   EmailAvailabilityRateLimitDecision,

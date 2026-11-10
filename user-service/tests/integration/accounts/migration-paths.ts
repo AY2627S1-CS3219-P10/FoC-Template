@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of migration paths test cases (MIGRATION_PATHS).
+ * Author review: Validated MIGRATION_PATHS value handling and returned results in user-service/migration-paths.ts; edited naming and formatting for readability.
+ */
+
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 

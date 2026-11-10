@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of list campus locations use case test cases.
+ * Author review: Validated the assertions and setup for "returns the fixed campus-location catalog from its repository"; clarified test descriptions and assertion formatting.
+ */
+
 import type { SupplierCatalogRepositoryPort } from '../../../src/application/ports/supplier-catalog.repository.port.js';
 import { ListCampusLocationsUseCase } from '../../../src/application/use-cases/list-campus-locations.use-case.js';
 import type {

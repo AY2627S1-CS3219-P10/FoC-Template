@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610180005_outbox_events (create table, create index, create unique index).
+-- Author review: Validated the SQL statements for outbox_events in migration 202610180005_outbox_events; edited SQL layout and comments for readability.
+
 -- Transactional outbox (D-001): rows are written in the same statement as the status
 -- change and published to RabbitMQ by OutboxRelay. id is the eventId, stable across
 -- republishing; headers carry the correlation id, never the payload.

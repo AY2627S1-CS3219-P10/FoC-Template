@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of correlation code (CORRELATION_HEADER, correlationIdFor, currentCorrelationId).
+ * Author review: Validated CORRELATION_HEADER, correlationIdFor existing type members and constant values in order-service/correlation.ts; edited naming and formatting for readability.
+ */
+
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of accounts controller test cases.
+ * Author review: Validated the assertions and setup for "maps an availability rate limit to HTTP 429"; clarified test descriptions and assertion formatting.
+ */
+
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {

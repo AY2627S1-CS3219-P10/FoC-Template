@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of issue email verification code code (EMAIL_VERIFICATION_CODE_LIFETIME_MS, IssueEmailVerificationCodeDependencies, IssueEmailVerificationCodeResult).
+ * Author review: Validated EMAIL_VERIFICATION_CODE_LIFETIME_MS, IssueEmailVerificationCodeDependencies input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { EmailVerificationCode } from '../../domain/email-verification-code.js';
 import { EmailVerificationError } from '../errors/email-verification.error.js';
 import type { ClockPort } from '../ports/clock.port.js';

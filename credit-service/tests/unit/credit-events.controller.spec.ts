@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit events controller test cases.
+ * Author review: Validated the assertions and setup for "ACKs only after committed event handling resolves"; clarified test descriptions and assertion formatting.
+ */
+
 import { BadRequestException } from '@nestjs/common';
 import type { RmqContext } from '@nestjs/microservices';
 import { randomUUID } from 'node:crypto';

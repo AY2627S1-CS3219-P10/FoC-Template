@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of reports moderation rendering and interaction code (calculateSuspensionExpiry, ReportsModeration).
+ * Author review: Validated calculateSuspensionExpiry, ReportsModeration state updates, form submission, click handlers in web-app/reports-moderation.tsx; refined JSX layout and user-facing wording. Additional review item: Check invalid-input messages and repeated submissions.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";

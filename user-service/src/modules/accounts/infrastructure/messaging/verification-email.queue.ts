@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of verification email queue code (VERIFICATION_EMAIL_QUEUE_NAME, SEND_VERIFICATION_EMAIL_JOB, VerificationEmailJobData).
+ * Author review: Validated VERIFICATION_EMAIL_QUEUE_NAME, SEND_VERIFICATION_EMAIL_JOB value handling and returned results in user-service/verification-email.queue.ts; edited naming and formatting for readability.
+ */
+
 import type { OnModuleDestroy } from '@nestjs/common';
 import { Queue, type JobsOptions } from 'bullmq';
 

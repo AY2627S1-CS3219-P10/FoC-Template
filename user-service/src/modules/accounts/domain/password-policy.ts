@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of password policy code (PASSWORD_MINIMUM_LENGTH, PASSWORD_MAXIMUM_LENGTH, assertPasswordMeetsPolicy).
+ * Author review: Validated PASSWORD_MINIMUM_LENGTH, PASSWORD_MAXIMUM_LENGTH input handling, return values, and thrown errors in user-service/password-policy.ts; edited naming and formatting for readability.
+ */
+
 import { AccountValidationError } from './account-validation.error.js';
 
 export const PASSWORD_MINIMUM_LENGTH = 8;

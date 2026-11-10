@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update username code (UpdateUsernameInput, UpdateUsernameUseCase).
+ * Author review: Validated UpdateUsernameInput, UpdateUsernameUseCase input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { Username } from '../../domain/username.js';
 import { AuthenticationError } from '../errors/authentication.error.js';
 import type {

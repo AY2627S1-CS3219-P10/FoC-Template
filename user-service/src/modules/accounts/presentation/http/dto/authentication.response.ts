@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of authentication response code (AuthenticationResponse).
+ * Author review: Checked AuthenticationResponse field values and response mappings; standardized property formatting and annotations.
+ */
+
 import { ApiProperty } from '@nestjs/swagger';
 
 class AuthenticatedUserResponse {

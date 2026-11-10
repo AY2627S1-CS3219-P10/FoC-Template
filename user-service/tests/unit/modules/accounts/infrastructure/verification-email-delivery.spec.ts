@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of verification email delivery test cases.
+ * Author review: Validated the assertions and setup for "queues an idempotent job with retries and no retained code"; clarified test descriptions and assertion formatting.
+ */
+
 import type { VerificationEmailMessage } from '../../../../../src/modules/accounts/application/ports/verification-email-delivery.port.js';
 import {
   type MailTransport,

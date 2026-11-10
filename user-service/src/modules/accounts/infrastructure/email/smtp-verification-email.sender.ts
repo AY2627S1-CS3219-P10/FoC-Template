@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of smtp verification email sender code (MailTransport, SmtpVerificationEmailSender).
+ * Author review: Validated MailTransport, SmtpVerificationEmailSender value handling and returned results in user-service/smtp-verification-email.sender.ts; edited naming and formatting for readability.
+ */
+
 import type { SendMailOptions } from 'nodemailer';
 
 import type {

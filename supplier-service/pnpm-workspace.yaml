@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of supplier-service/pnpm-workspace.yaml tooling configuration.
+# Author review: Checked supplier-service/pnpm-workspace.yaml entries for engineStrict, saveExact, allowBuilds against their existing uses; corrected indentation and configuration readability.
+
 engineStrict: true
 saveExact: true
 

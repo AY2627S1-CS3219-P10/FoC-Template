@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of seed administrator accounts code (REQUIRED_ADMINISTRATOR_COUNT, AdministratorSeedInput, SeedAdministratorAccountsDependencies).
+ * Author review: Validated REQUIRED_ADMINISTRATOR_COUNT, AdministratorSeedInput input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { AccountStatus } from '../../domain/account-status.js';
 import { NusEmail } from '../../domain/nus-email.js';
 import { assertPasswordMeetsPolicy } from '../../domain/password-policy.js';

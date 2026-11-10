@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of administrator authorization guard code (AdministratorAuthorizationGuard).
+ * Author review: Checked AdministratorAuthorizationGuard request checks, accepted credentials, and rejection branches; clarified condition layout and error wording.
+ */
+
 import {
   type CanActivate,
   type ExecutionContext,

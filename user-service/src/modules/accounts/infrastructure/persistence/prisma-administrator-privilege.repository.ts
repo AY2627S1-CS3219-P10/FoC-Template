@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma administrator privilege repository code (PrismaAdministratorPrivilegeRepository).
+ * Author review: Validated PrismaAdministratorPrivilegeRepository query parameters, record mappings, and returned values for isLastAdministratorConstraintError, lastAdministratorError; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import { AdministratorPrivilegeError } from '../../application/errors/administrator-privilege.error.js';
 import type {
   AdministratorPrivilegeAccount,

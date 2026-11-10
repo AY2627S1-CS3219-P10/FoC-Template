@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user-service/src/modules/accounts/infrastructure/config/administrator-seed-config.ts tooling configuration (parseAdministratorSeedConfig).
+ * Author review: Validated user-service/administrator-seed-config.ts settings for value, email, operator; edited configuration layout and naming for consistency.
+ */
+
 import { AdministratorSeedError } from '../../application/errors/administrator-seed.error.js';
 import type { AdministratorSeedInput } from '../../application/use-cases/seed-administrator-accounts.use-case.js';
 

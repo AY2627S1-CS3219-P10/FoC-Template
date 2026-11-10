@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of email availability rate limiter test cases.
+ * Author review: Validated the assertions and setup for "atomically limits hashed client and email identifiers"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   EMAIL_AVAILABILITY_RATE_LIMIT_WINDOW_MS,
   type EmailAvailabilityRedisClient,

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of metrics controller code (MetricsController).
+ * Author review: Validated MetricsController Get handlers, parameter handling, and returned values; edited handler naming and formatting.
+ */
+
 import { Controller, Get, Header, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,

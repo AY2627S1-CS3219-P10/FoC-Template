@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 20261017000100_add_transactional_outbox (create table, create unique index, create index).
+-- Author review: Validated the SQL statements for outbox_events in migration 20261017000100_add_transactional_outbox; edited SQL layout and comments for readability.
+
 CREATE TABLE "outbox_events" (
     "id" UUID NOT NULL,
     "aggregate_type" VARCHAR(128) NOT NULL,

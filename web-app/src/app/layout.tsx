@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of layout rendering and interaction code (metadata, RootLayout).
+ * Author review: Validated metadata, RootLayout rendered content, props usage in web-app/layout.tsx; refined JSX layout and user-facing wording.
+ */
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";

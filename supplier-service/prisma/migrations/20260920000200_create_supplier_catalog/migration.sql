@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 20260920000200_create_supplier_catalog (create table, create unique index, create index).
+-- Author review: Validated the SQL statements for suppliers, supplier_locations, CASCADE in migration 20260920000200_create_supplier_catalog; edited SQL layout and comments for readability.
+
 CREATE EXTENSION IF NOT EXISTS "citext";
 
 CREATE TYPE "supplier_category" AS ENUM (

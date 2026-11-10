@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of moderation test cases.
+ * Author review: Validated the assertions and setup for "an errand participant reports only the other participant once" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { expect, test } from "@playwright/test";
 
 const requester = {

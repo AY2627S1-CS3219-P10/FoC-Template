@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of bookmarks test cases.
+ * Author review: Validated the assertions and setup for "does not save an inaccessible errand"; clarified test descriptions and assertion formatting.
+ */
+
 import { OrderService } from '../../src/application/order.service';
 import type {
   OrderRepository,

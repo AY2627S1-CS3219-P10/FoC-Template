@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610180009_excluded_couriers (create table, alter table, update).
+-- Author review: Validated the SQL statements for errand_excluded_couriers, errands, CASCADE in migration 202610180009_excluded_couriers; edited SQL layout and comments for readability.
+
 -- D-016/D-017: a courier who gives an errand back, or lets its 30-minute pickup window
 -- pass, may never accept that errand again. Other errands are unaffected.
 CREATE TABLE "errand_excluded_couriers" (

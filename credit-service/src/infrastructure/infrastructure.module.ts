@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of infrastructure module code (InfrastructureModule).
+ * Author review: Checked InfrastructureModule imports, provider registrations, and exports against the existing references; organized module declaration formatting.
+ */
+
 import { Module } from '@nestjs/common';
 import { CREDIT_REPOSITORY } from '../application/credit.repository';
 import { CreditMetricsService } from './credit-metrics.service';

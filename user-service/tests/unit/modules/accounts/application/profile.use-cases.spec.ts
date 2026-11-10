@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of profile use cases test cases.
+ * Author review: Validated the assertions and setup for "authenticates only a JWT backed by an active database session"; clarified test descriptions and assertion formatting.
+ */
+
 import type {
   AccessTokenClaims,
   AccessTokenPort,

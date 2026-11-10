@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update supplier location use case test cases.
+ * Author review: Validated the assertions and setup for "normalizes and validates replacement location details"; clarified test descriptions and assertion formatting.
+ */
+
 import type {
   CreateSupplierRecord,
   SupplierManagementRepositoryPort,

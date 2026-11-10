@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit api test cases.
+ * Author review: Validated the assertions and setup for "initializes an account exactly once" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';

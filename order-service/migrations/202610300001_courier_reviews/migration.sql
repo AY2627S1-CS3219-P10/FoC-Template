@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610300001_courier_reviews (create table, create unique index, create index).
+-- Author review: Validated the SQL statements for courier_reviews, errands, CASCADE in migration 202610300001_courier_reviews; edited SQL layout and comments for readability.
+
 -- the sql checks protect the database against invalid stars and self-reviews, 
 -- but we also want to make sure that the errand_id is unique so that a courier can only be reviewed once per errand. 
 --This is enforced by a unique index on the errand_id column.

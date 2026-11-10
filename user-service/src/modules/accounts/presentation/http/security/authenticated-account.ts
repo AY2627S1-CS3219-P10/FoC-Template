@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of authenticated account code (AUTHENTICATED_ACCOUNT_REQUEST_PROPERTY, CurrentAccount).
+ * Author review: Validated AUTHENTICATED_ACCOUNT_REQUEST_PROPERTY, CurrentAccount existing type members and constant values in user-service/authenticated-account.ts; edited naming and formatting for readability.
+ */
+
 import {
   createParamDecorator,
   type ExecutionContext,

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma credit repository test cases.
+ * Author review: Validated the assertions and setup for "logs and counts a retry before succeeding"; clarified test descriptions and assertion formatting.
+ */
+
 import type { ConfigService } from '@nestjs/config';
 import { ConcurrentOperationError } from '../../src/domain/credit.errors';
 import { Prisma } from '../../src/generated/prisma/client';

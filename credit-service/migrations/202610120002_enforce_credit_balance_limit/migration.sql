@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610120002_enforce_credit_balance_limit (alter table).
+-- Author review: Validated the SQL statements for credit_accounts, credit_reservations, ledger_entries in migration 202610120002_enforce_credit_balance_limit; edited SQL layout and comments for readability.
+
 ALTER TABLE "credit_accounts"
 ADD CONSTRAINT "credit_accounts_available_within_limit"
 CHECK ("available_credits" <= 10000000),

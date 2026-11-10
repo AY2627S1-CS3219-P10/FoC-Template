@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit repository code (CREDIT_REPOSITORY, ConsumedEvent, ReserveCreditsCommand).
+ * Author review: Validated CREDIT_REPOSITORY, ConsumedEvent query parameters, record mappings, and returned values; clarified query formatting and local names.
+ */
+
 import type {
   CreditBalance,
   CreditTransactionHistory,

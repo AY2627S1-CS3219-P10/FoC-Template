@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of roles guard code (RolesGuard).
+ * Author review: Checked RolesGuard request checks, accepted credentials, and rejection branches; clarified condition layout and error wording.
+ */
+
 import {
   CanActivate,
   ExecutionContext,

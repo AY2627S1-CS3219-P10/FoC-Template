@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma profile repository code (PrismaProfileRepository).
+ * Author review: Validated PrismaProfileRepository query parameters, record mappings, and returned values for findCredentialsById, findProfileById; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import { AccountAlreadyExistsError } from '../../application/errors/account-already-exists.error.js';
 import type {
   AccountCredentials,

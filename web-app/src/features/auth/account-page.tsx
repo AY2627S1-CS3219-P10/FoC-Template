@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account page rendering and interaction code (AccountPage).
+ * Author review: Validated AccountPage state updates, click handlers, error rendering in web-app/account-page.tsx; refined JSX layout and user-facing wording. Additional review item: Check loading and error states, and displayed values after successful actions.
+ */
+
 "use client";
 import Link from "next/link";
 import { useState } from "react";

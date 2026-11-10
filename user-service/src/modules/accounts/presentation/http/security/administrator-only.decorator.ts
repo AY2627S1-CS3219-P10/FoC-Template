@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of administrator only decorator code (AdministratorOnly).
+ * Author review: Validated AdministratorOnly value handling and returned results in user-service/administrator-only.decorator.ts; edited naming and formatting for readability.
+ */
+
 import { applyDecorators, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,

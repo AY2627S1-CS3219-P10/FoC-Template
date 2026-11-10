@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of create errand page rendering and interaction code (CreateErrandPage).
+ * Author review: Validated CreateErrandPage click handlers, error rendering in web-app/create-errand-page.tsx; refined JSX layout and user-facing wording.
+ */
+
 "use client";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/auth-provider";
