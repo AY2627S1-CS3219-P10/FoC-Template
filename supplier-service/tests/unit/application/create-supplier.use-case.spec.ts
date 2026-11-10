@@ -13,6 +13,7 @@ import type {
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
+import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
 import type {
   CampusLocationCatalogEntry,
   SupplierCatalogEntry,

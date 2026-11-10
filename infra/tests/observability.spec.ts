@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of observability test assertions and fixtures.
+ * Author review: Checked "covers the load balancer, services, Postgres and the broker" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { SERVICE_NAMES } from '../lib/config';
 import { resources, synthesize } from './support';
 

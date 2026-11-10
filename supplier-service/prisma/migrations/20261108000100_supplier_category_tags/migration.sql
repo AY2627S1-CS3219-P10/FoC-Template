@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL statements in migration 20261108000100_supplier_category_tags.
+-- Author review: Checked 20261108000100_supplier_category_tags statements and affected record values for consistency; edited SQL formatting and comments.
+
 CREATE TYPE "supplier_tag" AS ENUM ('FOOD', 'BEVERAGES', 'PRINTING', 'SHOPPING');
 
 ALTER TABLE "suppliers" ADD COLUMN "categories" "supplier_tag"[];

@@ -1,4 +1,9 @@
 # check=skip=InvalidDefaultArgInFrom
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of migration helper image build commands.
+# Author review: Checked migration image COPY paths, dependency commands, and entry-point arguments; edited Dockerfile instruction layout.
+
 
 # One-off migration and seed image for user-service and supplier-service.
 #

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of test-account seeding commands.
+ * Author review: Validated seed-test-accounts.ts input values and returned results in seed-test-accounts.ts; edited naming and formatting for readability.
+ */
+
 import 'dotenv/config';
 
 import { PrismaPg } from '@prisma/adapter-pg';

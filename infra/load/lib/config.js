@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of configuration values and helpers.
+ * Author review: Validated config.js request values, response checks, and fixture handling where used; edited helper naming and script formatting.
+ */
+
 export function required(name) {
   const value = __ENV[name];
   if (!value || !value.trim()) {

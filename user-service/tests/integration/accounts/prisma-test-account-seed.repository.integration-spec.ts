@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma test account seed repository integration test assertions and fixtures.
+ * Author review: Checked "creates verified non-admin accounts and verification outbox events" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { readFile } from 'node:fs/promises';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';

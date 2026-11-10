@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of services test assertions and fixtures.
+ * Author review: Checked "scales every service on CPU, and web-app on requests too" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {

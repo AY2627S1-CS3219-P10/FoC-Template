@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of test-account seed record persistence.
+ * Author review: Checked PrismaTestAccountSeedRepository seed record mappings and returned values; edited query layout and local variable names.
+ */
+
 import { TestAccountSeedError } from '../../application/errors/test-account-seed.error.js';
 import type {
   TestAccountSeedRecord,

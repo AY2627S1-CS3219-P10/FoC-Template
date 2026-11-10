@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing data-resource definitions.
+ * Author review: Checked DataStack property values and existing resource references in data-stack.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import {
   CfnOutput,
   Duration,

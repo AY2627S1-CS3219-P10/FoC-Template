@@ -12,6 +12,7 @@ import type {
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { UpdateSupplierUseCase } from '../../../src/application/use-cases/update-supplier.use-case.js';
+import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
 import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
 
 const SUPPLIER_ID = '30000000-0000-4000-8000-000000000001';
