@@ -1,3 +1,4 @@
+// AI-assisted portions: courier review guidance (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { OrderRepository, OperationRecord } from '../application/ports';

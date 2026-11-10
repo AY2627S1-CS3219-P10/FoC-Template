@@ -1,3 +1,4 @@
+// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
 import type { SupplierCatalogRepositoryPort } from '../../application/ports/supplier-catalog.repository.port.js';
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
 import { SupplierLocationNotFoundError } from '../../application/errors/supplier-location-not-found.error.js';

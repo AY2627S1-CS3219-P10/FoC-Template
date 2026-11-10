@@ -1,3 +1,4 @@
+// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, ValidateIf } from 'class-validator';
 import {

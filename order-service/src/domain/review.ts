@@ -1,3 +1,4 @@
+// AI-assisted portions: courier review guidance (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
 import { OrderError, type ErrandRecord } from './errand';
 
 export const MAX_REVIEW_COMMENT_LENGTH = 1000;
