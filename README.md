@@ -15,7 +15,7 @@ the shared repository, rather than serving as one member's personal declaration.
 10 November 2026. Each team member is responsible for recording any additional
 tools or models they used in the shared log. 
 
-**Team authorship:** According to the author's clarification on 10 November 2026,
+**Team authorship:**
 AI was not used for requirements elicitation, requirements prioritization,
 backlog consolidation, or sprint planning; proposing or changing architecture,
 component boundaries, design patterns, data schemas, or interfaces; making
@@ -64,8 +64,7 @@ Known AI-assisted source portions are labelled with provenance comments. CSV
 data and already-applied migrations use explicit file-level log entries to
 preserve valid data formats and migration checksums; confirm this handling with
 the teaching team. Assistance with migrations, endpoints, and type declarations
-was limited to implementing human-defined schemas and interfaces, according to
-the author's clarification above.
+was limited to implementing human-defined schemas and interfaces.
 
 **Academic integrity and licensing:** All team members must check retained outputs for
 plagiarism, incompatible licenses, and uncredited third-party material. Credit
