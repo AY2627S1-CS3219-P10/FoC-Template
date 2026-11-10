@@ -34,7 +34,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000001",
-        "Anna's x Soup Union@Central Library",
+        "Anna's x Soup Union",
         "Central Library",
       ),
     ],
@@ -47,7 +47,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000002",
-        "NUS Co-op@Central Library",
+        "NUS Co-op",
         "Central Library",
       ),
     ],
@@ -60,7 +60,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000003",
-        "Printer @ Com 2@Com 2",
+        "Printer @ Com 2",
         "Com 2",
       ),
     ],
@@ -73,7 +73,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000004",
-        "Cool Spot@Com2",
+        "Cool Spot",
         "Com2",
       ),
     ],
@@ -86,7 +86,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000005",
-        "InstaChef@Terrace",
+        "InstaChef",
         "Terrace",
       ),
     ],
@@ -99,7 +99,7 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000006",
-        "Cafe+ Robot Cafe@Central Library",
+        "Cafe+ Robot Cafe",
         "Central Library",
       ),
     ],

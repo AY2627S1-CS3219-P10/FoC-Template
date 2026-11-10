@@ -76,7 +76,7 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
         record.locationDescription ?? 'Near the main entrance',
       longitude: record.longitude ?? 103.7739,
       opensAt: '09:00',
-      supplierAtLocation: `Starbucks@${record.building ?? 'UTown'}`,
+      supplierAtLocation: 'Starbucks',
     });
   }
 }
@@ -97,7 +97,7 @@ describe('UpdateSupplierLocationUseCase', () => {
       }),
     ).resolves.toMatchObject({
       building: 'Science',
-      supplierAtLocation: 'Starbucks@Science',
+      supplierAtLocation: 'Starbucks',
     });
     expect(repository.locationRecords).toEqual([
       {

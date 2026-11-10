@@ -93,7 +93,7 @@ export class CreateSupplierUseCase {
         locationDescription,
         longitude: campusLocation.longitude,
         opensAt,
-        supplierAtLocation: `${name}@${campusLocation.building}`,
+        supplierAtLocation: name,
       },
       name,
     });

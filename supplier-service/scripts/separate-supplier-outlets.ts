@@ -120,7 +120,7 @@ export async function separateSupplierOutlets(
           'UPDATE supplier_locations SET supplier_id = $1, supplier_at_location = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND supplier_id = $4',
           [
             outlet.supplierId,
-            `${outlet.name}@${outlet.building}`,
+            outlet.name,
             outlet.locationId,
             supplierId,
           ],

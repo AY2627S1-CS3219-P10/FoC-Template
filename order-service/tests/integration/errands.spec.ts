@@ -223,7 +223,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
                       id: pickupId,
                       building: 'Central Library',
                       floor: 1,
-                      supplierAtLocation: 'Cafe@Com2',
+                      supplierAtLocation: 'Campus Cafe',
                     },
                   ],
                 },

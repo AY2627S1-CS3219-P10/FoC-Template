@@ -115,7 +115,7 @@ describe('PrismaSupplierCatalogRepository', () => {
         where: { id: SUPPLIER_ID },
         data: {
           locations: {
-            create: { supplierAtLocation: `Starbucks@${building}` },
+            create: { supplierAtLocation: 'Starbucks' },
           },
         },
       });
@@ -312,12 +312,8 @@ describe('PrismaSupplierCatalogRepository', () => {
         id: SUPPLIER_ID,
         isActive: true,
         locations: [
-          locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks Coffee@UTown'),
-          locationRecord(
-            SCIENCE_LOCATION_ID,
-            'Science',
-            'Starbucks Coffee@Science',
-          ),
+          locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks Coffee'),
+          locationRecord(SCIENCE_LOCATION_ID, 'Science', 'Starbucks Coffee'),
         ],
         name: 'Starbucks Coffee',
         updatedAt: new Date('2026-09-21T00:00:00.000Z'),
@@ -341,8 +337,8 @@ describe('PrismaSupplierCatalogRepository', () => {
     ).resolves.toMatchObject({
       name: 'Starbucks Coffee',
       locations: [
-        { supplierAtLocation: 'Starbucks Coffee@UTown' },
-        { supplierAtLocation: 'Starbucks Coffee@Science' },
+        { supplierAtLocation: 'Starbucks Coffee' },
+        { supplierAtLocation: 'Starbucks Coffee' },
       ],
     });
     expect(updateArguments).toEqual({
@@ -352,11 +348,11 @@ describe('PrismaSupplierCatalogRepository', () => {
         locations: {
           update: [
             {
-              data: { supplierAtLocation: 'Starbucks Coffee@UTown' },
+              data: { supplierAtLocation: 'Starbucks Coffee' },
               where: { id: UTOWN_LOCATION_ID },
             },
             {
-              data: { supplierAtLocation: 'Starbucks Coffee@Science' },
+              data: { supplierAtLocation: 'Starbucks Coffee' },
               where: { id: SCIENCE_LOCATION_ID },
             },
           ],
@@ -382,7 +378,7 @@ describe('PrismaSupplierCatalogRepository', () => {
     const update = (args: unknown): Promise<unknown> => {
       updateArguments = args;
       return Promise.resolve(
-        locationRecord(UTOWN_LOCATION_ID, 'Science', 'Starbucks@Science'),
+        locationRecord(UTOWN_LOCATION_ID, 'Science', 'Starbucks'),
       );
     };
 
@@ -415,7 +411,7 @@ describe('PrismaSupplierCatalogRepository', () => {
     ).resolves.toMatchObject({
       building: 'Science',
       id: UTOWN_LOCATION_ID,
-      supplierAtLocation: 'Starbucks@Science',
+      supplierAtLocation: 'Starbucks',
     });
     expect(findFirstArguments).toEqual({
       include: { supplier: { select: { name: true, categories: true } } },
@@ -435,7 +431,7 @@ describe('PrismaSupplierCatalogRepository', () => {
         locationDescription: 'Beside the main entrance',
         longitude: 103.7801,
         opensAt: undefined,
-        supplierAtLocation: 'Starbucks@Science',
+        supplierAtLocation: 'Starbucks',
       },
       where: { id: UTOWN_LOCATION_ID },
     });
@@ -481,7 +477,7 @@ function createRecord(building: string): CreateSupplierRecord {
       closesAt: new Date('1970-01-01T20:00:00Z'),
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: `starbucks@${building}`,
+      supplierAtLocation: 'starbucks',
     },
   };
 }

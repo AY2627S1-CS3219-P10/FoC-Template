@@ -39,7 +39,7 @@ const supplier = {
       isOpenOvernight: false,
       imageUrl:
         "https://github.com/CS3219-AY2627S1/FoC-Template/blob/main/data/images/ROBOT_CAFE.jpeg",
-      supplierAtLocation: "Campus Coffee@UTown",
+      supplierAtLocation: "Campus Coffee",
     },
   ],
 };
