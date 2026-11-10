@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of broker test assertions and fixtures.
+ * Author review: Checked "does not use Amazon MQ" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EVENTS, PROFILES } from '../lib/config';

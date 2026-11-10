@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of network test assertions and fixtures.
+ * Author review: Checked "allows just the CloudFront prefix list into the load balancer" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import {
   CLOUDFRONT_ORIGIN_PREFIX_LIST,
   PROFILES,

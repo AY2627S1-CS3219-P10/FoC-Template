@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of find administrator accounts use case test cases.
+ * Author review: Validated the assertions and setup for "trims a search and applies the bounded result limit"; clarified test descriptions and assertion formatting.
+ */
+
 import type {
   AdministratorAccountDiscoveryRepositoryPort,
   AdministratorAccountSummary,

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of redis verification email resend rate limiter code (VERIFICATION_EMAIL_RESEND_COOLDOWN_MS, VERIFICATION_EMAIL_RESEND_WINDOW_MS, MAXIMUM_VERIFICATION_EMAIL_RESENDS_PER_WINDOW).
+ * Author review: Validated VERIFICATION_EMAIL_RESEND_COOLDOWN_MS, VERIFICATION_EMAIL_RESEND_WINDOW_MS input handling, return values, and thrown errors in user-service/redis-verification-email-resend-rate-limiter.ts; edited naming and formatting for readability.
+ */
+
 import { createHash } from 'node:crypto';
 
 import type { OnModuleDestroy } from '@nestjs/common';

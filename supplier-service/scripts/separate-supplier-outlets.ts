@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of separate supplier outlets code (OutletSeparation, separateSupplierOutlets).
+ * Author review: Validated OutletSeparation, separateSupplierOutlets existing type members and constant values in supplier-service/separate-supplier-outlets.ts; edited naming and formatting for readability.
+ */
+
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -113,7 +120,7 @@ export async function separateSupplierOutlets(
           'UPDATE supplier_locations SET supplier_id = $1, supplier_at_location = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND supplier_id = $4',
           [
             outlet.supplierId,
-            `${outlet.name}@${outlet.building}`,
+            outlet.name,
             outlet.locationId,
             supplierId,
           ],

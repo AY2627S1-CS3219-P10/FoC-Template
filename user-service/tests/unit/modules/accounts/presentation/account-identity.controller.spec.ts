@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account identity controller test cases.
+ * Author review: Validated the assertions and setup for "returns only id and username"; clarified test descriptions and assertion formatting.
+ */
+
 import { NotFoundException } from '@nestjs/common';
 import { AccountIdentityController } from '../../../../../src/modules/accounts/presentation/http/account-identity.controller.js';
 import type { AccountProfile } from '../../../../../src/modules/accounts/application/ports/profile-repository.port.js';

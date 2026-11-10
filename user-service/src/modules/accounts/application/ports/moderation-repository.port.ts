@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of moderation repository port code (ReportStatus, ReportIdentity, UserReport).
+ * Author review: Checked existing ReportStatus, ReportIdentity parameter and return types against their callers; edited type declaration layout and member naming.
+ */
+
 export type ReportStatus = 'OPEN' | 'RESOLVED';
 export interface ReportIdentity {
   id: string;

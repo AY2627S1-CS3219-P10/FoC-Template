@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of outlet cards test cases.
+ * Author review: Validated the assertions and setup for "guests can preview suppliers but must log in to view locations" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { expect, test } from "@playwright/test";
 
 const supplierId = "20000000-0000-4000-8000-000000000001";
@@ -18,7 +25,7 @@ const supplier = {
       closesAt: "18:00",
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: "MedSci Printing@Medicine+Science Library",
+      supplierAtLocation: "MedSci Printing",
     },
   ],
 };
@@ -204,6 +211,11 @@ test("supplier browsing switches between card and list layouts and remembers the
     "true",
   );
   await expect(page.getByRole("table")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 
   await page.getByRole("button", { name: "Cards" }).click();
   await expect(page.getByRole("article")).toHaveCount(1);

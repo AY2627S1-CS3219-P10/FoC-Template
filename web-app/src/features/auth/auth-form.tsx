@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of auth form rendering and interaction code (AuthForm).
+ * Author review: Validated AuthForm state updates, form submission, click handlers in web-app/auth-form.tsx; refined JSX layout and user-facing wording. Additional review item: Check invalid-input messages and repeated submissions.
+ */
+
 "use client";
 
 import Link from "next/link";

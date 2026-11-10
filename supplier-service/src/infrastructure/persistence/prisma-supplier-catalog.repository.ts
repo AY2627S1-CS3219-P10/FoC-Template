@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma supplier catalog repository code (PrismaSupplierCatalogRepository).
+ * Author review: Validated PrismaSupplierCatalogRepository query parameters, record mappings, and returned values for findActiveSuppliers, findCampusLocations, deactivateSupplier; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import type { SupplierCatalogRepositoryPort } from '../../application/ports/supplier-catalog.repository.port.js';
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
 import { SupplierLocationNotFoundError } from '../../application/errors/supplier-location-not-found.error.js';
@@ -195,7 +202,7 @@ export class PrismaSupplierCatalogRepository
                 locations: {
                   create: {
                     ...record.location,
-                    supplierAtLocation: `${owner.name}@${record.location.building}`,
+                    supplierAtLocation: owner.name,
                   },
                 },
               },
@@ -365,7 +372,7 @@ export class PrismaSupplierCatalogRepository
                 : {
                     update: existingSupplier.locations.map((location) => ({
                       data: {
-                        supplierAtLocation: `${record.name}@${location.building}`,
+                        supplierAtLocation: record.name,
                       },
                       where: { id: location.id },
                     })),
@@ -458,7 +465,7 @@ export class PrismaSupplierCatalogRepository
             locationDescription: record.locationDescription,
             longitude: record.longitude,
             opensAt: record.opensAt,
-            supplierAtLocation: `${existingLocation.supplier.name}@${building}`,
+            supplierAtLocation: existingLocation.supplier.name,
           },
           where: { id: record.locationId },
         });

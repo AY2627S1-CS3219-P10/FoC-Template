@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errand code (MAX_OFFERED_CREDITS, ITEM_TYPES, ItemType).
+ * Author review: Validated MAX_OFFERED_CREDITS, ITEM_TYPES existing type members and constant values in order-service/errand.ts; edited naming and formatting for readability.
+ */
+
 /** Credit-service rejects amounts above its MAX_CREDIT_BALANCE (10,000,000). */
 export const MAX_OFFERED_CREDITS = 10_000_000;
 /**

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit header rendering and interaction code (CreditHeader).
+ * Author review: Validated CreditHeader error rendering in web-app/credit-header.tsx; refined JSX layout and user-facing wording.
+ */
+
 "use client";
 
 import Link from "next/link";

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit adapter test cases.
+ * Author review: Validated the assertions and setup for "provisions only the live user and preserves their balance on refresh" against the browser actions and expected page state; clarified test descriptions and assertion formatting.
+ */
+
 import { test, expect } from "@playwright/test";
 import { createServer, type Server } from "node:http";
 import { spawn, type ChildProcess } from "node:child_process";

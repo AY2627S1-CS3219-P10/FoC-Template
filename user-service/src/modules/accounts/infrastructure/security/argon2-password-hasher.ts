@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of argon2 password hasher code (Argon2PasswordHasher).
+ * Author review: Validated Argon2PasswordHasher value handling and returned results in user-service/argon2-password-hasher.ts; edited naming and formatting for readability.
+ */
+
 import { argon2id, hash, verify } from 'argon2';
 
 import type { PasswordHasherPort } from '../../application/ports/password-hasher.port.js';

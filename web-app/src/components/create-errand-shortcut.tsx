@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of create errand shortcut rendering and interaction code (CreateErrandShortcut).
+ * Author review: Validated CreateErrandShortcut state updates, click handlers in web-app/create-errand-shortcut.tsx; refined JSX layout and user-facing wording.
+ */
+
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";

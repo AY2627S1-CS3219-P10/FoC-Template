@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of database bootstrap task commands.
+ * Author review: Checked passwordVariable, bootstrapScript property values and existing resource references in db-bootstrap.ts; edited declaration naming and TypeScript formatting.
+ */
+
 /** The environment variable that carries a login's password into the task. */
 export function passwordVariable(login: string): string {
   return `DB_PASSWORD_${login.toUpperCase()}`;

@@ -1,4 +1,10 @@
-import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of create supplier use case test cases.
+ * Author review: Validated the assertions and setup for "shows matches and allows a confirmed different pickup description"; clarified test descriptions and assertion formatting.
+ */
+
 import type {
   CreateSupplierRecord,
   PossibleSupplierDuplicate,
@@ -7,6 +13,7 @@ import type {
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
+import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
 import type {
   CampusLocationCatalogEntry,
   SupplierCatalogEntry,
@@ -182,7 +189,7 @@ describe('CreateSupplierUseCase', () => {
           locationDescription: 'Near the main entrance',
           longitude: 103.7739,
           opensAt: new Date('1970-01-01T08:00:00.000Z'),
-          supplierAtLocation: 'Starbucks@UTown',
+          supplierAtLocation: 'Starbucks',
         },
         name: 'Starbucks',
       },

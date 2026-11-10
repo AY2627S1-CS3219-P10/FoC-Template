@@ -1,8 +1,15 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errands test cases.
+ * Author review: Validated the assertions and setup for "create an errand and refresh its listing and credit balance" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { test, expect } from "@playwright/test";
 const user = { id: "10000000-0000-4000-8000-000000000001", username: "ErrandUser", isAdmin: false };
 const errand = { id: "30000000-0000-4000-8000-000000000001", requesterId: user.id, requesterUsername: "ErrandUser", courierId: null, status: "OPEN", description: "Pick up my coffee", pickupSupplierName: "Campus Cafe", pickupLocationLabel: "Campus Cafe@Central Library", deliveryDestination: "UTown entrance", instructions: "Meet downstairs", offeredCredits: 20, version: 0, createdAt: "2026-10-12T01:00:00Z", updatedAt: "2026-10-12T01:00:00Z" };
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/suppliers", (route) => route.fulfill({ json: [{ id: "cafe", name: "Campus Cafe", locations: [{ id: "10000000-0000-4000-8000-000000000002", supplierAtLocation: "Cafe", building: "Library", floor: 1 }] }] }));
+  await page.route("**/api/suppliers", (route) => route.fulfill({ json: [{ id: "cafe", name: "A Hot Hideout", locations: [{ id: "10000000-0000-4000-8000-000000000002", supplierAtLocation: "A Hot Hideout", building: "Prince George's Park", floor: 2 }] }] }));
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: user }));
   await page.route("**/api/credits", (route) => route.fulfill({ json: { availableCredits: 100, reservedCredits: 0 } }));
 });
@@ -16,7 +23,7 @@ test("create an errand and refresh its listing and credit balance", async ({ pag
     created = true; return route.fulfill({ status: 201, json: { status: "SUCCEEDED", operationId: "operation", errand } });
   });
   await page.goto("/errands/create");
-  await expect(page.getByRole("option", { name: "Cafe · Library · Floor 1", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: "A Hot Hideout · Prince George's Park · Floor 2", exact: true })).toHaveCount(1);
   await page.getByRole("combobox", { name: "Pickup location" }).selectOption("10000000-0000-4000-8000-000000000002");
   await page.getByLabel("Errand description").fill("Pick up my coffee"); await page.getByLabel("Delivery destination").fill("UTown entrance"); await page.getByLabel("Pickup or delivery instructions").fill("Meet downstairs"); await page.getByLabel("Offered credits").fill("20");
   const preview = page.getByRole("complementary", { name: "Credit preview" });
@@ -54,26 +61,26 @@ test("global shortcut drags without navigation, remembers its position and opens
   await shortcut.focus(); await page.keyboard.press("ArrowDown"); await expect.poll(async () => (await shortcut.boundingBox())!.y).toBeGreaterThan(moved.y);
   await page.keyboard.press("Enter"); await expect(page).toHaveURL(/\/errands\/create$/); await expect(page.getByRole("heading", { name: "Create errand", exact: true })).toBeVisible(); await expect(page.getByRole("combobox", { name: "Pickup location" })).toBeVisible();
 });
-test("compact cards link to a flexible detail card containing full information", async ({ page }) => {
+test("compact cards link to a flexible detail card containing full information", async ({ page, isMobile }) => {
   await page.route(`**/api/errands/${errand.id}`, (route) => route.fulfill({ json: { ...errand, instructions: "Meet downstairs. ".repeat(50) } }));
   await page.route("**/api/errands?*", (route) => route.fulfill({ json: [errand] }));
   await page.goto("/"); await page.getByRole("navigation").getByRole("link", { name: "Errands", exact: true }).click();
   await expect(page).toHaveURL(/\/errands$/); await expect(page.getByRole("heading", { name: "Errands", exact: true })).toBeVisible();
   const card = page.getByRole("article"); await expect(card).toContainText("Pick up my coffee"); await expect(card).toContainText("Campus Cafe"); await expect(card).toContainText("UTown entrance"); await expect(card).not.toContainText("Meet downstairs"); await expect(card).not.toContainText("20 credits");
+  if (isMobile) await expect(page.getByRole("complementary", { name: "Selected errand preview" })).toBeHidden();
+  else await expect(page.getByRole("complementary", { name: "Selected errand preview" })).toBeVisible();
   await card.getByRole("link", { name: "View errand: Pick up my coffee" }).click(); await expect(page).toHaveURL(new RegExp(`/errands/${errand.id}$`)); await expect(page.getByRole("article")).toContainText("Meet downstairs. ".repeat(50).trim()); await expect(page.getByRole("article")).toContainText("20 credits"); await expect(page.getByRole("button", { name: "Edit errand" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
-test("owner can edit and confirm deletion of their own request", async ({ page }) => {
+test("owner can edit without a duplicate delete action", async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: { ...user, isAdmin: true } }));
-  let value = { ...errand }; let removed = false;
+  let value = { ...errand };
   await page.route(`**/api/errands/${errand.id}`, (route) => {
     const method = route.request().method();
     if (method === "PATCH") { const body = route.request().postDataJSON(); expect(body.expectedVersion).toBe(0); value = { ...value, ...body, version: 1 }; return route.fulfill({ json: { status: "SUCCEEDED", operationId: "op", errand: value } }); }
-    if (method === "DELETE") { removed = true; return route.fulfill({ json: { status: "SUCCEEDED", operationId: "op", errand: value } }); }
     return route.fulfill({ json: value });
   });
-  await page.goto(`/errands/${errand.id}`); await expect(page.getByRole("button", { name: "Edit errand", exact: true })).toHaveCSS("background-color", "rgb(37, 108, 67)"); await expect(page.getByRole("button", { name: "Delete errand", exact: true })).toHaveCSS("background-color", "rgb(180, 35, 43)"); await expect(page.locator("dl")).toContainText("ErrandUser"); await page.getByRole("button", { name: "Edit errand", exact: true }).click(); await page.getByLabel("Delivery destination").fill("Science entrance"); await page.getByLabel("Offered credits").fill("30"); await page.getByRole("button", { name: "Save changes" }).click(); await expect(page.getByRole("article")).toContainText("Science entrance"); await expect(page.getByRole("article")).toContainText("30 credits");
-  await page.getByRole("button", { name: "Delete errand", exact: true }).click(); expect(removed).toBe(false); await page.getByRole("button", { name: "Confirm delete" }).click(); await expect(page.getByRole("heading", { name: "Errand deleted" })).toBeVisible(); expect(removed).toBe(true);
+  await page.goto(`/errands/${errand.id}`); await expect(page.getByRole("button", { name: "Edit errand", exact: true })).toHaveCSS("background-color", "rgb(37, 108, 67)"); await expect(page.getByRole("button", { name: "Cancel request", exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: "Delete errand", exact: true })).toHaveCount(0); await expect(page.locator("dl")).toContainText("ErrandUser"); await page.getByRole("button", { name: "Edit errand", exact: true }).click(); await page.getByLabel("Delivery destination").fill("Science entrance"); await page.getByLabel("Offered credits").fill("30"); await page.getByRole("button", { name: "Save changes" }).click(); await expect(page.getByRole("article")).toContainText("Science entrance"); await expect(page.getByRole("article")).toContainText("30 credits");
 });
 test("other users have no edit/delete controls and admins have delete only", async ({ page }) => {
   await page.route(`**/api/errands/${errand.id}`, (route) => route.fulfill({ json: { ...errand, requesterId: "10000000-0000-4000-8000-000000000005" } }));

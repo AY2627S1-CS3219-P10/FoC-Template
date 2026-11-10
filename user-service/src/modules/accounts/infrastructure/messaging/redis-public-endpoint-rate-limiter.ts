@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of redis public endpoint rate limiter code (PUBLIC_ENDPOINT_RATE_LIMIT_POLICIES, PublicEndpointRedisClient, RedisPublicEndpointRateLimiter).
+ * Author review: Validated PUBLIC_ENDPOINT_RATE_LIMIT_POLICIES, PublicEndpointRedisClient input handling, return values, and thrown errors in user-service/redis-public-endpoint-rate-limiter.ts; edited naming and formatting for readability.
+ */
+
 import { createHash } from 'node:crypto';
 
 import type { OnModuleDestroy } from '@nestjs/common';

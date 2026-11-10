@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing service deployment properties.
+ * Author review: Checked FocService property values and existing resource references in foc-service.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import type * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -15,6 +22,10 @@ export interface FocServiceProps {
   readonly securityGroup: ec2.ISecurityGroup;
   readonly environment: Record<string, string>;
   readonly secrets: Record<string, ecs.Secret>;
+  /** Optional container command override for service-specific runtime tuning. */
+  readonly command?: string[];
+  /** Optional highly available floor for services on the public request path. */
+  readonly minimumTasks?: number;
   /** Only for a service behind a load balancer. */
   readonly healthCheckGracePeriod?: Duration;
 }
@@ -31,6 +42,7 @@ export class FocService extends Construct {
     super(scope, id);
     const { name, profile } = props;
     const { port, healthPath } = SERVICES[name];
+    const minimumTasks = props.minimumTasks ?? profile.minTasks;
 
     const taskDefinition = new ecs.FargateTaskDefinition(this, 'Task', {
       family: `foc-${name}`,
@@ -44,6 +56,7 @@ export class FocService extends Construct {
     });
     taskDefinition.addContainer('app', {
       image: props.image,
+      command: props.command,
       environment: props.environment,
       secrets: props.secrets,
       portMappings: [{ containerPort: port }],
@@ -75,19 +88,20 @@ export class FocService extends Construct {
       vpcSubnets: { subnets: props.cluster.vpc.privateSubnets },
       assignPublicIp: false,
       circuitBreaker: { enable: true, rollback: true },
+      desiredCount: props.minimumTasks,
       minHealthyPercent: 100,
       maxHealthyPercent: 200,
       healthCheckGracePeriod: props.healthCheckGracePeriod,
       // The minimum runs on regular Fargate, and copies above it on Spot.
       capacityProviderStrategies: [
-        { capacityProvider: 'FARGATE', base: profile.minTasks, weight: 0 },
+        { capacityProvider: 'FARGATE', base: minimumTasks, weight: 0 },
         { capacityProvider: 'FARGATE_SPOT', weight: 1 },
       ],
       cloudMapOptions: { name, dnsTtl: Duration.seconds(10) },
     });
 
     this.scaling = this.service.autoScaleTaskCount({
-      minCapacity: profile.minTasks,
+      minCapacity: minimumTasks,
       maxCapacity: profile.maxTasks,
     });
     this.scaling.scaleOnCpuUtilization('Cpu', {

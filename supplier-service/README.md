@@ -1,3 +1,4 @@
+<!-- AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md. -->
 # Supplier Service
 
 Owns suppliers, campus pickup locations, categories, and availability state.
@@ -87,10 +88,11 @@ all 75 suppliers and their CSV pickup-location records from
 coordinates when the source does not publish them; the browse API explicitly
 returns those values as `null` rather than fabricating details.
 
-Each location stores a stable UUID for service-to-service references and a
-case-insensitive `supplier@location` display string. For example,
-`NUS Co-op@Central Library`. The label is intentionally a catalog attribute,
-not an order-service foreign key or a user-entered free-text source of truth.
+Each location stores a stable UUID for service-to-service references and the
+supplier name as its display label. Building and floor remain separate fields,
+so clients can render labels such as `NUS Co-op · Central Library · Floor 1`
+without repeating the building. The label is a catalog attribute, not an
+order-service foreign key or a user-entered free-text source of truth.
 
 The read API is implemented as `GET /api/suppliers`. It returns active suppliers
 that have at least one active pickup location, with inactive records filtered by
@@ -100,7 +102,7 @@ Administrators may create a new supplier and its first pickup location with
 `POST /api/admin/suppliers`. The supplier and location are created atomically;
 the request identifies a location from `GET /api/suppliers/campus-locations`,
 and the service resolves its building and coordinates. Admins therefore do not
-enter latitude or longitude. The service also derives the `supplier@location`
+enter latitude or longitude. The service also derives the supplier display
 label and overnight-hours flag. A case-insensitive existing supplier name adds
 an outlet to that supplier instead of creating a second supplier. Its complete tag set
 must match. Overlapping tags, building and floor returns HTTP 409 with
@@ -124,7 +126,7 @@ threshold is used. Existing entries and errand location IDs are preserved.
 
 Administrators may update a supplier's name and/or category tags with
 `PATCH /api/admin/suppliers/:supplierId`. Renaming a supplier also updates every
-associated `supplier@location` label in the same atomic database operation. An
+associated supplier display label in the same atomic database operation. An
 empty update returns HTTP 400, an unknown supplier returns HTTP 404, and a name
 conflict returns HTTP 409.
 
@@ -138,8 +140,8 @@ create a replacement supplier with the same name.
 Administrators may replace any subset of a pickup location's details with
 `PATCH /api/admin/suppliers/:supplierId/locations/:locationId`. The existing
 location row and UUID are retained for historical errand references, while the
-old field values are overwritten. Moving to another building also replaces the
-derived `supplier@location` label, and changing either business-hours field
+old field values are overwritten. The supplier display label remains aligned
+with its owner, and changing either business-hours field
 recalculates the overnight-hours flag. Reactivation is not implemented;
 additional outlets are added through the create endpoint using the existing
 supplier name.

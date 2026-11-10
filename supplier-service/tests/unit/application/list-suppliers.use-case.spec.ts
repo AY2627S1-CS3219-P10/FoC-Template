@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of list suppliers use case test cases.
+ * Author review: Validated the assertions and setup for "returns the active supplier catalog from its repository"; clarified test descriptions and assertion formatting.
+ */
+
 import type { SupplierCatalogRepositoryPort } from '../../../src/application/ports/supplier-catalog.repository.port.js';
 import { ListSuppliersUseCase } from '../../../src/application/use-cases/list-suppliers.use-case.js';
 import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
@@ -20,7 +27,7 @@ const CATALOG: SupplierCatalogEntry[] = [
         locationDescription: 'Inside the library on the right side',
         longitude: 103.7732677,
         opensAt: '09:00',
-        supplierAtLocation: 'NUS Co-op@Central Library',
+        supplierAtLocation: 'NUS Co-op',
       },
     ],
     name: 'NUS Co-op',

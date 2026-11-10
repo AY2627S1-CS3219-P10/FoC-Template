@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of create errand rendering and interaction code (CreateErrand).
+ * Author review: Validated CreateErrand state updates, form submission, click handlers in web-app/create-errand.tsx; refined JSX layout and user-facing wording. Additional review item: Check invalid-input messages and repeated submissions.
+ */
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -211,7 +218,7 @@ export function CreateErrand({ onCreated }: { onCreated: () => void }) {
                 </option>
                 {locations.map((location) => (
                   <option key={location.id} value={location.id}>
-                    {location.supplierAtLocation} · {location.building} ·{" "}
+                    {location.supplierName} · {location.building} ·{" "}
                     {location.floor === null
                       ? "Floor unknown"
                       : `Floor ${location.floor}`}

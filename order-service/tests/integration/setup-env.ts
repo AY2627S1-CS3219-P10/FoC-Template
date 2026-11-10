@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of setup env test cases.
+ * Author review: Validated setup env value handling and returned results in order-service/setup-env.ts; edited naming and formatting for readability.
+ */
+
 process.env.LOG_LEVEL = 'silent';
 process.env.DATABASE_URL =
   'postgresql://integration:integration@127.0.0.1:5432/integration';

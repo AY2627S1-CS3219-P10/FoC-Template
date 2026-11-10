@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of administrator accounts controller test cases.
+ * Author review: Validated the assertions and setup for "allows an administrator to promote another account"; clarified test descriptions and assertion formatting.
+ */
+
 import type { INestApplication } from '@nestjs/common';
 import {
   FastifyAdapter,

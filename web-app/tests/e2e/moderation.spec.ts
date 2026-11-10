@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of moderation test cases.
+ * Author review: Validated the assertions and setup for "an errand participant reports only the other participant once" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { expect, test } from "@playwright/test";
 
 const requester = {
@@ -52,6 +59,9 @@ test("an errand participant reports only the other participant once", async ({ p
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: requester }));
   await page.route("**/api/credits", (route) =>
     route.fulfill({ json: { availableCredits: 100, reservedCredits: 0 } }),
+  );
+  await page.route(`**/api/couriers/${courier.id}/rating-summary`, (route) =>
+    route.fulfill({ json: { averageStars: null, reviewCount: 0 } }),
   );
   await page.route(`**/api/errands/${errand.id}`, (route) => route.fulfill({ json: errand }));
   let submissions = 0;

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errand lifecycle test cases.
+ * Author review: Validated the assertions and setup for "courier accepts, picks up, delivers and tracks the job in My deliveries" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { test, expect } from "@playwright/test";
 const courier = { id: "10000000-0000-4000-8000-000000000002", username: "Courier", isAdmin: false };
 const requester = { id: "10000000-0000-4000-8000-000000000001", username: "Requester", isAdmin: false };

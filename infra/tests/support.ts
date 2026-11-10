@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of support test assertions and fixtures.
+ * Author review: Checked support test setup and assertions against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { App } from 'aws-cdk-lib';
@@ -12,6 +19,7 @@ export interface Templates {
   readonly data: Template;
   readonly jobs: Template;
   readonly app: Template;
+  readonly ci: Template;
 }
 
 export interface Container {
@@ -58,6 +66,7 @@ export function synthesize(
     data: Template.fromStack(stacks.data),
     jobs: Template.fromStack(stacks.jobs),
     app: Template.fromStack(stacks.app),
+    ci: Template.fromStack(stacks.ci),
   };
   cache.set(key, templates);
   return templates;

@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of supplier-service/compose.yaml tooling configuration.
+# Author review: Checked supplier-service/compose.yaml entries for name, services, volumes against their existing uses; corrected indentation and configuration readability.
+
 name: foc-supplier-service
 
 services:

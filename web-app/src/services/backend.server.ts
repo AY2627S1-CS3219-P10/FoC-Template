@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of backend server code (ACCESS_COOKIE, REFRESH_COOKIE, BackendError).
+ * Author review: Validated ACCESS_COOKIE, REFRESH_COOKIE existing type members and constant values in web-app/backend.server.ts; edited naming and formatting for readability.
+ */
+
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { Authentication } from "./contracts";

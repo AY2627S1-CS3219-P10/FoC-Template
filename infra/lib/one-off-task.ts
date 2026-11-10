@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of one-off task invocation helpers.
+ * Author review: Checked OneOffTask property values and existing resource references in one-off-task.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import type * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';

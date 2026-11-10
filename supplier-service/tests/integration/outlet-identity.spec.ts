@@ -4,6 +4,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of outlet identity test cases.
+ * Author review: Validated the assertions and setup for "allows new buildings and floors under the same case-insensitive supplier name" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../src/generated/prisma/client.js';
@@ -122,6 +129,23 @@ integration('match and confirm against PostgreSQL', () => {
     );
     expect(technoEdge.rows).toEqual([
       { floor: null, latitude: null, longitude: null },
+    ]);
+    const hotHideout = await pool.query<{
+      building: string;
+      floor: number | null;
+      supplier_at_location: string;
+    }>(
+      `SELECT location.supplier_at_location, location.building, location.floor
+       FROM supplier_locations AS location
+       JOIN suppliers AS supplier ON supplier.id = location.supplier_id
+       WHERE supplier.name = 'A Hot Hideout'`,
+    );
+    expect(hotHideout.rows).toEqual([
+      {
+        building: "Prince George's Park",
+        floor: 2,
+        supplier_at_location: 'A Hot Hideout',
+      },
     ]);
     prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: databaseUrl }),
@@ -525,7 +549,7 @@ function record(
       closesAt: new Date('1970-01-01T20:00:00Z'),
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: `${name}@${building}`,
+      supplierAtLocation: name,
     },
   };
 }

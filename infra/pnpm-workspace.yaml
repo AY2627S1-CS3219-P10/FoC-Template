@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of pnpm workspace tooling configuration.
+# Author review: Checked infra/pnpm-workspace.yaml configuration keys and referenced paths; edited configuration layout and indentation.
+
 engineStrict: true
 saveExact: true
 

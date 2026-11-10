@@ -297,6 +297,40 @@ rerun for the same administrators and never resets their passwords. Any clash
 with an existing student or partial identity match aborts the entire seed. Keep
 the JSON value in deployment secrets; do not commit administrator passwords.
 
+### Staging load-test accounts
+
+Dedicated load-test users can be initialized without email delivery by the
+User Service-owned one-off seeder. This command creates ordinary, non-admin,
+active and email-verified accounts with Argon2id password hashes. Each newly
+created account records the same `user.verified.v1` outbox event as the normal
+verification workflow so downstream credit provisioning remains within the
+existing service boundary.
+
+The seeder is idempotent for an exact identity match and never resets an
+existing password. A partial identity match, privileged account, inactive
+account, or unverified account aborts the transaction. It runs only when
+`NODE_ENV=staging` and requires the explicit safety flag shown below:
+
+```bash
+export NODE_ENV=staging
+export ALLOW_TEST_ACCOUNT_SEED=true
+export TEST_ACCOUNT_SEED_ACCOUNTS='[
+  {
+    "username": "FocLoadTest01",
+    "email": "foc-loadtest-01@u.nus.edu",
+    "phoneNumber": "88000001",
+    "password": "replace-with-a-random-test-secret"
+  }
+]'
+corepack pnpm build
+corepack pnpm db:seed:test-accounts
+```
+
+For the errand-acceptance race, seed one requester plus the desired number of
+couriers. Store the JSON in the staging secret manager or an ignored local
+file, never in source control. These synthetic addresses must not be used in
+production or for real email delivery.
+
 Verification codes expire after 10 minutes, allow five failed attempts, and are
 stored only as HMAC-SHA-256 hashes. Issuing a replacement invalidates the prior
 unused code. The partial unique index enforcing one unused code per user can be

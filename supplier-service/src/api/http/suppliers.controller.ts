@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier HTTP request handlers.
+ * Author review: Checked SuppliersController query forwarding and returned response values; edited handler naming and formatting.
+ */
+
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,

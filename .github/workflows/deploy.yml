@@ -1,0 +1,187 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of deploy workflow commands and job configuration.
+# Author review: Checked deploy.yml job steps, command paths, and referenced inputs; standardized YAML indentation and step wording.
+
+# Deploys main to AWS: CI, then build and push the 7 images tagged with the
+# commit, deploy FocJobs, run the user and supplier migrations, deploy FocApp,
+# check every service runs the new tag, and smoke-test /login.
+#
+# FocNetwork, FocRegistry, FocData and FocCi stay manual. The AWS role trusts
+# only main, so this works only from main. Pause deploys with
+#   gh workflow disable deploy.yml --repo AY2627S1-CS3219-P10/FoC-Template
+#
+# The repository is public, so its logs are too: nothing here may print the
+# account ID, ARNs or email addresses.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# CloudFormation fails if two updates of a stack overlap, so deploys queue.
+concurrency:
+  group: foc-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  NODE_VERSION: '24'
+  PNPM_VERSION: '12.11.2'
+
+jobs:
+  ci:
+    if: github.repository == 'AY2627S1-CS3219-P10/FoC-Template' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+    with:
+      build-images: false
+
+  images:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: web-app
+            args: -f web-app/Dockerfile .
+          - name: user-service
+            args: user-service
+          - name: supplier-service
+            args: supplier-service
+          - name: credit-service
+            args: -f credit-service/Dockerfile .
+          - name: order-service
+            args: -f order-service/Dockerfile .
+          - name: migrate-user
+            args: -f infra/docker/migrate.Dockerfile --build-arg SERVICE=user-service .
+          - name: migrate-supplier
+            args: -f infra/docker/migrate.Dockerfile --build-arg SERVICE=supplier-service .
+    name: image (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      - name: Sign in to ECR
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          echo "::add-mask::$account"
+          registry="$account.dkr.ecr.$AWS_REGION.amazonaws.com"
+          echo "REGISTRY=$registry" >> "$GITHUB_ENV"
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$registry"
+      - name: Build and push, unless this commit's image exists
+        env:
+          NAME: ${{ matrix.name }}
+          ARGS: ${{ matrix.args }}
+        run: |
+          tag="${GITHUB_SHA::7}"
+          # Tags are immutable, so a re-run of the same commit can't push again.
+          if aws ecr describe-images --repository-name "foc/$NAME" --image-ids "imageTag=$tag" > /dev/null 2>&1; then
+            echo "foc/$NAME:$tag already exists, skipping"
+            exit 0
+          fi
+          image="$REGISTRY/foc/$NAME:$tag"
+          # ARGS is a fixed value from the matrix above; word splitting is intended.
+          # shellcheck disable=SC2086
+          docker build --platform linux/amd64 -t "$image" $ARGS
+          docker push --quiet "$image"
+          echo "Pushed foc/$NAME:$tag"
+
+  deploy:
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # No `environment:` here: it would change the OIDC subject to
+    # ...:environment:<name>, which the AWS role does not trust.
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra
+    env:
+      ALARM_EMAIL: ${{ secrets.ALARM_EMAIL }}
+    steps:
+      - name: Check inputs
+        working-directory: .
+        run: |
+          # Without the alarm email, CDK removes the alarm email subscription.
+          if [ -z "$ALARM_EMAIL" ]; then
+            echo "The ALARM_EMAIL secret is empty. Refusing to deploy." >&2
+            exit 1
+          fi
+          echo "TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global "pnpm@${PNPM_VERSION}"
+      - run: pnpm install --frozen-lockfile
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      - name: Mask the account ID
+        run: echo "::add-mask::$(aws sts get-caller-identity --query Account --output text)"
+      # --method=template compares templates without creating a change set.
+      - name: Diff FocJobs and FocApp
+        run: pnpm cdk diff FocJobs FocApp --exclusively --method=template -c profile=demo -c "imageTag=$TAG" -c "alarmEmail=$ALARM_EMAIL"
+      # --exclusively is essential: without it CDK also deploys FocData.
+      - name: Deploy FocJobs
+        run: pnpm cdk deploy FocJobs --exclusively --require-approval never -c profile=demo -c "imageTag=$TAG" -c "alarmEmail=$ALARM_EMAIL"
+      - name: Migrate the user database
+        run: scripts/run-one-off-task.sh foc-migrate-user UserSecurityGroupId
+      - name: Migrate the supplier database
+        run: scripts/run-one-off-task.sh foc-migrate-supplier SupplierSecurityGroupId
+      # CloudFormation waits for ECS to settle. If new tasks keep failing, the
+      # circuit breaker rolls the services back and this step fails.
+      - name: Deploy FocApp
+        run: pnpm cdk deploy FocApp --exclusively --require-approval never -c profile=demo -c "imageTag=$TAG" -c "alarmEmail=$ALARM_EMAIL"
+      - name: Check every service runs the new tag
+        run: |
+          failed=0
+          for service in web-app user-service supplier-service credit-service order-service; do
+            read -r definition state < <(aws ecs describe-services --cluster foc --services "$service" \
+              --query 'services[0].[taskDefinition, deployments[0].rolloutState]' --output text)
+            image=$(aws ecs describe-task-definition --task-definition "$definition" \
+              --query 'taskDefinition.containerDefinitions[0].image' --output text)
+            echo "$service: tag ${image##*:}, rollout $state"
+            if [ "${image##*:}" != "$TAG" ] || [ "$state" != COMPLETED ]; then failed=1; fi
+          done
+          exit "$failed"
+      - name: Smoke-test the public site
+        run: |
+          url=$(aws cloudformation describe-stacks --stack-name FocApp \
+            --query "Stacks[0].Outputs[?OutputKey=='AppUrl'].OutputValue" --output text)
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url/login" || true)
+            echo "Attempt $attempt: GET /login returned $code"
+            if [ "$code" = 200 ]; then
+              echo "Deployed \`$TAG\` to $url" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1

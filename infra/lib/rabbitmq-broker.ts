@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing RabbitMQ deployment definitions.
+ * Author review: Checked FargateRabbitBroker property values and existing resource references in rabbitmq-broker.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import type * as ec2 from 'aws-cdk-lib/aws-ec2';

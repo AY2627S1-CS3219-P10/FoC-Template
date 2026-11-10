@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of route code (POST).
+ * Author review: Validated POST request handlers, parameter handling, and returned values; edited handler naming and formatting.
+ */
+
 import { NextRequest } from "next/server";
 import { accessToken, backend, BackendError, errorResponse, json, requireSameOrigin } from "@/services/backend.server";
 import type { Errand, ErrandOperation } from "@/services/contracts";

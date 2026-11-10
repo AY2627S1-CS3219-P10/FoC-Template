@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account validation error code (AccountValidationField, AccountValidationError).
+ * Author review: Checked AccountValidationField, AccountValidationError error messages and exposed properties; standardized exception naming and formatting.
+ */
+
 export type AccountValidationField =
   'email' | 'password' | 'phoneNumber' | 'username' | 'verificationCode';
 

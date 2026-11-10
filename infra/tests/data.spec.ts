@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of data test assertions and fixtures.
+ * Author review: Checked "runs the demo broker without a public address" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { DATABASES, DATABASE_OWNERS } from '../lib/config';
 import { bootstrapScript, passwordVariable } from '../lib/db-bootstrap';
 import {

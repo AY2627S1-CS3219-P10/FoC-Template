@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of services test assertions and fixtures.
+ * Author review: Checked "scales every service on CPU, and web-app on requests too" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -33,19 +40,31 @@ function allContainers(templates: Templates): Container[] {
 
 describe('autoscaling', () => {
   it.each([
-    ['demo', 1, 3],
-    ['scale', 2, 20],
-  ] as const)('%s runs %i to %i tasks per service', (profile, min, max) => {
-    const { app } = synthesize(profile);
-    const targets = resources(
-      app,
-      'AWS::ApplicationAutoScaling::ScalableTarget',
-    );
-    expect(targets).toHaveLength(SERVICE_NAMES.length);
-    for (const target of targets) {
-      expect(target).toMatchObject({ MinCapacity: min, MaxCapacity: max });
-    }
-  });
+    ['demo', 1, 2, 3],
+    ['scale', 2, 2, 20],
+  ] as const)(
+    '%s keeps a highly available web floor',
+    (profile, serviceMin, webMin, max) => {
+      const { app } = synthesize(profile);
+      const targets = resources(
+        app,
+        'AWS::ApplicationAutoScaling::ScalableTarget',
+      );
+      expect(targets).toHaveLength(SERVICE_NAMES.length);
+      const webTarget = targets.find((target) =>
+        JSON.stringify(target.ResourceId).includes('WebAppService'),
+      );
+      expect(webTarget).toMatchObject({
+        MinCapacity: webMin,
+        MaxCapacity: max,
+      });
+      for (const target of targets.filter((target) => target !== webTarget))
+        expect(target).toMatchObject({
+          MinCapacity: serviceMin,
+          MaxCapacity: max,
+        });
+    },
+  );
 
   it('scales every service on CPU, and web-app on requests too', () => {
     const { app } = synthesize('demo');
@@ -72,8 +91,12 @@ describe('autoscaling', () => {
     'keeps the minimum on Fargate and extra copies on Spot (%s)',
     (profile) => {
       const { app } = synthesize(profile);
-      const base = PROFILES[profile].minTasks;
       for (const service of resources(app, 'AWS::ECS::Service')) {
+        const name = String(service.ServiceName);
+        const base =
+          name === 'web-app'
+            ? Math.max(2, PROFILES[profile].minTasks)
+            : PROFILES[profile].minTasks;
         expect(service.CapacityProviderStrategy).toEqual([
           { CapacityProvider: 'FARGATE', Base: base, Weight: 0 },
           { CapacityProvider: 'FARGATE_SPOT', Weight: 1 },
@@ -224,8 +247,8 @@ describe('secret values', () => {
     expect(urlOf('scale')).toContain('amqps://foc:');
   });
 
-  it('total 18 in demo, for the cost estimate', () => {
-    expect(secretsOf('demo')).toHaveLength(18);
+  it('totals 19 in demo, for the cost estimate', () => {
+    expect(secretsOf('demo')).toHaveLength(19);
   });
 });
 
@@ -357,6 +380,21 @@ describe('service configuration', () => {
     expect(JSON.stringify(container.Image)).toContain(':test-tag');
   });
 
+  it('keeps web connections alive longer than the load balancer idle timeout', () => {
+    const web = mainContainer(app, 'foc-web-app');
+    expect(web.Command).toEqual([
+      'node',
+      'node_modules/next/dist/bin/next',
+      'start',
+      '--hostname',
+      '0.0.0.0',
+      '--port',
+      '3000',
+      '--keepAliveTimeout',
+      '65000',
+    ]);
+  });
+
   it('sizes tasks as the plan says', () => {
     const task = (family: string): unknown =>
       resources(app, 'AWS::ECS::TaskDefinition').find(
@@ -403,6 +441,22 @@ describe('jobs', () => {
     const seed = mainContainer(jobs, 'foc-seed-administrators');
     expect(seed.Command).toEqual(['node', 'dist/seed-administrators.js']);
     expect(secretNames(seed)).toEqual(['ADMIN_SEED_ACCOUNTS', 'DATABASE_URL']);
+    expect(secretSource(seed, 'DATABASE_URL')).toContain(
+      'UserServiceDatabaseUrl',
+    );
+  });
+
+  it('seeds staging load-test accounts from the user-service image', () => {
+    const seed = mainContainer(jobs, 'foc-seed-test-accounts');
+    expect(seed.Command).toEqual(['node', 'dist/seed-test-accounts.js']);
+    expect(environmentOf(seed)).toEqual({
+      ALLOW_TEST_ACCOUNT_SEED: 'true',
+      NODE_ENV: 'staging',
+    });
+    expect(secretNames(seed)).toEqual([
+      'DATABASE_URL',
+      'TEST_ACCOUNT_SEED_ACCOUNTS',
+    ]);
     expect(secretSource(seed, 'DATABASE_URL')).toContain(
       'UserServiceDatabaseUrl',
     );

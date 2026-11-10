@@ -1,6 +1,6 @@
 # Friend on Campus on AWS
 
-**Last updated:** 2026-11-04. **Owner:** Nasif (`infra/` and CI/CD).
+**Last updated:** 2026-11-10. **Owner:** Nasif (`infra/` and CI/CD).
 
 This is the current source of truth for how the app runs on AWS. If an older plan
 or note disagrees with it, this document wins. `docs/tech-stack.md` is still the
@@ -22,10 +22,10 @@ The app is live at **https://d1jp4ocurldf39.cloudfront.net**.
 | Area | Status |
 | --- | --- |
 | AWS deployment | Live: 5 services, broker, database and cache all running |
-| Code running | Commit `7eb98a6`, which contains `main` up to `e02d200` |
+| Code running | Commit `f07bf26`, plus the web-tier settings from pull request #39, which isn't merged yet |
 | Monitoring | All 15 `foc-*` alarms OK, and alarm emails are confirmed |
 | Full errand flow | Partly tested (see below) |
-| CI/CD | Not built yet, so pushing to `main` does **not** change AWS |
+| CI/CD | Built, with the first deploy not yet run. Pushing to `main` does **not** change AWS yet (see [CI/CD](#cicd)) |
 | Load test | Not done yet |
 | Redundancy | Single instances, by decision (see [Accepted limitations](#accepted-limitations)) |
 
@@ -86,7 +86,7 @@ Region: `ap-southeast-1` (Singapore).
 | Load balancer (ALB) | One target: `web-app` | Health checks and spreading traffic across tasks |
 | CloudFront | The public URL | HTTPS without a custom domain |
 | ECR | 7 image repositories, immutable tags, last 10 images kept | Stores the built images |
-| Secrets Manager | 18 secrets | Injected into containers when they start |
+| Secrets Manager | 19 secrets | Injected into containers when they start |
 | Cloud Map | `foc.internal` DNS | Lets services find each other |
 | CloudWatch and SNS | 15 alarms, a dashboard named `foc`, logs kept 1 week, email alerts | Monitoring |
 | CloudFormation | 5 stacks | Applies the CDK code to AWS |
@@ -196,7 +196,7 @@ The stacks must be deployed in this order:
 | `FocNetwork`, `FocRegistry` | VPC, cluster, security groups, image repositories | Everything else needs them |
 | Build and push images | All 7 images go to ECR | Tasks can't start without them |
 | `FocData`, then database bootstrap | Database, cache, broker, secrets, then 4 logins and databases | Services need somewhere to connect |
-| Set 2 secrets by hand | SMTP and admin accounts | Keeps the values out of the repo |
+| Set 3 secrets by hand | SMTP, admin accounts and staging test accounts | Keeps the values out of the repo |
 | `FocJobs`, then migrations and seeds | User and supplier migrations, supplier locations, 5 admins | Those two services don't migrate at startup |
 | `FocApp` | 5 services, load balancer, CloudFront, alarms | Order and credit run their own migrations as they start |
 
@@ -205,21 +205,47 @@ alongside the old ones and removes the old ones once the new ones are healthy. I
 tasks keep failing, a circuit breaker rolls back automatically. It can't catch a logic
 bug that passes health checks, and it doesn't undo migrations.
 
-**Today:** Nasif deploys by hand from a laptop.
+### CI/CD
 
-**Planned CI/CD:** the goal is that a push to `main` updates AWS. `ci.yml` will test
-pull requests, and `deploy.yml` will build images, run migrations and roll out `FocApp`.
-Secret values and changes to the network or data stacks stay manual. This depends on
-the sandbox allowing GitHub to sign in to AWS, which hasn't been tested yet.
+| Workflow | Runs on | What it does |
+| --- | --- | --- |
+| `ci.yml` | Every pull request to `main` | Lint, type-check and tests for all 5 services and `infra`, integration tests on real Postgres, Redis and RabbitMQ containers, `cdk synth`, and a build of all 7 images. No AWS access |
+| `deploy.yml` | Every push to `main` that changes files outside `docs/**` and `**/*.md`, or started by hand on `main` from the Actions tab | Runs `ci.yml`, builds and pushes the 7 images tagged with the commit, deploys `FocJobs`, runs the user and supplier migrations, deploys `FocApp`, checks every service runs the new tag, and checks `/login` returns 200 |
 
-Once it's live, **every push to `main` goes to the live site**, as long as the tests pass.
+**Status:** the first manual deployment succeeded on 10 November 2026 at commit
+`3f3fdac`: both migrations passed, all 5 services completed their rollout on the new
+tag, and `/login` returned 200. The automatic push trigger takes effect when this
+workflow change merges to `main`; that merge also starts a deployment. After that,
+**code pushes to `main` go to the live site after CI passes**. Documentation-only
+pushes are skipped. Deployments run one at a time and do not cancel an active rollout.
+
+How it signs in to AWS:
+
+- GitHub Actions signs in with OIDC to the role `foc-github-deploy` (stack `FocCi`), so no AWS keys are stored in GitHub.
+- The role trusts only `main` of this repository. Other branches, pull requests and forks get no credentials.
+- The sandbox's organization policy blocks CDK's usual bootstrap roles, so the role has its own narrow permissions. It can push images, change only `FocJobs` and `FocApp`, and run only the two migration tasks. CloudFormation makes the actual changes through CDK's execution role, as it does for laptop deploys.
+- The repository was created after July 15, 2026, so GitHub signs its tokens with the [immutable subject](https://docs.github.com/en/actions/reference/security/oidc) format, which includes the numeric owner and repository IDs. The role's trust policy must use that format.
+
+What stays manual: `FocNetwork`, `FocRegistry`, `FocData` and `FocCi`, secret values, and
+the seed tasks.
+
+**To pause deploys,** for example before the presentation:
+
+```bash
+gh workflow disable deploy.yml --repo AY2627S1-CS3219-P10/FoC-Template
+gh workflow enable deploy.yml --repo AY2627S1-CS3219-P10/FoC-Template   # to resume
+```
+
+**If a deploy fails:** the job log names the failed step. A failed `FocApp` rollout rolls
+the services back on its own. Migrations aren't rolled back. Re-running the same
+commit skips images that already exist.
 
 ## If you change code
 
 **Everyone on the team can push to `main` directly**, with no approval needed. The points
 below are what your change needs in order to work on AWS.
 
-1. **Until CI/CD is live, pushes don't reach AWS.** Anything after `e02d200` isn't live yet, so ask Nasif if you need something deployed sooner.
+1. **Code pushes to `main` deploy automatically after CI passes.** See [CI/CD](#cicd). Documentation-only pushes are skipped, and a failed check blocks deployment. Follow the Deploy workflow in Actions to confirm the new commit is live.
 2. **New environment variable or secret:** add it in `infra/lib/app-stack.ts`, or `infra/lib/data-stack.ts` for a secret. Otherwise your service won't get it on AWS, even though it works locally. Many services fall back to `127.0.0.1` defaults, which fail in the cloud.
 3. **Migrations must keep the previous code working.** Old and new tasks run side by side during a rollout, and a rollback doesn't undo a migration. Add first, and remove in a later release.
 4. **New call between services:** add it to `CALLERS` in `infra/lib/config.ts`. Security groups block anything not listed.
@@ -268,7 +294,7 @@ These are estimates. Real billing data hadn't arrived when this was written.
 | Fargate, broker | 0.44 |
 | 3 public IPs | 0.36 |
 | NAT instance and disk* | 0.29 |
-| 18 secrets | 0.24 |
+| 19 secrets | 0.25 |
 | CloudWatch* | 0.13 |
 | Route 53 zone and ECR* | 0.04 |
 | **Total** | **About 6.14** |
@@ -305,7 +331,7 @@ These are estimates. Real billing data hadn't arrived when this was written.
 | Task | Owner | Status |
 | --- | --- | --- |
 | Finish the errand flow on AWS: accept, pick up, deliver, confirm, and check the courier is paid once | Nasif | Next |
-| Build CI/CD | Nasif, with a coding agent | Next |
+| Build CI/CD | Nasif, with a coding agent | First manual deploy passed; automatic trigger enabled when the workflow change merges to `main`; rollback test pending |
 | Load test and scaling evidence | Teammate | Not started |
 | Check real billing against the estimate | Nasif | Due the morning after deployment |
 | Write the deployment decision record, `docs/adr/0002-aws-deployment.md` | Nasif | Not started |

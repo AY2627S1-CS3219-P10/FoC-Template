@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing network resource definitions.
+ * Author review: Checked NetworkStack property values and existing resource references in network-stack.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { CfnOutput, Fn, Stack } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';

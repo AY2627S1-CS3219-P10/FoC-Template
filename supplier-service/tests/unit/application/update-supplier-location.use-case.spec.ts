@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update supplier location use case test cases.
+ * Author review: Validated the assertions and setup for "normalizes and validates replacement location details"; clarified test descriptions and assertion formatting.
+ */
+
 import type {
   CreateSupplierRecord,
   SupplierManagementRepositoryPort,
@@ -69,7 +76,7 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
         record.locationDescription ?? 'Near the main entrance',
       longitude: record.longitude ?? 103.7739,
       opensAt: '09:00',
-      supplierAtLocation: `Starbucks@${record.building ?? 'UTown'}`,
+      supplierAtLocation: 'Starbucks',
     });
   }
 }
@@ -90,7 +97,7 @@ describe('UpdateSupplierLocationUseCase', () => {
       }),
     ).resolves.toMatchObject({
       building: 'Science',
-      supplierAtLocation: 'Starbucks@Science',
+      supplierAtLocation: 'Starbucks',
     });
     expect(repository.locationRecords).toEqual([
       {

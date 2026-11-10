@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of adjust reservation dto code (AdjustReservationDto).
+ * Author review: Checked AdjustReservationDto validation decorators (IsUUID, IsInt, Min) and optional fields; standardized property formatting and annotations.
+ */
+
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsString, IsUUID, Length, Max, Min } from 'class-validator';

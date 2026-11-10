@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of configure http application test cases.
+ * Author review: Validated the assertions and setup for "allows only the configured frontend origin instead of a wildcard"; clarified test descriptions and assertion formatting.
+ */
+
 import { Controller, Get, type INestApplication } from '@nestjs/common';
 import {
   FastifyAdapter,

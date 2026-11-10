@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of verification email resend rate limiter test cases.
+ * Author review: Validated the assertions and setup for "atomically enforces the resend cooldown" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { createHash } from 'node:crypto';
 
 import {

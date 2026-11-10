@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of services test cases.
+ * Author review: Validated the assertions and setup for "guest flow links to real account and supplier screens" against the browser actions and expected page state; clarified test descriptions and assertion formatting.
+ */
+
 import { expect, test } from "@playwright/test";
 
 test("guest flow links to real account and supplier screens", async ({

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of correlation test cases.
+ * Author review: Validated the assertions and setup for "reuses a well-formed inbound id and keeps it stable per request"; clarified test descriptions and assertion formatting.
+ */
+
 import { ConfigService } from '@nestjs/config';
 import type { IncomingMessage } from 'node:http';
 import {

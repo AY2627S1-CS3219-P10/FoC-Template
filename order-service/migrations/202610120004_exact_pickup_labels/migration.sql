@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610120004_exact_pickup_labels (update).
+-- Author review: Validated the SQL statements for errands, errand_operations in migration 202610120004_exact_pickup_labels; edited SQL layout and comments for readability.
+
 -- Remove only the suffix appended by the original Order Service formatter.
 -- The remaining supplier_at_location snapshot retains its original case/spacing.
 UPDATE "errands"

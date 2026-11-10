@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610180004_lifecycle_columns (alter table, create table, create index).
+-- Author review: Validated the SQL statements for errands, errand_history, CASCADE in migration 202610180004_lifecycle_columns; edited SQL layout and comments for readability.
+
 -- Lifecycle timestamps, completion method (D-008) and per-transition history for the
 -- decided rows of docs/requirements.md §3. Cancel/expiry states get no constraints
 -- yet (Q-006, Q-007). No route sets a non-OPEN status before this migration, so

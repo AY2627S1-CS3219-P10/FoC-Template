@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errand detail rendering and interaction code (ErrandDetail).
+ * Author review: Validated ErrandDetail state updates, form submission, click handlers in web-app/errand-detail.tsx; refined JSX layout and user-facing wording. Additional review item: Check invalid-input messages and repeated submissions.
+ */
+
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -36,7 +43,8 @@ function ErrandDetailContent({ id }: { id: string }) {
     ...(errand.courierId && errand.courierId !== userId ? [{ id: errand.courierId, username: errand.courierUsername || "Unavailable user", role: "courier" as const }] : []),
   ] : [];
   const editable = owner && errand?.status === "OPEN" && !errand.courierId;
-  const deletable = admin || (owner && errand?.status === "OPEN" && !errand.courierId);
+  const ownerCanCancel = owner && ["OPEN", "ACCEPTED"].includes(errand?.status ?? "");
+  const deletable = admin && !ownerCanCancel;
   async function apply(input: Mutation) {
     if (locked.current) return; locked.current = true; setBusy(true); setError(""); setMessage(""); setMutation(input);
     try {

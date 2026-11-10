@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit provider rendering and interaction code (CreditProvider, useCredits).
+ * Author review: Validated CreditProvider, useCredits state updates, request results, error rendering in web-app/credit-provider.tsx; refined JSX layout and user-facing wording. Additional review item: Check loading and error states, and displayed values after successful actions.
+ */
+
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";

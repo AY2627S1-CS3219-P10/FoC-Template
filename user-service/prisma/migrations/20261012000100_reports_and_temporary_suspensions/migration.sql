@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 20261012000100_reports_and_temporary_suspensions (alter table, create index, create table).
+-- Author review: Validated the SQL statements for users, user_reports, CASCADE in migration 20261012000100_reports_and_temporary_suspensions; edited SQL layout and comments for readability.
+
 ALTER TABLE "users" ADD COLUMN "suspended_until" TIMESTAMPTZ(6);
 CREATE INDEX "users_is_admin_status_suspended_until_idx"
     ON "users"("is_admin", "status", "suspended_until");

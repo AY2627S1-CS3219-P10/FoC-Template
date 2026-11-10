@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user outbox relay service code (RabbitMqConnector, UserOutboxRelayService).
+ * Author review: Checked RabbitMqConnector, UserOutboxRelayService message/job handling and completion/error branches; edited asynchronous flow formatting and log wording. Additional review item: Check retry and failure handling, including repeated delivery of the same job or message.
+ */
+
 import {
   Injectable,
   Logger,

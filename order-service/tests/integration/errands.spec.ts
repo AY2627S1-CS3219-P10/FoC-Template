@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errands test cases.
+ * Author review: Validated the assertions and setup for "persists private bookmarks, replays mutations, and filters before pagination" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import creditConfiguration from '../../../credit-service/src/infrastructure/configuration';
@@ -216,7 +223,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
                       id: pickupId,
                       building: 'Central Library',
                       floor: 1,
-                      supplierAtLocation: 'Cafe@Com2',
+                      supplierAtLocation: 'Campus Cafe',
                     },
                   ],
                 },
@@ -2220,7 +2227,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     expect(result.errand).toMatchObject({
       requesterId,
       status: 'OPEN',
-      pickupLocationLabel: 'Cafe@Com2',
+      pickupLocationLabel: 'Campus Cafe',
     });
     expect(result.errand.createdAt).toBeTruthy();
     expect(

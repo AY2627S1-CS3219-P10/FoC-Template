@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL statements in migration 20261109000100_correct_cafe_categories.
+-- Author review: Checked 20261109000100_correct_cafe_categories statements and affected record values for consistency; edited SQL formatting and comments.
+
 BEGIN;
 
 -- These cafes sell food as well as drinks. Match the brand and its named outlets.

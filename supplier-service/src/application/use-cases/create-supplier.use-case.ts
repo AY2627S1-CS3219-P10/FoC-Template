@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of create supplier code (CreateSupplierInput, CreateSupplierUseCase).
+ * Author review: Validated CreateSupplierInput, CreateSupplierUseCase input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import type { SupplierCatalogEntry } from '../../domain/supplier-catalog.js';
 import { normalizeCatalogText } from '../../domain/catalog-text.js';
 import {
@@ -88,7 +95,7 @@ export class CreateSupplierUseCase {
         locationDescription,
         longitude: campusLocation.longitude,
         opensAt,
-        supplierAtLocation: `${name}@${building}`,
+        supplierAtLocation: name,
       },
       name,
     });

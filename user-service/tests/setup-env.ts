@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of setup env test cases.
+ * Author review: Validated setup env value handling and returned results in user-service/setup-env.ts; edited naming and formatting for readability.
+ */
+
 process.env.NODE_ENV = 'test';
 process.env.PORT = '3001';
 process.env.USER_EVENTS_ENABLED = 'false';

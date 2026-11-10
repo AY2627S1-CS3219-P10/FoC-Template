@@ -1,6 +1,14 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of stack initialization and references.
+ * Author review: Checked FocStacksProps, FocStacks property values and existing resource references in stacks.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { Tags } from 'aws-cdk-lib';
 import type { App, Environment } from 'aws-cdk-lib';
 import { AppStack } from './app-stack';
+import { CiStack } from './ci-stack';
 import type { Profile } from './config';
 import { DataStack } from './data-stack';
 import { JobsStack } from './jobs-stack';
@@ -20,11 +28,13 @@ export interface FocStacks {
   readonly data: DataStack;
   readonly jobs: JobsStack;
   readonly app: AppStack;
+  readonly ci: CiStack;
 }
 
 /**
  * Deploy order: network and registry, push the images, data, run the database
- * bootstrap task, jobs, run the migrate and seed tasks, then app.
+ * bootstrap task, jobs, run the migrate and seed tasks, then app. The CI stack
+ * depends on nothing and can be deployed at any point.
  */
 export function createFocStacks(app: App, props: FocStacksProps): FocStacks {
   const { profile, env, imageTag, alarmEmail } = props;
@@ -62,11 +72,15 @@ export function createFocStacks(app: App, props: FocStacksProps): FocStacks {
     alarmEmail,
     description: 'Friend on Campus services, load balancer, CDN and monitoring',
   });
+  const ci = new CiStack(app, 'FocCi', {
+    env,
+    description: 'Friend on Campus GitHub OIDC provider and deploy role',
+  });
 
   // CDK marks this resource type as taggable, but its schema has no Tags.
   const tagOptions = { excludeResourceTypes: ['AWS::RDS::DBProxyTargetGroup'] };
   Tags.of(app).add('Project', 'friend-on-campus', tagOptions);
   Tags.of(app).add('Profile', profile.name, tagOptions);
 
-  return { network, registry, data, jobs, app: appStack };
+  return { network, registry, data, jobs, app: appStack, ci };
 }

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account identity controller code (AccountIdentityResponse, AccountIdentityController).
+ * Author review: Validated AccountIdentityResponse, AccountIdentityController Get handlers, parameter handling, and returned values; edited handler naming and formatting.
+ */
+
 import {
   Controller,
   Get,

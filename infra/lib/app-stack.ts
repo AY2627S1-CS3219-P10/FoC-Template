@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing application deployment definitions.
+ * Author review: Checked AppStack property values and existing resource references in app-stack.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { CfnOutput, Duration, Stack } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
@@ -204,6 +211,27 @@ export class AppStack extends Stack {
           image: imageOf(this, name, imageTag),
           size: name === 'web-app' ? profile.webTask : profile.backendTask,
           securityGroup: network.serviceSecurityGroups[name],
+          // The ALB reuses idle upstream connections for 60 seconds. Keep the
+          // Next.js side open slightly longer so it cannot close a connection
+          // just as the ALB sends another request, which surfaces as HTTP 502.
+          command:
+            name === 'web-app'
+              ? [
+                  'node',
+                  'node_modules/next/dist/bin/next',
+                  'start',
+                  '--hostname',
+                  '0.0.0.0',
+                  '--port',
+                  '3000',
+                  '--keepAliveTimeout',
+                  '65000',
+                ]
+              : undefined,
+          // Keep two regular web targets so scaling or replacement cannot
+          // briefly leave the public ALB without a usable target.
+          minimumTasks:
+            name === 'web-app' ? Math.max(2, profile.minTasks) : undefined,
           healthCheckGracePeriod:
             name === 'web-app' ? Duration.minutes(2) : undefined,
           ...definitions[name],

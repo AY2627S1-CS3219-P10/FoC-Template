@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of nus email code (EMAIL_MAXIMUM_LENGTH, NusEmail).
+ * Author review: Validated EMAIL_MAXIMUM_LENGTH, NusEmail input handling, return values, and thrown errors in user-service/nus-email.ts; edited naming and formatting for readability.
+ */
+
 import { AccountValidationError } from './account-validation.error.js';
 
 const NUS_EMAIL_DOMAIN = 'u.nus.edu';
