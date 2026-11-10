@@ -24,6 +24,9 @@ concurrency:
 env:
   NODE_VERSION: '24'
   PNPM_VERSION: '12.11.2'
+  # prisma.config.ts needs a DATABASE_URL even to generate the client, which
+  # doesn't connect. Integration tests replace it with their container's URL.
+  PRISMA_GENERATE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
 
 jobs:
   order-service:
@@ -39,10 +42,20 @@ jobs:
           package-manager-cache: false
       - run: npm install --global "pnpm@${PNPM_VERSION}"
       - run: pnpm install --frozen-lockfile
+      # Generated clients are gitignored. Lint and typecheck need order's, and
+      # the integration tests also use credit's.
+      - run: DATABASE_URL="$PRISMA_GENERATE_URL" pnpm --filter @foc/order-service db:generate
+      - run: DATABASE_URL="$PRISMA_GENERATE_URL" pnpm --filter @foc/credit-service db:generate
       - run: pnpm --filter @foc/order-service lint
       - run: pnpm --filter @foc/order-service format:check
       - run: pnpm --filter @foc/order-service typecheck
+      # Unit tests import the app module, which validates these on load.
+      # Placeholders, as a local .env would provide; nothing connects.
       - run: pnpm --filter @foc/order-service test
+        env:
+          DATABASE_URL: ${{ env.PRISMA_GENERATE_URL }}
+          REDIS_URL: redis://127.0.0.1:6379
+          CREDIT_ORDER_SERVICE_TOKEN: ci-placeholder-not-a-secret-0000000000
       - run: pnpm --filter @foc/order-service test:integration
 
   credit-service:
@@ -59,7 +72,7 @@ jobs:
       - run: npm install --global "pnpm@${PNPM_VERSION}"
       - run: pnpm install --frozen-lockfile
       # credit-service has no lint or typecheck script; the build type-checks.
-      - run: pnpm --filter @foc/credit-service build
+      - run: DATABASE_URL="$PRISMA_GENERATE_URL" pnpm --filter @foc/credit-service build
       - run: pnpm --filter @foc/credit-service test
       - run: pnpm --filter @foc/credit-service test:integration
 
@@ -143,7 +156,8 @@ jobs:
         run: pnpm cdk synth --quiet -c profile=demo -c imageTag=ci
 
   images:
-    if: inputs.build-images != false
+    # On pull requests inputs is empty, and null == false in expressions.
+    if: github.event_name == 'pull_request' || inputs.build-images
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
