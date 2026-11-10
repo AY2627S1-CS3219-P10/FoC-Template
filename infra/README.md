@@ -210,11 +210,14 @@ bug that passes health checks, and it doesn't undo migrations.
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
 | `ci.yml` | Every pull request to `main` | Lint, type-check and tests for all 5 services and `infra`, integration tests on real Postgres, Redis and RabbitMQ containers, `cdk synth`, and a build of all 7 images. No AWS access |
-| `deploy.yml` | Started by hand from the Actions tab, on `main` only, for now | Runs `ci.yml`, builds and pushes the 7 images tagged with the commit, deploys `FocJobs`, runs the user and supplier migrations, deploys `FocApp`, checks every service runs the new tag, and checks `/login` returns 200 |
+| `deploy.yml` | Every push to `main` that changes files outside `docs/**` and `**/*.md`, or started by hand on `main` from the Actions tab | Runs `ci.yml`, builds and pushes the 7 images tagged with the commit, deploys `FocJobs`, runs the user and supplier migrations, deploys `FocApp`, checks every service runs the new tag, and checks `/login` returns 200 |
 
-**Status:** both workflows are built, but `deploy.yml` hasn't run yet. Once it has been
-tested, it will also run on every push to `main`. From then on, **every push to `main`
-goes to the live site**, as long as the checks pass.
+**Status:** the first manual deployment succeeded on 10 November 2026 at commit
+`3f3fdac`: both migrations passed, all 5 services completed their rollout on the new
+tag, and `/login` returned 200. The automatic push trigger takes effect when this
+workflow change merges to `main`; that merge also starts a deployment. After that,
+**code pushes to `main` go to the live site after CI passes**. Documentation-only
+pushes are skipped. Deployments run one at a time and do not cancel an active rollout.
 
 How it signs in to AWS:
 
@@ -242,7 +245,7 @@ commit skips images that already exist.
 **Everyone on the team can push to `main` directly**, with no approval needed. The points
 below are what your change needs in order to work on AWS.
 
-1. **Until automatic deploys are switched on, pushes don't reach AWS.** See [CI/CD](#cicd). Ask Nasif if you need something deployed sooner.
+1. **Code pushes to `main` deploy automatically after CI passes.** See [CI/CD](#cicd). Documentation-only pushes are skipped, and a failed check blocks deployment. Follow the Deploy workflow in Actions to confirm the new commit is live.
 2. **New environment variable or secret:** add it in `infra/lib/app-stack.ts`, or `infra/lib/data-stack.ts` for a secret. Otherwise your service won't get it on AWS, even though it works locally. Many services fall back to `127.0.0.1` defaults, which fail in the cloud.
 3. **Migrations must keep the previous code working.** Old and new tasks run side by side during a rollout, and a rollback doesn't undo a migration. Add first, and remove in a later release.
 4. **New call between services:** add it to `CALLERS` in `infra/lib/config.ts`. Security groups block anything not listed.
@@ -328,7 +331,7 @@ These are estimates. Real billing data hadn't arrived when this was written.
 | Task | Owner | Status |
 | --- | --- | --- |
 | Finish the errand flow on AWS: accept, pick up, deliver, confirm, and check the courier is paid once | Nasif | Next |
-| Build CI/CD | Nasif, with a coding agent | Built; first deploy and the automatic trigger pending |
+| Build CI/CD | Nasif, with a coding agent | First manual deploy passed; automatic trigger enabled when the workflow change merges to `main`; rollback test pending |
 | Load test and scaling evidence | Teammate | Not started |
 | Check real billing against the estimate | Nasif | Due the morning after deployment |
 | Write the deployment decision record, `docs/adr/0002-aws-deployment.md` | Nasif | Not started |
