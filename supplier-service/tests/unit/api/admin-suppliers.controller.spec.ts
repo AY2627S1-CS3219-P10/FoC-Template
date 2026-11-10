@@ -64,7 +64,7 @@ const ORIGINAL_LOCATION: SupplierLocationCatalogEntry = {
   locationDescription: 'Near the main entrance',
   longitude: 103.7739,
   opensAt: '08:00',
-  supplierAtLocation: 'Starbucks@UTown',
+  supplierAtLocation: 'Starbucks',
 };
 const CREATED: SupplierCatalogEntry = {
   categories: ['FOOD', 'BEVERAGES'],
@@ -80,7 +80,7 @@ const UPDATED_LOCATION: SupplierLocationCatalogEntry = {
   latitude: 1.2966,
   locationDescription: 'Beside the main entrance',
   longitude: 103.7801,
-  supplierAtLocation: 'Starbucks@Science',
+  supplierAtLocation: 'Starbucks',
 };
 
 class StubCreateSupplierUseCase {

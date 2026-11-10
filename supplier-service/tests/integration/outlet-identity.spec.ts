@@ -125,6 +125,23 @@ integration('match and confirm against PostgreSQL', () => {
     expect(technoEdge.rows).toEqual([
       { floor: null, latitude: null, longitude: null },
     ]);
+    const hotHideout = await pool.query<{
+      building: string;
+      floor: number | null;
+      supplier_at_location: string;
+    }>(
+      `SELECT location.supplier_at_location, location.building, location.floor
+       FROM supplier_locations AS location
+       JOIN suppliers AS supplier ON supplier.id = location.supplier_id
+       WHERE supplier.name = 'A Hot Hideout'`,
+    );
+    expect(hotHideout.rows).toEqual([
+      {
+        building: "Prince George's Park",
+        floor: 2,
+        supplier_at_location: 'A Hot Hideout',
+      },
+    ]);
     prisma = new PrismaClient({
       adapter: new PrismaPg({ connectionString: databaseUrl }),
     });
@@ -463,7 +480,7 @@ function record(
       closesAt: new Date('1970-01-01T20:00:00Z'),
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: `${name}@${building}`,
+      supplierAtLocation: name,
     },
   };
 }

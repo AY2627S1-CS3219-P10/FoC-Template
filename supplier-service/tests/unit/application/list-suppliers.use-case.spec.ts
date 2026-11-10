@@ -27,7 +27,7 @@ const CATALOG: SupplierCatalogEntry[] = [
         locationDescription: 'Inside the library on the right side',
         longitude: 103.7732677,
         opensAt: '09:00',
-        supplierAtLocation: 'NUS Co-op@Central Library',
+        supplierAtLocation: 'NUS Co-op',
       },
     ],
     name: 'NUS Co-op',

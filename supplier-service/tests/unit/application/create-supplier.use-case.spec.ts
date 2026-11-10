@@ -171,7 +171,7 @@ describe('CreateSupplierUseCase', () => {
           locationDescription: 'Near the main entrance',
           longitude: 103.7739,
           opensAt: new Date('1970-01-01T08:00:00.000Z'),
-          supplierAtLocation: 'Starbucks@UTown',
+          supplierAtLocation: 'Starbucks',
         },
         name: 'Starbucks',
       },

@@ -218,7 +218,7 @@ export function CreateErrand({ onCreated }: { onCreated: () => void }) {
                 </option>
                 {locations.map((location) => (
                   <option key={location.id} value={location.id}>
-                    {location.supplierAtLocation} · {location.building} ·{" "}
+                    {location.supplierName} · {location.building} ·{" "}
                     {location.floor === null
                       ? "Floor unknown"
                       : `Floor ${location.floor}`}

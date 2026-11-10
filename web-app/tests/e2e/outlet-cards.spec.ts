@@ -25,7 +25,7 @@ const supplier = {
       closesAt: "18:00",
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: "MedSci Printing@Medicine+Science Library",
+      supplierAtLocation: "MedSci Printing",
     },
   ],
 };

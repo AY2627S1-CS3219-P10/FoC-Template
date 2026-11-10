@@ -56,7 +56,7 @@ const CATALOG: SupplierCatalogEntry[] = [
         locationDescription: 'Opp to central library entrance',
         longitude: 103.773032,
         opensAt: '00:00',
-        supplierAtLocation: 'Cafe+ Robot Cafe@Central Library',
+        supplierAtLocation: 'Cafe+ Robot Cafe',
       },
     ],
     name: 'Cafe+ Robot Cafe',

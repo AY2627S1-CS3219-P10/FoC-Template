@@ -223,7 +223,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
                       id: pickupId,
                       building: 'Central Library',
                       floor: 1,
-                      supplierAtLocation: 'Cafe@Com2',
+                      supplierAtLocation: 'Campus Cafe',
                     },
                   ],
                 },
@@ -2227,7 +2227,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     expect(result.errand).toMatchObject({
       requesterId,
       status: 'OPEN',
-      pickupLocationLabel: 'Cafe@Com2',
+      pickupLocationLabel: 'Campus Cafe',
     });
     expect(result.errand.createdAt).toBeTruthy();
     expect(

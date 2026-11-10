@@ -24,7 +24,7 @@ const cafe = {
       closesAt: "20:00",
       isOpenOvernight: false,
       imageUrl: null,
-      supplierAtLocation: "Campus Cafe@UTown",
+      supplierAtLocation: "Campus Cafe",
     },
   ],
 };
