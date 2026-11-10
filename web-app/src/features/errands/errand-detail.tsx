@@ -43,7 +43,8 @@ function ErrandDetailContent({ id }: { id: string }) {
     ...(errand.courierId && errand.courierId !== userId ? [{ id: errand.courierId, username: errand.courierUsername || "Unavailable user", role: "courier" as const }] : []),
   ] : [];
   const editable = owner && errand?.status === "OPEN" && !errand.courierId;
-  const deletable = admin || (owner && errand?.status === "OPEN" && !errand.courierId);
+  const ownerCanCancel = owner && ["OPEN", "ACCEPTED"].includes(errand?.status ?? "");
+  const deletable = admin && !ownerCanCancel;
   async function apply(input: Mutation) {
     if (locked.current) return; locked.current = true; setBusy(true); setError(""); setMessage(""); setMutation(input);
     try {
