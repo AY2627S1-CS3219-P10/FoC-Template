@@ -211,6 +211,11 @@ test("supplier browsing switches between card and list layouts and remembers the
     "true",
   );
   await expect(page.getByRole("table")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 
   await page.getByRole("button", { name: "Cards" }).click();
   await expect(page.getByRole("article")).toHaveCount(1);

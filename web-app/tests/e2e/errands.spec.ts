@@ -61,12 +61,14 @@ test("global shortcut drags without navigation, remembers its position and opens
   await shortcut.focus(); await page.keyboard.press("ArrowDown"); await expect.poll(async () => (await shortcut.boundingBox())!.y).toBeGreaterThan(moved.y);
   await page.keyboard.press("Enter"); await expect(page).toHaveURL(/\/errands\/create$/); await expect(page.getByRole("heading", { name: "Create errand", exact: true })).toBeVisible(); await expect(page.getByRole("combobox", { name: "Pickup location" })).toBeVisible();
 });
-test("compact cards link to a flexible detail card containing full information", async ({ page }) => {
+test("compact cards link to a flexible detail card containing full information", async ({ page, isMobile }) => {
   await page.route(`**/api/errands/${errand.id}`, (route) => route.fulfill({ json: { ...errand, instructions: "Meet downstairs. ".repeat(50) } }));
   await page.route("**/api/errands?*", (route) => route.fulfill({ json: [errand] }));
   await page.goto("/"); await page.getByRole("navigation").getByRole("link", { name: "Errands", exact: true }).click();
   await expect(page).toHaveURL(/\/errands$/); await expect(page.getByRole("heading", { name: "Errands", exact: true })).toBeVisible();
   const card = page.getByRole("article"); await expect(card).toContainText("Pick up my coffee"); await expect(card).toContainText("Campus Cafe"); await expect(card).toContainText("UTown entrance"); await expect(card).not.toContainText("Meet downstairs"); await expect(card).not.toContainText("20 credits");
+  if (isMobile) await expect(page.getByRole("complementary", { name: "Selected errand preview" })).toBeHidden();
+  else await expect(page.getByRole("complementary", { name: "Selected errand preview" })).toBeVisible();
   await card.getByRole("link", { name: "View errand: Pick up my coffee" }).click(); await expect(page).toHaveURL(new RegExp(`/errands/${errand.id}$`)); await expect(page.getByRole("article")).toContainText("Meet downstairs. ".repeat(50).trim()); await expect(page.getByRole("article")).toContainText("20 credits"); await expect(page.getByRole("button", { name: "Edit errand" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

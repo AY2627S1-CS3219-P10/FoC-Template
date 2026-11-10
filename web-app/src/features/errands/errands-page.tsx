@@ -350,13 +350,22 @@ export function ErrandsPage() {
                   key={errand.id}
                 >
                   {auth.user ? (
-                    <button
-                      className="errand-select-button"
-                      onClick={() => setSelectedId(errand.id)}
-                      aria-label={`Preview errand: ${errand.description}`}
-                    >
-                      <ErrandCardContent errand={errand} />
-                    </button>
+                    <>
+                      <button
+                        className="errand-select-button errand-select-desktop"
+                        onClick={() => setSelectedId(errand.id)}
+                        aria-label={`Preview errand: ${errand.description}`}
+                      >
+                        <ErrandCardContent errand={errand} />
+                      </button>
+                      <Link
+                        className="errand-select-button errand-select-mobile"
+                        href={`/errands/${errand.id}`}
+                        aria-label={`View errand: ${errand.description}`}
+                      >
+                        <ErrandCardContent errand={errand} />
+                      </Link>
+                    </>
                   ) : (
                     <div className="errand-select-button">
                       <ErrandCardContent errand={errand} />
