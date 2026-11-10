@@ -922,6 +922,44 @@ h1 em {
   font-size: 10px;
   color: var(--muted);
 }
+.supplier-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.supplier-tags .category-label {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f0f6eb;
+  color: #497044;
+}
+.admin-form .supplier-category-options legend {
+  font-size: 14px;
+  font-weight: 600;
+}
+.supplier-category-options p {
+  margin: 6px 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.supplier-category-options > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+}
+.admin-form .supplier-category-options label {
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+}
+.admin-page .supplier-category-options input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: #245348;
+}
 .open-label {
   margin-left: auto;
   font-size: 9px;

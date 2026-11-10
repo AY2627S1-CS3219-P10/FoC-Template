@@ -25,6 +25,12 @@ import type {
 import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
 import { SupplierValidationError } from '../../domain/supplier-validation.error.js';
 import { PossibleSupplierDuplicateError } from '../../application/errors/possible-supplier-duplicate.error.js';
+import {
+  categoriesFromLegacy,
+  legacyCategory,
+  normaliseCategories,
+  type SupplierTag,
+} from '../../domain/supplier-categories.js';
 
 type SupplierWithLocations = Prisma.SupplierGetPayload<{
   include: { locations: true };
@@ -82,8 +88,16 @@ export class PrismaSupplierCatalogRepository
     >,
   ) {}
 
-  async findActiveSuppliers(): Promise<SupplierCatalogEntry[]> {
-    const suppliers = await this.prisma.supplier.findMany(ACTIVE_CATALOG_QUERY);
+  async findActiveSuppliers(
+    category?: SupplierTag,
+  ): Promise<SupplierCatalogEntry[]> {
+    const suppliers = await this.prisma.supplier.findMany({
+      ...ACTIVE_CATALOG_QUERY,
+      where: {
+        ...ACTIVE_CATALOG_QUERY.where,
+        ...(category === undefined ? {} : { categories: { has: category } }),
+      },
+    });
 
     return suppliers.map((supplier) => this.mapSupplier(supplier));
   }
@@ -140,13 +154,17 @@ export class PrismaSupplierCatalogRepository
   async createSupplier(
     record: CreateSupplierRecord,
   ): Promise<SupplierCatalogEntry> {
+    const categories = normaliseCategories(
+      record.categories ?? categoriesFromLegacy(record.category),
+    );
+    const category = legacyCategory(categories);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         const supplier = await this.prisma.$transaction(
           async (transaction) => {
             await this.assertLocationAvailable(
               transaction,
-              record.category,
+              categories,
               record.location.building,
               record.location.floor,
               undefined,
@@ -159,14 +177,16 @@ export class PrismaSupplierCatalogRepository
             // The case-insensitive name identifies the brand; building and floor identify an outlet.
             const owner = await transaction.supplier.upsert({
               where: { name: record.name },
-              create: { name: record.name, category: record.category },
+              create: { name: record.name, category, categories },
               update: {},
             });
-            if (owner.category !== record.category) {
+            if (
+              normaliseCategories(owner.categories).join() !== categories.join()
+            ) {
               throw new SupplierValidationError(
                 'category',
                 'SUPPLIER_CATEGORY_MISMATCH',
-                `This supplier already exists with category ${owner.category}. Use its existing category when adding an outlet.`,
+                'Use the existing supplier categories when adding an outlet.',
               );
             }
             if (!owner.isActive) {
@@ -227,7 +247,12 @@ export class PrismaSupplierCatalogRepository
         building: { equals: input.building, mode: 'insensitive' },
         floor: input.floor,
         isActive: true,
-        supplier: { category: input.category, isActive: true },
+        supplier: {
+          categories: {
+            hasSome: input.categories ?? categoriesFromLegacy(input.category),
+          },
+          isActive: true,
+        },
         ...(input.excludeLocationId
           ? { id: { not: input.excludeLocationId } }
           : {}),
@@ -276,11 +301,18 @@ export class PrismaSupplierCatalogRepository
   async updateSupplier(
     record: UpdateSupplierRecord,
   ): Promise<SupplierCatalogEntry> {
+    const categories =
+      record.categories !== undefined
+        ? normaliseCategories(record.categories)
+        : record.category !== undefined
+          ? categoriesFromLegacy(record.category)
+          : undefined;
     try {
       return await this.inSerializableTransaction(async (transaction) => {
         const existingSupplier = await transaction.supplier.findUnique({
           select: {
             category: true,
+            categories: true,
             locations: {
               select: {
                 building: true,
@@ -298,15 +330,16 @@ export class PrismaSupplierCatalogRepository
         }
 
         if (
-          record.category !== undefined &&
-          record.category !== existingSupplier.category
+          categories !== undefined &&
+          categories.join() !==
+            normaliseCategories(existingSupplier.categories).join()
         ) {
           const categoryMatches: PossibleSupplierDuplicate[] = [];
           for (const location of existingSupplier.locations) {
             try {
               await this.assertLocationAvailable(
                 transaction,
-                record.category,
+                categories,
                 location.building,
                 location.floor,
                 location.id,
@@ -331,7 +364,8 @@ export class PrismaSupplierCatalogRepository
         }
         const supplier = await transaction.supplier.update({
           data: {
-            category: record.category,
+            category: categories ? legacyCategory(categories) : undefined,
+            categories,
             locations:
               record.name === undefined
                 ? undefined
@@ -380,7 +414,7 @@ export class PrismaSupplierCatalogRepository
     try {
       return await this.inSerializableTransaction(async (transaction) => {
         const existingLocation = await transaction.supplierLocation.findFirst({
-          include: { supplier: { select: { name: true, category: true } } },
+          include: { supplier: { select: { name: true, categories: true } } },
           where: {
             id: record.locationId,
             supplierId: record.supplierId,
@@ -407,7 +441,7 @@ export class PrismaSupplierCatalogRepository
         ) {
           await this.assertLocationAvailable(
             transaction,
-            existingLocation.supplier.category,
+            existingLocation.supplier.categories,
             building,
             floor,
             record.locationId,
@@ -477,7 +511,7 @@ export class PrismaSupplierCatalogRepository
 
   private async assertLocationAvailable(
     transaction: Prisma.TransactionClient,
-    category: CreateSupplierRecord['category'],
+    categories: SupplierTag[],
     building: string,
     floor: number | null,
     excludeLocationId?: string,
@@ -489,7 +523,7 @@ export class PrismaSupplierCatalogRepository
         building: { equals: building, mode: 'insensitive' },
         floor,
         isActive: true,
-        supplier: { category, isActive: true },
+        supplier: { categories: { hasSome: categories }, isActive: true },
         ...(excludeLocationId ? { id: { not: excludeLocationId } } : {}),
         ...(excludeSupplierId
           ? { supplierId: { not: excludeSupplierId } }
@@ -530,6 +564,7 @@ export class PrismaSupplierCatalogRepository
   private mapSupplier(supplier: SupplierWithLocations): SupplierCatalogEntry {
     return {
       category: supplier.category,
+      categories: supplier.categories,
       id: supplier.id,
       locations: supplier.locations.map((location) =>
         this.mapLocation(location),

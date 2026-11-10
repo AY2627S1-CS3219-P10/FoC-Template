@@ -30,6 +30,7 @@ export const guestSupplierPreviews: Supplier[] = [
     id: "10000000-0000-4000-8000-000000000001",
     name: "Anna's x Soup Union",
     category: "FOOD",
+    categories: ["FOOD"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000001",
@@ -42,6 +43,7 @@ export const guestSupplierPreviews: Supplier[] = [
     id: "10000000-0000-4000-8000-000000000002",
     name: "NUS Co-op",
     category: "SHOPPING",
+    categories: ["SHOPPING"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000002",
@@ -54,6 +56,7 @@ export const guestSupplierPreviews: Supplier[] = [
     id: "10000000-0000-4000-8000-000000000003",
     name: "Printer @ Com 2",
     category: "PRINTING",
+    categories: ["PRINTING"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000003",
@@ -65,7 +68,8 @@ export const guestSupplierPreviews: Supplier[] = [
   {
     id: "10000000-0000-4000-8000-000000000004",
     name: "Cool Spot",
-    category: "FOOD",
+    category: "FOOD_COFFEE",
+    categories: ["FOOD", "BEVERAGES"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000004",
@@ -78,6 +82,7 @@ export const guestSupplierPreviews: Supplier[] = [
     id: "10000000-0000-4000-8000-000000000005",
     name: "InstaChef",
     category: "FOOD",
+    categories: ["FOOD"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000005",
@@ -90,6 +95,7 @@ export const guestSupplierPreviews: Supplier[] = [
     id: "10000000-0000-4000-8000-000000000006",
     name: "Cafe+ Robot Cafe",
     category: "FOOD_COFFEE",
+    categories: ["BEVERAGES"],
     locations: [
       location(
         "20000000-0000-4000-8000-000000000006",

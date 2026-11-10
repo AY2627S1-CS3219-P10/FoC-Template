@@ -8,7 +8,6 @@
 import type { SupplierCatalogEntry } from '../../domain/supplier-catalog.js';
 import {
   assertFloor,
-  assertSupplierCategory,
   assertUuid,
   normalizeOptionalImageUrl,
   normalizeRequiredText,
@@ -18,9 +17,11 @@ import { CampusLocationNotFoundError } from '../errors/campus-location-not-found
 import { SupplierAlreadyExistsError } from '../errors/supplier-already-exists.error.js';
 import { PossibleSupplierDuplicateError } from '../errors/possible-supplier-duplicate.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
+import { resolveCategories } from '../../domain/supplier-categories.js';
 
 export interface CreateSupplierInput {
-  category: string;
+  category?: string;
+  categories?: string[];
   location: {
     campusLocationId: string;
     closesAt: string;
@@ -38,7 +39,7 @@ export class CreateSupplierUseCase {
 
   async execute(input: CreateSupplierInput): Promise<SupplierCatalogEntry> {
     const name = normalizeRequiredText(input.name, 'name', 160);
-    assertSupplierCategory(input.category);
+    const classification = resolveCategories(input);
     assertUuid(input.location.campusLocationId, 'campusLocationId');
     const campusLocation = await this.repository.findCampusLocationById(
       input.location.campusLocationId,
@@ -59,7 +60,7 @@ export class CreateSupplierUseCase {
     const matches = await this.repository.findPossibleDuplicates({
       building: campusLocation.building,
       floor: input.location.floor,
-      category: input.category,
+      ...classification,
     });
 
     if (matches.length > 0 && input.confirmDistinctOutlet !== true) {
@@ -81,7 +82,7 @@ export class CreateSupplierUseCase {
       ...(input.confirmDistinctOutlet === true
         ? { confirmDistinctOutlet: true }
         : {}),
-      category: input.category,
+      ...classification,
       location: {
         building: campusLocation.building,
         closesAt,

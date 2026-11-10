@@ -50,6 +50,7 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
     this.records.push(record);
     return Promise.resolve({
       category: record.category,
+      categories: record.categories ?? categoriesFromLegacy(record.category),
       id: '30000000-0000-4000-8000-000000000001',
       locations: [],
       name: record.name,
@@ -81,6 +82,19 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
 }
 
 describe('CreateSupplierUseCase', () => {
+  it('creates a cafe with both tags without requiring a legacy category', async () => {
+    const repository = new StubSupplierManagementRepository();
+    const { category: _category, ...input } = INPUT;
+    void _category;
+    await new CreateSupplierUseCase(repository).execute({
+      ...input,
+      categories: ['BEVERAGES', 'FOOD'],
+    });
+    expect(repository.records[0]).toMatchObject({
+      categories: ['FOOD', 'BEVERAGES'],
+      category: 'FOOD_COFFEE',
+    });
+  });
   it.each([false, true])(
     'blocks the same supplier outlet even with confirmation=%s',
     async (confirmDistinctOutlet) => {
@@ -145,6 +159,7 @@ describe('CreateSupplierUseCase', () => {
     expect(repository.records).toEqual([
       {
         category: 'FOOD_COFFEE',
+        categories: ['FOOD', 'BEVERAGES'],
         location: {
           building: 'UTown',
           closesAt: new Date('1970-01-01T02:00:00.000Z'),

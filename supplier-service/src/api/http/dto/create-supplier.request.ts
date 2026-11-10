@@ -7,6 +7,10 @@
 
 import { Type } from 'class-transformer';
 import {
+  IsArray,
+  ArrayNotEmpty,
+  ArrayUnique,
+  ValidateIf,
   IsBoolean,
   IsIn,
   IsInt,
@@ -23,6 +27,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { SUPPLIER_CATEGORIES } from '../../../domain/supplier-input.js';
+import { SUPPLIER_TAGS } from '../../../domain/supplier-categories.js';
 
 const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 
@@ -69,10 +74,25 @@ export class CreateSupplierRequest {
   @MaxLength(160)
   name!: string;
 
-  @ApiProperty({ enum: SUPPLIER_CATEGORIES, example: 'FOOD_COFFEE' })
+  @ApiPropertyOptional({ enum: SUPPLIER_CATEGORIES, deprecated: true })
+  @ValidateIf((_object, value) => value !== undefined)
   @IsString()
   @IsIn(SUPPLIER_CATEGORIES)
-  category!: string;
+  category?: string;
+
+  @ApiPropertyOptional({
+    enum: SUPPLIER_TAGS,
+    isArray: true,
+    example: ['FOOD', 'BEVERAGES'],
+    description:
+      'Supply categories instead of legacy category. At least one unique tag is required.',
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(SUPPLIER_TAGS, { each: true })
+  categories?: string[];
 
   @ApiProperty({ type: () => CreateSupplierLocationRequest })
   @Type(() => CreateSupplierLocationRequest)

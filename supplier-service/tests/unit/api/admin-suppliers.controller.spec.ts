@@ -67,6 +67,7 @@ const ORIGINAL_LOCATION: SupplierLocationCatalogEntry = {
   supplierAtLocation: 'Starbucks@UTown',
 };
 const CREATED: SupplierCatalogEntry = {
+  categories: ['FOOD', 'BEVERAGES'],
   category: 'FOOD_COFFEE',
   id: '30000000-0000-4000-8000-000000000001',
   locations: [ORIGINAL_LOCATION],
@@ -547,6 +548,73 @@ describe('AdminSuppliersController', () => {
       code: 'SUPPLIER_ALREADY_EXISTS',
       field: 'supplierAtLocation',
     });
+  });
+
+  it('accepts multiple tags on create and replacement tags on update', async () => {
+    const { category: _category, ...request } = REQUEST;
+    void _category;
+    const created = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'POST',
+      url: '/api/admin/suppliers',
+      payload: { ...request, categories: ['FOOD', 'BEVERAGES'] },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(createSupplier.inputs[0]).toMatchObject({
+      categories: ['FOOD', 'BEVERAGES'],
+    });
+    const updated = await app.inject({
+      headers: { authorization: `Bearer ${createToken(true)}` },
+      method: 'PATCH',
+      url: `/api/admin/suppliers/${CREATED.id}`,
+      payload: { categories: ['BEVERAGES'] },
+    });
+    expect(updated.statusCode).toBe(200);
+    expect(updateSupplier.inputs[0]?.input).toEqual({
+      categories: ['BEVERAGES'],
+    });
+  });
+
+  it.each([
+    null,
+    [],
+    'FOOD',
+    ['FOOD', 'FOOD'],
+    ['FOOD_COFFEE'],
+    ['OTHER'],
+    [null],
+  ])(
+    'rejects invalid category arrays on create and update: %j',
+    async (categories) => {
+      for (const method of ['POST', 'PATCH'] as const) {
+        const response = await app.inject({
+          headers: { authorization: `Bearer ${createToken(true)}` },
+          method,
+          url:
+            method === 'POST'
+              ? '/api/admin/suppliers'
+              : `/api/admin/suppliers/${CREATED.id}`,
+          payload:
+            method === 'POST'
+              ? { ...REQUEST, category: undefined, categories }
+              : { categories },
+        });
+        expect(response.statusCode).toBe(400);
+      }
+      expect(createSupplier.inputs).toHaveLength(0);
+      expect(updateSupplier.inputs).toHaveLength(0);
+    },
+  );
+
+  it('keeps tag updates restricted to administrators', async () => {
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${createToken(false)}` },
+      method: 'PATCH',
+      url: `/api/admin/suppliers/${CREATED.id}`,
+      payload: { categories: ['FOOD', 'BEVERAGES'] },
+    });
+    expect(response.statusCode).toBe(403);
+    expect(updateSupplier.inputs).toHaveLength(0);
   });
 
   function createToken(isAdmin: boolean): string {

@@ -8,6 +8,19 @@ catalog is included. Order creation and acceptance are not implemented.
 
 ## Run locally
 
+Supplier filters now show separate **Food** and **Beverages** options, alongside
+Printing and Shopping. Suppliers tagged with both appear under either filter in
+the student catalog and admin dashboard. Cards, list rows, and detail pages show
+each category separately. Filtering uses the service's `categories` array locally
+so switching filters does not refetch the catalog.
+
+The admin supplier form supports multiple category checkboxes and requires at
+least one selection. Create and edit requests send `categories`; editing a name
+preserves the selected tags, including beverages-only suppliers. Location-only
+edits leave categories unchanged. Legacy responses without the array map
+`FOOD_COFFEE` to both tags for compatibility. Apply Supplier Service's category
+migration and restart it before using the new form.
+
 Supplier browsing and administration normally display one card per supplier.
 Only when the same supplier has outlets on different known floors in the same
 building are those outlets displayed as separate cards with floor labels.

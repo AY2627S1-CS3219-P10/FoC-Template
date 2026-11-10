@@ -33,13 +33,17 @@ describe('PrismaSupplierCatalogRepository', () => {
         building: 'Engineering',
         floor: 1,
         category: 'FOOD_COFFEE',
+        categories: ['FOOD', 'BEVERAGES'],
       }),
     ).resolves.toEqual([]);
     expect(query).toMatchObject({
       where: {
         building: { equals: 'Engineering', mode: 'insensitive' },
         floor: 1,
-        supplier: { category: 'FOOD_COFFEE', isActive: true },
+        supplier: {
+          categories: { hasSome: ['FOOD', 'BEVERAGES'] },
+          isActive: true,
+        },
       },
     });
   });
@@ -62,6 +66,7 @@ describe('PrismaSupplierCatalogRepository', () => {
               id: SUPPLIER_ID,
               name: 'Starbucks',
               category: 'FOOD_COFFEE',
+              categories: ['FOOD', 'BEVERAGES'],
               isActive: true,
             });
           },
@@ -71,6 +76,7 @@ describe('PrismaSupplierCatalogRepository', () => {
               id: SUPPLIER_ID,
               name: 'Starbucks',
               category: 'FOOD_COFFEE',
+              categories: ['FOOD', 'BEVERAGES'],
               locations: [
                 ...existingLocations,
                 locationRecord(
@@ -155,6 +161,7 @@ describe('PrismaSupplierCatalogRepository', () => {
           id: SUPPLIER_ID,
           name: 'Starbucks',
           category: 'FOOD_COFFEE',
+          categories: ['FOOD', 'BEVERAGES'],
           locations: [],
         });
       },
@@ -300,6 +307,7 @@ describe('PrismaSupplierCatalogRepository', () => {
 
       return Promise.resolve({
         category: 'FOOD_COFFEE',
+        categories: ['FOOD', 'BEVERAGES'],
         createdAt: new Date('2026-09-21T00:00:00.000Z'),
         id: SUPPLIER_ID,
         isActive: true,
@@ -340,6 +348,7 @@ describe('PrismaSupplierCatalogRepository', () => {
     expect(updateArguments).toEqual({
       data: {
         category: undefined,
+        categories: undefined,
         locations: {
           update: [
             {
@@ -367,7 +376,7 @@ describe('PrismaSupplierCatalogRepository', () => {
       findFirstArguments = args;
       return Promise.resolve({
         ...locationRecord(UTOWN_LOCATION_ID, 'UTown', 'Starbucks@UTown'),
-        supplier: { name: 'Starbucks', category: 'FOOD_COFFEE' },
+        supplier: { name: 'Starbucks', categories: ['FOOD', 'BEVERAGES'] },
       });
     };
     const update = (args: unknown): Promise<unknown> => {
@@ -409,7 +418,7 @@ describe('PrismaSupplierCatalogRepository', () => {
       supplierAtLocation: 'Starbucks@Science',
     });
     expect(findFirstArguments).toEqual({
-      include: { supplier: { select: { name: true, category: true } } },
+      include: { supplier: { select: { name: true, categories: true } } },
       where: {
         id: UTOWN_LOCATION_ID,
         supplierId: SUPPLIER_ID,
@@ -461,6 +470,7 @@ function createRecord(building: string): CreateSupplierRecord {
   return {
     name: 'starbucks',
     category: 'FOOD_COFFEE',
+    categories: ['FOOD', 'BEVERAGES'],
     location: {
       building,
       floor: 1,

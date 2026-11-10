@@ -1,0 +1,187 @@
+# Checks every component: lint, type-check, tests (integration tests use
+# Testcontainers, so they need the runner's Docker), CDK synth and image builds.
+# Runs on pull requests, and deploy.yml calls it so failing checks block a
+# deploy. It has no AWS access.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+    inputs:
+      build-images:
+        description: Build all images. deploy.yml builds and pushes them itself.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '24'
+  PNPM_VERSION: '12.11.2'
+  # prisma.config.ts needs a DATABASE_URL even to generate the client, which
+  # doesn't connect. Integration tests replace it with their container's URL.
+  PRISMA_GENERATE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+
+jobs:
+  order-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global "pnpm@${PNPM_VERSION}"
+      - run: pnpm install --frozen-lockfile
+      # Generated clients are gitignored. Lint and typecheck need order's, and
+      # the integration tests also use credit's.
+      - run: DATABASE_URL="$PRISMA_GENERATE_URL" pnpm --filter @foc/order-service db:generate
+      - run: DATABASE_URL="$PRISMA_GENERATE_URL" pnpm --filter @foc/credit-service db:generate
+      - run: pnpm --filter @foc/order-service lint
+      - run: pnpm --filter @foc/order-service format:check
+      - run: pnpm --filter @foc/order-service typecheck
+      # Unit tests import the app module, which validates these on load.
+      # Placeholders, as a local .env would provide; nothing connects.
+      - run: pnpm --filter @foc/order-service test
+        env:
+          DATABASE_URL: ${{ env.PRISMA_GENERATE_URL }}
+          REDIS_URL: redis://127.0.0.1:6379
+          CREDIT_ORDER_SERVICE_TOKEN: ci-placeholder-not-a-secret-0000000000
+      - run: pnpm --filter @foc/order-service test:integration
+
+  credit-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global "pnpm@${PNPM_VERSION}"
+      - run: pnpm install --frozen-lockfile
+      # credit-service has no lint or typecheck script; the build type-checks.
+      - run: DATABASE_URL="$PRISMA_GENERATE_URL" pnpm --filter @foc/credit-service build
+      - run: pnpm --filter @foc/credit-service test
+      - run: pnpm --filter @foc/credit-service test:integration
+
+  web-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global "pnpm@${PNPM_VERSION}"
+      - run: pnpm install --frozen-lockfile
+      # web-app has no unit tests. Its Playwright suite needs a running server
+      # and, for some specs, the real backends, so it is not run here.
+      - run: pnpm --filter @foc/web-app lint
+      - run: pnpm --filter @foc/web-app typecheck
+      - run: pnpm --filter @foc/web-app build
+
+  user-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: user-service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global "pnpm@${PNPM_VERSION}"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test:integration
+
+  supplier-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: supplier-service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global "pnpm@${PNPM_VERSION}"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+
+  infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm install --global "pnpm@${PNPM_VERSION}"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
+      - name: Synthesize every stack, without AWS credentials
+        run: pnpm cdk synth --quiet -c profile=demo -c imageTag=ci
+
+  images:
+    # On pull requests inputs is empty, and null == false in expressions.
+    if: github.event_name == 'pull_request' || inputs.build-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web-app
+            args: -f web-app/Dockerfile .
+          - name: user-service
+            args: user-service
+          - name: supplier-service
+            args: supplier-service
+          - name: credit-service
+            args: -f credit-service/Dockerfile .
+          - name: order-service
+            args: -f order-service/Dockerfile .
+          - name: migrate-user
+            args: -f infra/docker/migrate.Dockerfile --build-arg SERVICE=user-service .
+          - name: migrate-supplier
+            args: -f infra/docker/migrate.Dockerfile --build-arg SERVICE=supplier-service .
+    name: image (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build, without pushing
+        run: docker build --platform linux/amd64 -t "foc/${{ matrix.name }}:ci" ${{ matrix.args }}

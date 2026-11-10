@@ -11,8 +11,10 @@ import type {
   SupplierLocationCatalogEntry,
 } from '../../domain/supplier-catalog.js';
 import type { SupplierCategory } from '../../domain/supplier-input.js';
+import type { SupplierTag } from '../../domain/supplier-categories.js';
 
 export interface CreateSupplierRecord {
+  categories?: SupplierTag[];
   confirmDistinctOutlet?: boolean;
   category: SupplierCategory;
   location: {
@@ -31,6 +33,7 @@ export interface CreateSupplierRecord {
 }
 
 export interface UpdateSupplierRecord {
+  categories?: SupplierTag[];
   confirmDistinctOutlet?: boolean;
   category?: SupplierCategory;
   id: string;
@@ -76,6 +79,7 @@ export interface PossibleSupplierDuplicate {
 }
 
 export interface FindSupplierDuplicatesInput {
+  categories?: SupplierTag[];
   building: string;
   floor: number;
   category: SupplierCategory;

@@ -12,6 +12,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import { ReportsModeration } from "./reports-moderation";
+import {
+  supplierCategories,
+  supplierCategoryText,
+} from "@/services/supplier-categories";
+import { SupplierTags } from "@/features/suppliers/supplier-tags";
 import type { SupplierMatch } from "@/services/supplier-matches";
 import {
   outletAddress,
@@ -24,6 +29,7 @@ import {
   type PickupLocation,
   type Profile,
   type Supplier,
+  type SupplierCategory,
 } from "@/services/contracts";
 
 type Account = Pick<
@@ -108,7 +114,9 @@ export function AdminDashboard() {
 }
 
 function Dashboard({ user }: { user: Profile }) {
-  const [tab, setTab] = useState<"suppliers" | "accounts" | "reports">("suppliers");
+  const [tab, setTab] = useState<"suppliers" | "accounts" | "reports">(
+    "suppliers",
+  );
   return (
     <section className="admin-page">
       <p className="eyebrow">CAMPUS ADMINISTRATION</p>
@@ -163,9 +171,7 @@ function SupplierManagement() {
   );
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<
-    "ALL" | Supplier["category"]
-  >("ALL");
+  const [category, setCategory] = useState<"ALL" | SupplierCategory>("ALL");
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -256,8 +262,8 @@ function SupplierManagement() {
     );
   const filtered = supplierCards(suppliers).filter(
     ({ supplier, title, locations }) =>
-      (category === "ALL" || supplier.category === category) &&
-      `${title} ${categoryLabels[supplier.category]} ${locations.map(outletAddress).join(" ")}`
+      (category === "ALL" || supplierCategories(supplier).includes(category)) &&
+      `${title} ${supplierCategoryText(supplier)} ${locations.map(outletAddress).join(" ")}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -339,7 +345,7 @@ function SupplierManagement() {
             type="button"
             aria-pressed={category === value}
             key={value}
-            onClick={() => setCategory(value as Supplier["category"])}
+            onClick={() => setCategory(value as SupplierCategory)}
           >
             {label}
           </button>
@@ -358,7 +364,7 @@ function SupplierManagement() {
                 <div className="admin-heading">
                   <div>
                     <span className="eyebrow">
-                      {categoryLabels[supplier.category]}
+                      <SupplierTags supplier={supplier} />
                     </span>
                     <h3>{title}</h3>
                   </div>
@@ -456,7 +462,13 @@ function SupplierEditor({
     setError("");
     const data = new FormData(event.currentTarget);
     const text = (name: string) => String(data.get(name) ?? "").trim();
-    const supplierInput = { name: text("name"), category: text("category") };
+    const categories = data.getAll("categories").map(String);
+    if (editor.kind !== "location" && categories.length === 0) {
+      setError("Select at least one category.");
+      setBusy(false);
+      return;
+    }
+    const supplierInput = { name: text("name"), categories };
     const confirmation = confirmDistinctOutlet
       ? { confirmDistinctOutlet: true }
       : {};
@@ -510,9 +522,7 @@ function SupplierEditor({
     <section className="admin-card admin-editor-card">
       <header className="admin-editor-header">
         <span className="eyebrow">
-          {editor.kind === "location"
-            ? "Pickup location"
-            : "Supplier details"}
+          {editor.kind === "location" ? "Pickup location" : "Supplier details"}
         </span>
         <h2>
           {editor.kind === "create"
@@ -548,19 +558,29 @@ function SupplierEditor({
                   defaultValue={supplier?.name}
                 />
               </label>
-              <label>
-                Category
-                <select
-                  name="category"
-                  defaultValue={supplier?.category ?? "FOOD"}
-                >
+              <fieldset className="supplier-category-options">
+                <legend>Categories</legend>
+                <p>Select all that apply.</p>
+                <div>
                   {Object.entries(categoryLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
+                    <label key={value}>
+                      <input
+                        type="checkbox"
+                        name="categories"
+                        value={value}
+                        defaultChecked={
+                          supplier
+                            ? supplierCategories(supplier).includes(
+                                value as SupplierCategory,
+                              )
+                            : value === "FOOD"
+                        }
+                      />
                       {label}
-                    </option>
+                    </label>
                   ))}
-                </select>
-              </label>
+                </div>
+              </fieldset>
             </div>
           )}
           {editor.kind !== "supplier" && (

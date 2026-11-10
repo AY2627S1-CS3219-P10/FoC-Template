@@ -18,7 +18,7 @@ export class PrismaService
     super({
       adapter: new PrismaPg({
         connectionString: config.getOrThrow<string>('DATABASE_URL'),
-        max: 20,
+        max: config.getOrThrow<number>('DATABASE_POOL_MAX'),
         connectionTimeoutMillis: 5000,
       }),
     });
