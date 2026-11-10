@@ -46,7 +46,7 @@ export function setup() {
     );
   }
 
-  return accounts.slice(0, competitors).map((account, index) => {
+  const sessions = accounts.slice(0, competitors).map((account, index) => {
     if (!account.email || !account.password) {
       throw new Error(
         `Courier account ${index + 1} is missing email or password.`,
@@ -71,6 +71,40 @@ export function setup() {
     }
     return `foc_access=${response.cookies.foc_access[0].value}`;
   });
+
+  // An acceptance fixture is single-use. Fail before starting the race when a
+  // previous run already assigned, cancelled, expired, or removed this errand.
+  const fixtureResponse = http.get(
+    `${webUrl}/api/errands/${errandId}`,
+    {
+      responseCallback: http.expectedStatuses(200),
+      headers: {
+        Cookie: sessions[0],
+        'Cache-Control': 'no-cache',
+      },
+      tags: { endpoint: 'accept-race-fixture-check' },
+    },
+  );
+  let fixture = null;
+  try {
+    fixture = fixtureResponse.json();
+  } catch (_) {
+    // The explicit error below reports the malformed fixture response.
+  }
+  if (
+    fixtureResponse.status !== 200 ||
+    fixture?.id !== errandId ||
+    fixture?.status !== 'OPEN' ||
+    fixture?.courierId !== null ||
+    fixture?.availableForAcceptance !== true
+  ) {
+    throw new Error(
+      `ERRAND_ID ${errandId} is not a fresh OPEN errand visible to the courier accounts. ` +
+        'Create a new disposable errand and rerun; acceptance fixtures are single-use.',
+    );
+  }
+
+  return sessions;
 }
 
 export default function (sessions) {
@@ -91,9 +125,22 @@ export default function (sessions) {
     },
   );
 
+  const unexpected = response.status !== 200 && response.status !== 409;
   if (response.status === 200) winners.add(1);
   else if (response.status === 409) expectedConflicts.add(1);
-  else unexpectedResults.add(true);
+  unexpectedResults.add(unexpected);
+
+  if (unexpected) {
+    console.error(
+      JSON.stringify({
+        event: 'unexpected_accept_race_response',
+        vu: __VU,
+        status: response.status,
+        contentType: response.headers['Content-Type'] || 'missing',
+        bodyPreview: String(response.body || '').slice(0, 300),
+      }),
+    );
+  }
 
   check(response, {
     'only a success or concurrency conflict is returned': (item) =>

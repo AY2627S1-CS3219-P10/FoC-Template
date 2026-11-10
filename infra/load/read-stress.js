@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { SharedArray } from 'k6/data';
-import { Rate } from 'k6/metrics';
+import { Counter, Rate } from 'k6/metrics';
 import { baseUrl, positiveInteger } from './lib/config.js';
 
 const accounts = new SharedArray('stress account', () => [
@@ -9,8 +9,16 @@ const accounts = new SharedArray('stress account', () => [
 ]);
 const webUrl = baseUrl('WEB_BASE_URL', 'http://localhost:3000');
 const maxVus = positiveInteger('MAX_VUS', 500);
+const thinkTimeSeconds = Number.parseFloat(__ENV.THINK_TIME_SECONDS || '1');
+
+if (!Number.isFinite(thinkTimeSeconds) || thinkTimeSeconds < 0) {
+  throw new Error('THINK_TIME_SECONDS must be a non-negative number.');
+}
 
 const applicationFailures = new Rate('application_failures');
+const unexpectedStatuses = new Counter('unexpected_statuses');
+const unexpectedContentTypes = new Counter('unexpected_content_types');
+let failureLogged = false;
 
 export const options = {
   scenarios: {
@@ -32,6 +40,8 @@ export const options = {
   },
   thresholds: {
     application_failures: ['rate<0.01'],
+    unexpected_statuses: ['count==0'],
+    unexpected_content_types: ['count==0'],
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<1000', 'p(99)<2000'],
     'http_req_duration{endpoint:authenticated-errands}': ['p(95)<1000'],
@@ -76,6 +86,7 @@ export default function (session) {
   const response = http.get(
     `${webUrl}/api/errands?limit=21&offset=0&sort=newest`,
     {
+      responseCallback: http.expectedStatuses(200),
       headers: {
         'Cache-Control': 'no-cache',
         Cookie: session.cookie,
@@ -84,11 +95,44 @@ export default function (session) {
     },
   );
 
+  const statusIsOk = response.status === 200;
+  const contentType = response.headers['Content-Type'] || '';
+  const contentTypeIsJson = contentType
+    .toLowerCase()
+    .includes('application/json');
+
+  if (!statusIsOk) {
+    unexpectedStatuses.add(1, { status: String(response.status) });
+  }
+  if (!contentTypeIsJson) {
+    unexpectedContentTypes.add(1, {
+      content_type: contentType || 'missing',
+      status: String(response.status),
+    });
+  }
+
+  if (
+    (!statusIsOk || !contentTypeIsJson) &&
+    __ENV.LOG_FAILURES === 'true' &&
+    !failureLogged
+  ) {
+    failureLogged = true;
+    console.error(
+      JSON.stringify({
+        event: 'unexpected_authenticated_errands_response',
+        vu: __VU,
+        iteration: __ITER,
+        status: response.status,
+        contentType: contentType || 'missing',
+        bodyPreview: String(response.body || '').slice(0, 200),
+      }),
+    );
+  }
+
   const ok = check(response, {
-    'authenticated errands return 200': (item) => item.status === 200,
-    'authenticated errands return JSON': (item) =>
-      item.headers['Content-Type']?.includes('application/json') === true,
+    'authenticated errands return 200': () => statusIsOk,
+    'authenticated errands return JSON': () => contentTypeIsJson,
   });
   applicationFailures.add(!ok);
-  sleep(Number.parseFloat(__ENV.THINK_TIME_SECONDS || '1'));
+  sleep(thinkTimeSeconds);
 }
