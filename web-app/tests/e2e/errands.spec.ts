@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 const user = { id: "10000000-0000-4000-8000-000000000001", username: "ErrandUser", isAdmin: false };
 const errand = { id: "30000000-0000-4000-8000-000000000001", requesterId: user.id, requesterUsername: "ErrandUser", courierId: null, status: "OPEN", description: "Pick up my coffee", pickupSupplierName: "Campus Cafe", pickupLocationLabel: "Campus Cafe@Central Library", deliveryDestination: "UTown entrance", instructions: "Meet downstairs", offeredCredits: 20, version: 0, createdAt: "2026-10-12T01:00:00Z", updatedAt: "2026-10-12T01:00:00Z" };
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/suppliers", (route) => route.fulfill({ json: [{ id: "cafe", name: "Campus Cafe", locations: [{ id: "10000000-0000-4000-8000-000000000002", supplierAtLocation: "Campus Cafe@Library", building: "Library", floor: 1 }] }] }));
+  await page.route("**/api/suppliers", (route) => route.fulfill({ json: [{ id: "cafe", name: "A Hot Hideout", locations: [{ id: "10000000-0000-4000-8000-000000000002", supplierAtLocation: "A Hot Hideout", building: "Prince George's Park", floor: 2 }] }] }));
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: user }));
   await page.route("**/api/credits", (route) => route.fulfill({ json: { availableCredits: 100, reservedCredits: 0 } }));
 });
@@ -23,7 +23,7 @@ test("create an errand and refresh its listing and credit balance", async ({ pag
     created = true; return route.fulfill({ status: 201, json: { status: "SUCCEEDED", operationId: "operation", errand } });
   });
   await page.goto("/errands/create");
-  await expect(page.getByRole("option", { name: "Campus Cafe · Library · Floor 1", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: "A Hot Hideout · Prince George's Park · Floor 2", exact: true })).toHaveCount(1);
   await page.getByRole("combobox", { name: "Pickup location" }).selectOption("10000000-0000-4000-8000-000000000002");
   await page.getByLabel("Errand description").fill("Pick up my coffee"); await page.getByLabel("Delivery destination").fill("UTown entrance"); await page.getByLabel("Pickup or delivery instructions").fill("Meet downstairs"); await page.getByLabel("Offered credits").fill("20");
   const preview = page.getByRole("complementary", { name: "Credit preview" });
