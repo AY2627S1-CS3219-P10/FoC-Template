@@ -1756,6 +1756,11 @@ hr {
 .moderation-fields dt { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
 .moderation-fields dd { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .moderation-report { grid-template-columns: minmax(0, 1fr) auto; }
+.disputed-errand-card { grid-template-columns: minmax(0, 1fr) auto; }
+.disputed-errand-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.disputed-errand-heading .errand-status { flex-shrink: 0; }
+.disputed-errand-detail { border-color: #e4b7ac; background: #fff8f6; }
+.dispute-resolution-note { margin: 20px 0; padding: 16px; border-radius: 8px; background: #fff0ec; color: #8f3529 !important; }
 @media (max-width: 700px) {
   .admin-page {
     padding: 28px 0;
@@ -1774,6 +1779,8 @@ hr {
   }
   .moderation-fields { grid-template-columns: 1fr; }
   .moderation-report { grid-template-columns: 1fr; }
+  .disputed-errand-card { grid-template-columns: 1fr; }
+  .disputed-errand-heading { flex-direction: column; gap: 8px; }
   .admin-editor-card {
     padding: 0;
   }
