@@ -1558,10 +1558,22 @@ hr {
   background-size: cover;
 }
 .admin-card-image-empty {
-  background-image:
-    linear-gradient(135deg, transparent 49.5%, #d9ddd4 50%, transparent 50.5%),
-    linear-gradient(45deg, transparent 49.5%, #d9ddd4 50%, transparent 50.5%);
-  background-size: 28px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f3ee;
+  color: #647644;
+}
+.admin-card-placeholder-icon {
+  width: 68px;
+  height: 68px;
+  stroke-width: 1.35;
+}
+.admin-card-placeholder-print {
+  color: #8470a7;
+}
+.admin-card-placeholder-bag {
+  color: #a07444;
 }
 .admin-card-content {
   min-width: 0;

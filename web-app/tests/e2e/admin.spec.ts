@@ -197,6 +197,38 @@ test("admin supplier workflows submit service contracts and show failures", asyn
   ).toBe(true);
 });
 
+test("suppliers without photos show a category placeholder icon", async ({
+  page,
+}) => {
+  await session(page, admin);
+  await page.route("**/api/admin/suppliers**", (route) =>
+    route.fulfill({
+      json: new URL(route.request().url()).pathname.endsWith(
+        "/campus-locations",
+      )
+        ? campusLocations
+        : [
+            {
+              ...supplier,
+              locations: supplier.locations.map((location) => ({
+                ...location,
+                imageUrl: null,
+              })),
+            },
+          ],
+    }),
+  );
+
+  await page.goto("/admin");
+  const placeholder = page.getByRole("img", {
+    name: "No image available for Campus Coffee",
+  });
+  await expect(placeholder).toBeVisible();
+  await expect(
+    placeholder.locator(".admin-card-placeholder-burger"),
+  ).toBeVisible();
+});
+
 test("matches show descriptions and require fresh confirmation after form edits", async ({
   page,
 }) => {
