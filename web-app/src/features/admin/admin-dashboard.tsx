@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import { ReportsModeration } from "./reports-moderation";
+import { DisputedErrands } from "./disputed-errands";
 import {
   supplierCategories,
   supplierCategoryText,
@@ -107,9 +108,9 @@ export function AdminDashboard() {
 }
 
 function Dashboard({ user }: { user: Profile }) {
-  const [tab, setTab] = useState<"suppliers" | "accounts" | "reports">(
-    "suppliers",
-  );
+  const [tab, setTab] = useState<
+    "suppliers" | "accounts" | "reports" | "disputes"
+  >("suppliers");
   return (
     <section className="admin-page">
       <p className="eyebrow">CAMPUS ADMINISTRATION</p>
@@ -140,13 +141,22 @@ function Dashboard({ user }: { user: Profile }) {
         >
           Reports & moderation
         </button>
+        <button
+          className={`button ${tab === "disputes" ? "button-dark" : "button-outline"}`}
+          aria-pressed={tab === "disputes"}
+          onClick={() => setTab("disputes")}
+        >
+          Disputed errands
+        </button>
       </div>
       {tab === "suppliers" ? (
         <SupplierManagement />
       ) : tab === "accounts" ? (
         <AccountManagement userId={user.id} />
-      ) : (
+      ) : tab === "reports" ? (
         <ReportsModeration administratorId={user.id} />
+      ) : (
+        <DisputedErrands />
       )}
     </section>
   );

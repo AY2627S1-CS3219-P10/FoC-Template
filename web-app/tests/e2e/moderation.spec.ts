@@ -53,6 +53,9 @@ test("an errand participant reports only the other participant once", async ({ p
   await page.route("**/api/credits", (route) =>
     route.fulfill({ json: { availableCredits: 100, reservedCredits: 0 } }),
   );
+  await page.route(`**/api/couriers/${courier.id}/rating-summary`, (route) =>
+    route.fulfill({ json: { averageStars: null, reviewCount: 0 } }),
+  );
   await page.route(`**/api/errands/${errand.id}`, (route) => route.fulfill({ json: errand }));
   let submissions = 0;
   await page.route("**/api/reports", async (route) => {
