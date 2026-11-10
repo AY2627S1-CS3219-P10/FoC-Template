@@ -76,6 +76,24 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
 }
 
 describe('CreateSupplierUseCase', () => {
+  it('collapses repeated whitespace in supplier names and pickup descriptions before persistence', async () => {
+    const repository = new StubSupplierManagementRepository();
+    await new CreateSupplierUseCase(repository).execute({
+      ...INPUT,
+      name: '  Campus   Coffee\tShop  ',
+      location: {
+        ...INPUT.location,
+        locationDescription: '  Near\t the   entrance  ',
+      },
+    });
+    expect(repository.records[0]).toMatchObject({
+      name: 'Campus Coffee Shop',
+      location: {
+        locationDescription: 'Near the entrance',
+        supplierAtLocation: 'Campus Coffee Shop@UTown',
+      },
+    });
+  });
   it('creates a cafe with both tags without requiring a legacy category', async () => {
     const repository = new StubSupplierManagementRepository();
     const { category: _category, ...input } = INPUT;

@@ -85,7 +85,7 @@ describe('UpdateSupplierLocationUseCase', () => {
         closesAt: '21:00',
         floor: 2,
         imageUrl: ' https://example.com/starbucks-science.jpg ',
-        locationDescription: ' Beside the main entrance ',
+        locationDescription: '  Beside\t the   main entrance  ',
         opensAt: '09:00',
       }),
     ).resolves.toMatchObject({

@@ -1,4 +1,5 @@
 import type { SupplierCatalogEntry } from '../../domain/supplier-catalog.js';
+import { normalizeCatalogText } from '../../domain/catalog-text.js';
 import {
   assertFloor,
   assertUuid,
@@ -40,6 +41,7 @@ export class CreateSupplierUseCase {
     if (!campusLocation) {
       throw new CampusLocationNotFoundError(input.location.campusLocationId);
     }
+    const building = normalizeCatalogText(campusLocation.building);
     const locationDescription = normalizeRequiredText(
       input.location.locationDescription,
       'locationDescription',
@@ -51,7 +53,7 @@ export class CreateSupplierUseCase {
     const closesAt = parseCatalogTime(input.location.closesAt, 'closesAt');
     const imageUrl = normalizeOptionalImageUrl(input.location.imageUrl);
     const matches = await this.repository.findPossibleDuplicates({
-      building: campusLocation.building,
+      building,
       floor: input.location.floor,
       ...classification,
     });
@@ -77,7 +79,7 @@ export class CreateSupplierUseCase {
         : {}),
       ...classification,
       location: {
-        building: campusLocation.building,
+        building,
         closesAt,
         floor: input.location.floor,
         imageUrl,
@@ -86,7 +88,7 @@ export class CreateSupplierUseCase {
         locationDescription,
         longitude: campusLocation.longitude,
         opensAt,
-        supplierAtLocation: `${name}@${campusLocation.building}`,
+        supplierAtLocation: `${name}@${building}`,
       },
       name,
     });

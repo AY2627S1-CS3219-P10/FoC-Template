@@ -2,6 +2,7 @@ import {
   type SupplierValidationField,
   SupplierValidationError,
 } from './supplier-validation.error.js';
+import { normalizeCatalogText } from './catalog-text.js';
 
 export const SUPPLIER_CATEGORIES = [
   'FOOD',
@@ -31,7 +32,7 @@ export function normalizeRequiredText(
   field: SupplierValidationField,
   maximumLength: number,
 ): string {
-  const normalized = value.trim();
+  const normalized = normalizeCatalogText(value);
 
   if (normalized.length === 0) {
     throw new SupplierValidationError(
