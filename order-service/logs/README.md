@@ -6,6 +6,7 @@ One file per working pass: a summary for humans at the top, then one entry per c
 
 | Log | Slice | Status |
 |---|---|---|
+| [2026-11-10-conflict-resolution.md](2026-11-10-conflict-resolution.md) | S12 dispute resolution | implemented; unit, build and browser regressions pass; database integration execution blocked by stopped Docker runtime |
 | [2026-11-01-bookmarks.md](2026-11-01-bookmarks.md) | Courier bookmarks | implemented; database integration verification blocked by unavailable Docker |
 | [2026-11-01-personal-rating-overview.md](2026-11-01-personal-rating-overview.md) | Personal ratings | done — self-only overview, home panel, 94 integration/32 browser tests pass; build security check blocks final exit |
 | [2026-11-01-review-frontend.md](2026-11-01-review-frontend.md) | Review frontend + read API | done — saved-review reload, ratings, requester form; 92 integration and 24 browser checks pass |

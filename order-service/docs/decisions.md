@@ -164,3 +164,23 @@ D-001 is unchanged: never both paths for one errand.
 happen within the 4 h window; if neither happens the errand auto-completes. DISPUTED
 holds the credits and has no way out until Q-014 is answered. No resolution is built.
 Restates D-007/D-008 for this pass.
+
+### D-021 · 2026-11-10 · ACCEPTED
+**Disputes require both parties' statements and an administrator makes one durable
+financial resolution.** Supersedes the dead-end portion of D-020 and resolves Q-014.
+
+- The requester must submit a trimmed 1–2000 character statement atomically with
+  DELIVERED → DISPUTED. The assigned courier may submit one trimmed 1–2000 character
+  response while the dispute is open.
+- An administrator may resolve only after both statements exist, choosing exactly one
+  outcome: `REFUND_REQUESTER` or `PAY_COURIER`. The errand then becomes `RESOLVED` and
+  retains the statements, actors, timestamps and outcome.
+- Resolution uses the existing durable operation journal. Refund calls Credit Service
+  release; pay calls its internal settlement endpoint. The Order Service records
+  `RESOLVED` only after the idempotent credit operation succeeds. This is the narrow
+  dispute-resolution exception to D-001's outbox-only settlement rule because an
+  administrator needs a synchronous, recoverable final decision.
+- Credit Service remains the only writer of balances and its reservation row enforces
+  the mutually exclusive `RELEASED`/`SETTLED` terminal result.
+
+Source: conflict-resolution implementation request dated 2026-11-10.

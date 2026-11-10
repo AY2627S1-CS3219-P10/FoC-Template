@@ -22,7 +22,7 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 | Q-010 | Does order-service own notifications? | S9 | Nasif | OPEN |
 | Q-011 | What may admin DELETE do after acceptance? | S6a (guard) | Nasif | OPEN |
 | Q-012 | How to avoid the courier-no-credit-account loop? | S4 (check), S6a | Nasif | OPEN |
-| Q-014 | How is a DISPUTED errand resolved? | S12 | Nasif | OPEN |
+| Q-014 | How is a DISPUTED errand resolved? | S12 | Nasif | ANSWERED → D-021 |
 | Q-015 | Renumber D1 (FR10 ×2, FR9.1.3 ×2) | none (docs) | Team | OPEN |
 | Q-016 | Confirm event naming `errand.<kebab>.v1` (D-004) | S6a | Team | OPEN |
 | Q-017 | Correlation-ID header name across services | N1 | Nasif / team | OPEN |
@@ -101,10 +101,12 @@ Procedure: `.agents/skills/order-open-questions/SKILL.md`.
 - **Blocks:** the check in S4; S6a end-to-end.
 
 ### Q-014 — Dispute resolution (C14)
+- **Status:** ANSWERED → D-021 (administrator chooses PAY_COURIER or
+  REFUND_REQUESTER after both statements are submitted).
 - **Options:** (A) admin `POST …/resolve-dispute` with PAY_COURIER / REFUND_REQUESTER.
   (B) requester withdraws the dispute → COMPLETED. (C) both.
-- **Recommendation:** C, no deadline.
-- **Blocks:** S12 only. **Meanwhile:** disputed errands hold credits.
+- **Decision:** administrator resolution only, with both statements required; see D-021.
+- **Blocks:** none. S12 is complete.
 
 ### Q-015 — D1 numbering (C15)
 Team action: renumber the second FR10 block and the second FR9.1.3.

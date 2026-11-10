@@ -20,7 +20,11 @@ async function disputedErrands(token: string) {
       `errands/manage?limit=${PAGE_SIZE}&offset=${offset}&sort=newest`,
       { token },
     );
-    disputes.push(...page.filter((errand) => errand.status === "DISPUTED"));
+    disputes.push(
+      ...page.filter((errand) =>
+        ["DISPUTED", "RESOLVED"].includes(errand.status),
+      ),
+    );
     if (page.length < PAGE_SIZE) return disputes;
   }
   throw new BackendError(

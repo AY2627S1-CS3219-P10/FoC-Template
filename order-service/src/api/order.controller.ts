@@ -43,6 +43,8 @@ import {
   OperationResponse,
   CreateReviewDto,
   CourierReviewResponse,
+  DisputeStatementDto,
+  ResolveDisputeDto,
 } from './dto';
 
 @ApiTags('errands')
@@ -344,8 +346,68 @@ export class OrderController {
   dispute(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Req() request: AuthenticatedRequest,
+    @Body() body: DisputeStatementDto,
   ) {
-    return this.service.dispute(id, request.userId, request.accessToken);
+    return this.service.dispute(
+      id,
+      request.userId,
+      request.accessToken,
+      body.statement,
+    );
+  }
+  @Post(':id/respond-dispute')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Assigned courier: submit one dispute response' })
+  @ApiOkResponse({ type: ErrandResponse })
+  @ApiForbiddenResponse({ description: 'Not the assigned courier' })
+  @ApiConflictResponse({
+    description: 'Response exists or dispute is resolved',
+  })
+  respondToDispute(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() body: DisputeStatementDto,
+  ) {
+    return this.service.respondToDispute(
+      id,
+      request.userId,
+      request.accessToken,
+      body.statement,
+    );
+  }
+  @Post(':id/resolve-dispute')
+  @Header('Cache-Control', 'no-store')
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    schema: { type: 'string', format: 'uuid' },
+  })
+  @ApiOperation({ summary: 'Administrator: make the final dispute decision' })
+  @ApiOkResponse({ type: OperationResponse })
+  @ApiAcceptedResponse({ type: OperationResponse })
+  @ApiForbiddenResponse({ description: 'Administrator privileges required' })
+  @ApiConflictResponse({
+    description: 'Courier response missing, pending, or already resolved',
+  })
+  async resolveDispute(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Req() request: AuthenticatedRequest,
+    @Headers('idempotency-key') key: string,
+    @Body() body: ResolveDisputeDto,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    if (!isUUID(key, '4'))
+      throw new BadRequestException('Idempotency-Key must be a UUID v4.');
+    const result = await this.service.resolveDispute(
+      id,
+      request.userId,
+      request.accessToken,
+      key,
+      body.outcome,
+    );
+    reply.status(result.status === 'SUCCEEDED' ? 200 : 202);
+    return result;
   }
   @Post(':id/confirm')
   @HttpCode(200)

@@ -14,6 +14,7 @@ enum ErrandStatus {
   PICKED_UP
   DELIVERED
   DISPUTED
+  RESOLVED
   COMPLETED
   CANCELLED
   EXPIRED
@@ -48,6 +49,18 @@ enum OperationKind {
   DELETE
   CANCEL
   EXPIRE
+  RESOLVE_REFUND
+  RESOLVE_PAY
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+enum DisputeOutcome {
+  REFUND_REQUESTER
+  PAY_COURIER
 }
 
 model Errand {
@@ -82,10 +95,29 @@ model Errand {
   excludedCouriers    ErrandExcludedCourier[]
   review CourierReview?
   bookmarks ErrandBookmark[]
+  dispute ErrandDispute?
 
   @@index([status, courierId, createdAt, id])
   @@index([requesterId, createdAt])
   @@map("errands")
+}
+
+model ErrandDispute {
+  errandId              String          @id @map("errand_id") @db.Uuid
+  errand                Errand          @relation(fields: [errandId], references: [id], onDelete: Restrict)
+  status                DisputeStatus   @default(OPEN)
+  requesterStatement    String          @map("requester_statement") @db.VarChar(2000)
+  requesterId           String          @map("requester_id") @db.Uuid
+  requesterSubmittedAt  DateTime        @default(now()) @map("requester_submitted_at") @db.Timestamptz(3)
+  courierStatement      String?         @map("courier_statement") @db.VarChar(2000)
+  courierId             String          @map("courier_id") @db.Uuid
+  courierSubmittedAt    DateTime?       @map("courier_submitted_at") @db.Timestamptz(3)
+  outcome               DisputeOutcome?
+  resolvedBy            String?         @map("resolved_by") @db.Uuid
+  resolvedAt            DateTime?       @map("resolved_at") @db.Timestamptz(3)
+
+  @@index([status, requesterSubmittedAt])
+  @@map("errand_disputes")
 }
 
 model ErrandBookmark {

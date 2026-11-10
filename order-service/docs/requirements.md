@@ -110,12 +110,12 @@ selectable) through `ServiceClients.pickup`.
 | L-1 | Courier marks PICKED_UP → DELIVERED, records deliveredAt, starts 4 h clock | D-005, D-008 | done | `POST …/deliver` records `delivered_at`, the deadline's source of truth (`TimerWorker` sweeps it) |
 | L-2 | Requester confirms DELIVERED → COMPLETED (`completionMethod=REQUESTER_CONFIRMED`) | D-006 | done | `POST …/confirm` → `OrderService.confirm`; test "S6a: requester confirms; errand.completed.v1 is written once…" |
 | L-3 | Requester confirms early PICKED_UP → COMPLETED | D-006 | done | same route; test "S6a contract: credit-service settles the stored event…" |
-| L-4 | Requester disputes DELIVERED → DISPUTED; no credit movement | D-007 | done | `POST …/dispute`; test "S5: courier picks up and delivers, requester disputes…" checks balances unchanged |
+| L-4 | Requester disputes DELIVERED → DISPUTED with a required statement; no credit movement | D-007, D-021 | done | `POST …/dispute` → `PrismaOrderRepository.openDispute`; test "requires and persists the requester statement atomically with the dispute" |
 | L-5 | Still DELIVERED after 4 h → COMPLETED (`AUTO_TIMEOUT`); race-safe vs confirm/dispute | D-008 | done | `OrderService.autoComplete` (DB-clock guard in `PrismaOrderRepository.transition`), `src/infrastructure/timer.worker.ts` `TimerWorker`; tests "S6b: …" |
 | L-6 | COMPLETED emits `errand.completed.v1` via outbox, exactly once per errand | D-001 | done | written in the same statement as the transition (`PrismaOrderRepository.transition`), partial unique index `outbox_events_one_completion_per_errand`; races "S6a race: …"; `OutboxRelay` tests "S6a relay: …" |
 | L-7 | Courier may hold only one active errand | Resp §5 | todo | C5 / Q-005 |
 | L-8 | 30-min ACCEPTED → OPEN (with exclusion); no 1-h timer | Resp §7, D-017 | done | `OrderService.reopen`, `REOPEN_DUE` + `dueReopens()` in `PrismaOrderRepository`, `TimerWorker` `reopen-<id>` jobs; tests "S8: an ACCEPTED errand not picked up within 30 minutes…", "F race: the 30-minute reopen vs a pickup…" |
-| L-9 | Dispute resolution | Resp §5 (partial) | todo | C14 / Q-014 |
+| L-9 | Courier responds once; administrator durably refunds requester or pays courier after both statements | D-021 | done | `respondToDispute`, `resolveDisputeIntent`, and `finishDisputeResolution`; database tests cover refund, payment, conflicting decisions and lost acknowledgements |
 
 ### FR8 — Requester cancel and item-type expiry (priority 1, sprint 4)
 | ID | Requirement (D1) | Status | Notes |
@@ -193,7 +193,7 @@ selectable) through `ServiceClients.pickup`.
 | ACCEPTED | reopen (30 min after acceptedAt) | SYSTEM | OPEN | as courier-cancel | done (S8, D-017) |
 | PICKED_UP… | cancel / courier-cancel | any | — | 409 | decided no (D-015); courier after pickup parked (Q-020) |
 | PICKED_UP | 1-h timeout | SYSTEM | — | not built | dropped (D-017) |
-| DISPUTED | resolve | ADMIN? | COMPLETED or CANCELLED | settle or release | C14 (DISPUTED is a dead end, D-020) |
+| DISPUTED | resolve | ADMIN | RESOLVED | after both statements; durable settle or release | done (S12, D-021) |
 
 Rows whose status column names an OPEN conflict must **not** be implemented until the
 conflict is decided.

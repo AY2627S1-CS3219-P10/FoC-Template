@@ -9,7 +9,12 @@ import {
   normalized,
   OrderError,
 } from '../domain/errand';
-import type { CreateErrand, EditErrand, ErrandRecord } from '../domain/errand';
+import type {
+  CreateErrand,
+  DisputeOutcome,
+  EditErrand,
+  ErrandRecord,
+} from '../domain/errand';
 import { alreadyApplied, transition } from '../domain/lifecycle';
 import type {
   ActorRole,
@@ -140,7 +145,26 @@ export class OrderService {
           op.requesterId,
           op.payload.offeredCredits,
         );
-      else if (op.kind !== 'EDIT')
+      else if (op.kind === 'RESOLVE_REFUND')
+        await this.clients.refundDispute(
+          op.errandId,
+          op.requesterId,
+          op.payload.offeredCredits,
+        );
+      else if (op.kind === 'RESOLVE_PAY') {
+        if (!op.courierId)
+          throw new OrderError(
+            'WORKFLOW_INVARIANT_FAILED',
+            'A courier is required to settle this dispute.',
+            409,
+          );
+        await this.clients.settleDispute(
+          op.errandId,
+          op.requesterId,
+          op.courierId,
+          op.payload.offeredCredits,
+        );
+      } else if (op.kind !== 'EDIT')
         await this.clients.release(
           op.errandId,
           op.requesterId,
@@ -165,7 +189,7 @@ export class OrderService {
     if (operation.status === 'FAILED')
       throw new OrderError(
         operation.errorCode || 'CREDITS_REJECTED',
-        'The required credits could not be reserved. No changes were applied.',
+        'The required credit operation could not be completed. No order changes were applied.',
         operation.errorStatus || 409,
       );
     return {
@@ -308,9 +332,55 @@ export class OrderService {
   deliver(id: string, userId: string, token: string) {
     return this.act(id, 'deliver', userId, token);
   }
-  /** D-007: the requester disputes a delivery; no credits move. */
-  dispute(id: string, userId: string, token: string) {
-    return this.act(id, 'dispute', userId, token);
+  /** D-021: statement creation and DELIVERED -> DISPUTED are one transaction. */
+  async dispute(
+    id: string,
+    userId: string,
+    token: string,
+    explanation: string,
+  ) {
+    await this.repository.openDispute(
+      id,
+      userId,
+      this.disputeStatement(explanation),
+    );
+    return this.find(id, userId, token);
+  }
+  async respondToDispute(
+    id: string,
+    userId: string,
+    token: string,
+    response: string,
+  ) {
+    await this.repository.respondToDispute(
+      id,
+      userId,
+      this.disputeStatement(response),
+    );
+    return this.find(id, userId, token);
+  }
+  async resolveDispute(
+    id: string,
+    administratorId: string,
+    token: string,
+    key: string,
+    outcome: DisputeOutcome,
+  ) {
+    if (!(await this.clients.isAdministrator(token)))
+      throw new OrderError(
+        'ADMINISTRATOR_REQUIRED',
+        'Administrator privileges are required.',
+        403,
+      );
+    return this.submit(
+      await this.repository.resolveDisputeIntent(
+        administratorId,
+        id,
+        key,
+        digest({ kind: 'RESOLVE_DISPUTE', id, outcome }),
+        outcome,
+      ),
+    );
   }
   /** D-006: the requester confirms (also early, from PICKED_UP); the courier is paid via the outbox. */
   confirm(id: string, userId: string, token: string) {
@@ -457,5 +527,16 @@ export class OrderService {
       requesterUsername,
       courierUsername,
     };
+  }
+
+  private disputeStatement(value: string) {
+    const statement = value.trim();
+    if (!statement || statement.length > 2000)
+      throw new OrderError(
+        'INVALID_DISPUTE_STATEMENT',
+        'A dispute statement must contain 1 to 2000 characters.',
+        400,
+      );
+    return statement;
   }
 }

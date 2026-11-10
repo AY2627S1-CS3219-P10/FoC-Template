@@ -17,6 +17,7 @@ export interface Errand {
   expiredAt?: string | null;
   expiresAt?: string;
   completionMethod?: "REQUESTER_CONFIRMED" | "AUTO_TIMEOUT" | null;
+  dispute?: ErrandDispute | null;
   itemType?: "FOOD" | "NON_PERISHABLE";
   requesterUsername?: string | null;
   courierUsername?: string | null;
@@ -34,6 +35,18 @@ export interface Errand {
   version: number;
   createdAt: string;
   updatedAt: string;
+}
+export interface ErrandDispute {
+  status: "OPEN" | "RESOLVED";
+  requesterStatement: string;
+  requesterId: string;
+  requesterSubmittedAt: string;
+  courierStatement: string | null;
+  courierId: string;
+  courierSubmittedAt: string | null;
+  outcome: "REFUND_REQUESTER" | "PAY_COURIER" | null;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
 }
 export interface CourierReview {
   id: string;

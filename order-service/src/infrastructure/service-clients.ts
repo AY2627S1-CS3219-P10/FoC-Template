@@ -132,6 +132,27 @@ export class ServiceClients {
         throw error; /* Settled credits cannot be refunded by deleting a request. */
     }
   }
+  async refundDispute(errandId: string, requesterId: string, amount: number) {
+    await this.request(
+      'CREDIT',
+      `v1/credit-reservations/${errandId}/release`,
+      this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN'),
+      { requesterId, amount },
+    );
+  }
+  async settleDispute(
+    errandId: string,
+    requesterId: string,
+    courierId: string,
+    amount: number,
+  ) {
+    await this.request(
+      'CREDIT',
+      `v1/credit-reservations/${errandId}/settlement`,
+      this.config.getOrThrow<string>('CREDIT_ORDER_SERVICE_TOKEN'),
+      { requesterId, courierId, amount },
+    );
+  }
   async pickup(
     id: string,
     token: string,
