@@ -35,26 +35,29 @@ describe('autoscaling', () => {
   it.each([
     ['demo', 1, 2, 3],
     ['scale', 2, 2, 20],
-  ] as const)('%s keeps a highly available web floor', (profile, serviceMin, webMin, max) => {
-    const { app } = synthesize(profile);
-    const targets = resources(
-      app,
-      'AWS::ApplicationAutoScaling::ScalableTarget',
-    );
-    expect(targets).toHaveLength(SERVICE_NAMES.length);
-    const webTarget = targets.find((target) =>
-      JSON.stringify(target.ResourceId).includes('WebAppService'),
-    );
-    expect(webTarget).toMatchObject({
-      MinCapacity: webMin,
-      MaxCapacity: max,
-    });
-    for (const target of targets.filter((target) => target !== webTarget))
-      expect(target).toMatchObject({
-        MinCapacity: serviceMin,
+  ] as const)(
+    '%s keeps a highly available web floor',
+    (profile, serviceMin, webMin, max) => {
+      const { app } = synthesize(profile);
+      const targets = resources(
+        app,
+        'AWS::ApplicationAutoScaling::ScalableTarget',
+      );
+      expect(targets).toHaveLength(SERVICE_NAMES.length);
+      const webTarget = targets.find((target) =>
+        JSON.stringify(target.ResourceId).includes('WebAppService'),
+      );
+      expect(webTarget).toMatchObject({
+        MinCapacity: webMin,
         MaxCapacity: max,
       });
-  });
+      for (const target of targets.filter((target) => target !== webTarget))
+        expect(target).toMatchObject({
+          MinCapacity: serviceMin,
+          MaxCapacity: max,
+        });
+    },
+  );
 
   it('scales every service on CPU, and web-app on requests too', () => {
     const { app } = synthesize('demo');
