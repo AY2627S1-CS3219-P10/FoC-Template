@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of environment schema test cases.
+ * Author review: Validated the assertions and setup for "accepts a PostgreSQL connection string and applies defaults"; clarified test descriptions and assertion formatting.
+ */
+
 import { environmentSchema } from '../../../../src/platform/config/environment.schema.js';
 
 const VALID_ENVIRONMENT = {

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of load-test fixture preparation.
+ * Author review: Validated prepare-fixtures.mjs request values, response checks, and fixture handling where used; edited helper naming and script formatting.
+ */
+
 import { randomBytes } from 'node:crypto';
 import { chmod, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';

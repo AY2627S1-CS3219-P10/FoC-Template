@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of auth provider rendering and interaction code (AuthProvider, useAuth).
+ * Author review: Validated AuthProvider, useAuth state updates, request results, error rendering in web-app/auth-provider.tsx; refined JSX layout and user-facing wording. Additional review item: Check loading and error states, and displayed values after successful actions.
+ */
+
 "use client";
 
 import {

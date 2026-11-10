@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of test account seed config test assertions and fixtures.
+ * Author review: Checked "parses structured test account definitions" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import {
   assertTestAccountSeedAllowed,
   parseTestAccountSeedConfig,

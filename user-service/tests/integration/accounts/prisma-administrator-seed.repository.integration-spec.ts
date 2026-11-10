@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma administrator seed repository test cases.
+ * Author review: Validated the assertions and setup for "creates exactly five active and verified administrator accounts" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { readFile } from 'node:fs/promises';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';

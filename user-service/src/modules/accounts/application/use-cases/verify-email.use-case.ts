@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of verify email code (MAXIMUM_EMAIL_VERIFICATION_ATTEMPTS, VerifyEmailDependencies, VerifyEmailInput).
+ * Author review: Validated MAXIMUM_EMAIL_VERIFICATION_ATTEMPTS, VerifyEmailDependencies input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { EmailVerificationCode } from '../../domain/email-verification-code.js';
 import { NusEmail } from '../../domain/nus-email.js';
 import { EmailVerificationError } from '../errors/email-verification.error.js';

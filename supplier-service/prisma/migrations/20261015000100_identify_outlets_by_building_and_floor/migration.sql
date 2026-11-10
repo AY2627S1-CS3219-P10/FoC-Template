@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 20261015000100_identify_outlets_by_building_and_floor (drop index, alter table, create unique index).
+-- Author review: Validated the SQL statements for supplier_locations in migration 20261015000100_identify_outlets_by_building_and_floor; edited SQL layout and comments for readability.
+
 -- Display labels are not identifiers: two floors may share supplier@building.
 -- Keep outlet UUIDs and existing labels intact for consumers and historical orders.
 BEGIN;

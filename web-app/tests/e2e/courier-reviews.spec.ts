@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of courier reviews test cases.
+ * Author review: Validated the assertions and setup for "requester submits once, summary refreshes, and saved review survives reload" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { test, expect, type Page } from "@playwright/test";
 import type { CourierReview } from "../../src/services/contracts";
 

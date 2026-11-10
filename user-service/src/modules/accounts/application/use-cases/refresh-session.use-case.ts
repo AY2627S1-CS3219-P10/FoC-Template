@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of refresh session code (RefreshSessionInput, RefreshSessionDependencies, RefreshSessionUseCase).
+ * Author review: Validated RefreshSessionInput, RefreshSessionDependencies input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { AuthenticationError } from '../errors/authentication.error.js';
 import type { AuthenticationRepositoryPort } from '../ports/authentication-repository.port.js';
 import type { ClockPort } from '../ports/clock.port.js';

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of dto test cases.
+ * Author review: Validated the assertions and setup for "accepts the credit-service maximum and rejects anything above it"; clarified test descriptions and assertion formatting.
+ */
+
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateErrandDto, EditErrandDto } from '../../src/api/dto';

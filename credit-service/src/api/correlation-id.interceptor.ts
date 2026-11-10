@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of correlation id interceptor code (CorrelationIdInterceptor).
+ * Author review: Validated CorrelationIdInterceptor value handling and returned results in credit-service/correlation-id.interceptor.ts; edited naming and formatting for readability.
+ */
+
 import {
   CallHandler,
   ExecutionContext,

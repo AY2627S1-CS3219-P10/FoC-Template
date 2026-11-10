@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of administrator seed repository port code (AdministratorSeedRecord, AdministratorSeedResult, AdministratorSeedRepositoryPort).
+ * Author review: Checked existing AdministratorSeedRecord, AdministratorSeedResult parameter and return types against their callers; edited type declaration layout and member naming.
+ */
+
 import type { AccountStatus } from '../../domain/account-status.js';
 
 export interface AdministratorSeedRecord {

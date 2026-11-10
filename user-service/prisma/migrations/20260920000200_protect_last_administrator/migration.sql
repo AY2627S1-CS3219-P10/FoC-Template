@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 20260920000200_protect_last_administrator (update).
+-- Author review: Validated the SQL statements for OF in migration 20260920000200_protect_last_administrator; edited SQL layout and comments for readability.
+
 -- Serialize administrator removals and reject any demotion or deletion that
 -- would leave the service without an administrator.
 CREATE FUNCTION "protect_last_administrator"()

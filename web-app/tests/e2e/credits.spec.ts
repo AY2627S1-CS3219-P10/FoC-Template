@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credits test cases.
+ * Author review: Validated the assertions and setup for "balances refresh and recover from service failures" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {

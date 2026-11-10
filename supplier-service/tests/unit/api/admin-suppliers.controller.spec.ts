@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of admin suppliers controller test cases.
+ * Author review: Validated the assertions and setup for "allows an administrator to create a supplier"; clarified test descriptions and assertion formatting.
+ */
+
 import type { INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';

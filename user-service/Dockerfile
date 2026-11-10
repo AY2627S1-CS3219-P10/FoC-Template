@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of C:\ container build commands.
+# Author review: Validated user-service build stages (node:24-alpine AS build, node:24-alpine AS runtime) and the COPY, RUN, and startup commands; cleaned up instruction layout.
+
 FROM node:24-alpine AS build
 
 ENV PNPM_HOME=/pnpm

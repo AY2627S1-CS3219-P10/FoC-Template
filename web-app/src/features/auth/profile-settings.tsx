@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of profile settings rendering and interaction code (ProfileSettings).
+ * Author review: Validated ProfileSettings state updates, form submission, error rendering in web-app/profile-settings.tsx; refined JSX layout and user-facing wording. Additional review item: Check invalid-input messages and repeated submissions.
+ */
+
 "use client";
 
 import { useState } from "react";

@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610180007_status_model (update, alter table, drop index).
+-- Author review: Validated the SQL statements for errands, errand_history in migration 202610180007_status_model; edited SQL layout and comments for readability.
+
 -- D-013: IN_PROGRESS is not a state. PICKED_UP already exists, so RENAME VALUE cannot be
 -- used: rows move to PICKED_UP and the enum is rebuilt without IN_PROGRESS. No route has
 -- ever set IN_PROGRESS; a row without a courier would fail errands_assigned_states here,

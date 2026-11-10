@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma administrator account discovery repository code (PrismaAdministratorAccountDiscoveryRepository).
+ * Author review: Validated PrismaAdministratorAccountDiscoveryRepository query parameters, record mappings, and returned values; clarified query formatting and local names.
+ */
+
 import type {
   AdministratorAccountDiscoveryRepositoryPort,
   AdministratorAccountSummary,

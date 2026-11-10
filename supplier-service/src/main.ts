@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of main code.
+ * Author review: Validated supplier-service bootstrap configuration, application startup, and port handling; cleaned up initialization formatting.
+ */
+
 import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';

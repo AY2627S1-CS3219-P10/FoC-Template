@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of session token issuer code (REFRESH_SESSION_LIFETIME_MS, SessionTokenPair, PreparedSession).
+ * Author review: Validated REFRESH_SESSION_LIFETIME_MS, SessionTokenPair value handling and returned results in user-service/session-token-issuer.ts; edited naming and formatting for readability.
+ */
+
 import type {
   AuthenticatedAccount,
   ReplacementSessionRecord,

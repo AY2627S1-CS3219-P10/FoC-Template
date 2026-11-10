@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing CI resource definitions.
+ * Author review: Checked CiStack property values and existing resource references in ci-stack.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { Stack } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';

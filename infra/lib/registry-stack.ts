@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of image registry declarations.
+ * Author review: Checked RegistryStack property values and existing resource references in registry-stack.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { RemovalPolicy, Stack } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
 import * as ecr from 'aws-cdk-lib/aws-ecr';

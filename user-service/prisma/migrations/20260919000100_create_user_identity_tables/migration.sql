@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 20260919000100_create_user_identity_tables (create table, create unique index, create index).
+-- Author review: Validated the SQL statements for users, email_verification_codes, sessions in migration 20260919000100_create_user_identity_tables; edited SQL layout and comments for readability.
+
 -- Enable case-insensitive text for usernames and email addresses.
 CREATE EXTENSION IF NOT EXISTS "citext";
 

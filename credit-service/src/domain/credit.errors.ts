@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit errors code (CreditDomainError, AccountNotFoundError, ReservationNotFoundError).
+ * Author review: Checked CreditDomainError, AccountNotFoundError error messages and codes ACCOUNT_NOT_FOUND, RESERVATION_NOT_FOUND, INSUFFICIENT_CREDITS; standardized exception naming and formatting.
+ */
+
 export abstract class CreditDomainError extends Error {
   protected constructor(
     message: string,

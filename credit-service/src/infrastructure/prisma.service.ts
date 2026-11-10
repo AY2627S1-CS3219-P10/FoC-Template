@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma service code (PrismaService).
+ * Author review: Validated PrismaService input handling, return values, and thrown errors in credit-service/prisma.service.ts; edited naming and formatting for readability.
+ */
+
 import {
   Injectable,
   Logger,

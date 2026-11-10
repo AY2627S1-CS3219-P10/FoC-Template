@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of http filter code (HttpFilter).
+ * Author review: Validated HttpFilter existing type members and constant values in order-service/http.filter.ts; edited naming and formatting for readability.
+ */
+
 import {
   ArgumentsHost,
   Catch,

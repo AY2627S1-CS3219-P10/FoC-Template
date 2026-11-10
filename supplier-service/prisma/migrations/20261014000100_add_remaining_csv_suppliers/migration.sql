@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 20261014000100_add_remaining_csv_suppliers (delete from, update, insert into).
+-- Author review: Validated the SQL statements for suppliers, supplier_locations in migration 20261014000100_add_remaining_csv_suppliers; edited SQL layout and comments for readability.
+
 -- The catalog CSV was expanded from 21 to 74 suppliers.  The entries below
 -- intentionally have no supplier_locations: their CSV rows omit the required
 -- floor and/or coordinates, so a pickup location cannot be represented

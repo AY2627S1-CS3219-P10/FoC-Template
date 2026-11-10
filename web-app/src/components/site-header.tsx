@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of site header rendering and interaction code (SiteHeader).
+ * Author review: Validated SiteHeader state updates, click handlers, error rendering in web-app/site-header.tsx; refined JSX layout and user-facing wording. Additional review item: Check loading and error states, and displayed values after successful actions.
+ */
+
 "use client";
 
 import Link from "next/link";

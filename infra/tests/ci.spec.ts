@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of ci test assertions and fixtures.
+ * Author review: Checked "is the only role, with one trust statement" against the expected results; edited fixture naming and assertion formatting.
+ */
+
 import { resources, synthesize } from './support';
 
 const ISSUER = 'token.actions.githubusercontent.com';

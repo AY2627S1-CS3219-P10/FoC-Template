@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of idempotency test cases.
+ * Author review: Validated the assertions and setup for "rejects settlement to the requester"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   IdempotencyConflictError,
   ReservationStateConflictError,

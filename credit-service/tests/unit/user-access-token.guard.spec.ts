@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of user access token guard test cases.
+ * Author review: Validated the assertions and setup for "authenticates a valid User Service token"; clarified test descriptions and assertion formatting.
+ */
+
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserAccessTokenGuard } from '../../src/api/user-access-token.guard';

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update supplier request code (UpdateSupplierRequest).
+ * Author review: Checked UpdateSupplierRequest validation decorators (IsOptional, IsBoolean, IsString) and optional fields; standardized property formatting and annotations.
+ */
+
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,

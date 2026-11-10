@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of route code (PATCH, GET, POST).
+ * Author review: Validated PATCH, GET request handlers, parameter handling, and returned values; edited handler naming and formatting.
+ */
+
 import { NextRequest } from "next/server";
 import {
   backend,

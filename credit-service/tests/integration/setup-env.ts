@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of setup env test cases.
+ * Author review: Validated setup env value handling and returned results in credit-service/setup-env.ts; edited naming and formatting for readability.
+ */
+
 process.env.LOG_LEVEL = 'silent';
 process.env.CREDIT_USER_SERVICE_TOKEN =
   'integration-user-service-token-at-least-32-characters';

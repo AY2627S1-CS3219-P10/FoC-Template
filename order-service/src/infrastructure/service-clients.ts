@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of service clients code (UpstreamFailure, ServiceClients).
+ * Author review: Validated UpstreamFailure, ServiceClients input handling, return values, and thrown errors in order-service/service-clients.ts; edited naming and formatting for readability.
+ */
+
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { isUUID } from 'class-validator';

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of email availability rate limiter test cases.
+ * Author review: Validated the assertions and setup for "enforces the per-email limit across different clients" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import {
   RedisContainer,
   type StartedRedisContainer,

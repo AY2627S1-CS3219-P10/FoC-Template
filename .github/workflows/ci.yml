@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of ci workflow commands and job configuration.
+# Author review: Checked ci.yml job steps, command paths, and referenced inputs; standardized YAML indentation and step wording.
+
 # Checks every component: lint, type-check, tests (integration tests use
 # Testcontainers, so they need the runner's Docker), CDK synth and image builds.
 # Runs on pull requests, and deploy.yml calls it so failing checks block a

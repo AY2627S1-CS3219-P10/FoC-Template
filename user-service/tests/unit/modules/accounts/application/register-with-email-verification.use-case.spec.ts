@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of register with email verification use case test cases.
+ * Author review: Validated the assertions and setup for "registers the account, issues a code, and queues its delivery"; clarified test descriptions and assertion formatting.
+ */
+
 import type { VerificationEmailMessage } from '../../../../../src/modules/accounts/application/ports/verification-email-delivery.port.js';
 import type { RegisterAccountResult } from '../../../../../src/modules/accounts/application/use-cases/register-account.use-case.js';
 import { RegisterWithEmailVerificationUseCase } from '../../../../../src/modules/accounts/application/use-cases/register-with-email-verification.use-case.js';

@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of pnpm-workspace.yaml tooling configuration.
+# Author review: Checked pnpm-workspace.yaml entries for packages, allowBuilds, minimumReleaseAgeExclude against their existing uses; corrected indentation and configuration readability.
+
 packages:
   - "order-service"
   - "credit-service"

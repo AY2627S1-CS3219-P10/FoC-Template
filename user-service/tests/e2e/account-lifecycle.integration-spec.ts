@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account lifecycle test cases.
+ * Author review: Validated the assertions and setup for "completes registration, verification, authentication, profile, credential, and logout flows" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { readFile } from 'node:fs/promises';
 
 import { Controller, Get, type INestApplication } from '@nestjs/common';

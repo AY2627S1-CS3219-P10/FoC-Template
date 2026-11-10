@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma supplier catalog repository test cases.
+ * Author review: Validated the assertions and setup for "looks for possible duplicates only in the selected building, floor and category"; clarified test descriptions and assertion formatting.
+ */
+
 import { PrismaSupplierCatalogRepository } from '../../../src/infrastructure/persistence/prisma-supplier-catalog.repository.js';
 import type { PrismaClient } from '../../../src/generated/prisma/client.js';
 import { Prisma } from '../../../src/generated/prisma/client.js';

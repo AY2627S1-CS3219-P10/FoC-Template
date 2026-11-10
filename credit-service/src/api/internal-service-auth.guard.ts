@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of internal service auth guard code (InternalServiceAuthGuard).
+ * Author review: Checked InternalServiceAuthGuard request checks, accepted credentials, and rejection branches; clarified condition layout and error wording.
+ */
+
 import {
   CanActivate,
   ExecutionContext,

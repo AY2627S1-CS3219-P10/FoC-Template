@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of one-off task shell commands.
+# Author review: Checked run-one-off-task.sh argument parsing, command construction, and exit handling; clarified shell formatting and messages.
+
 # Runs a one-off ECS task (a migration or seed) to completion and fails unless
 # its container exits 0. Used by deploy.yml; works from a laptop too.
 #

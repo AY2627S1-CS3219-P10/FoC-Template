@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of seed administrators code.
+ * Author review: Validated seed administrators input handling, return values, and thrown errors in user-service/seed-administrators.ts; edited naming and formatting for readability.
+ */
+
 import 'dotenv/config';
 
 import { PrismaPg } from '@prisma/adapter-pg';

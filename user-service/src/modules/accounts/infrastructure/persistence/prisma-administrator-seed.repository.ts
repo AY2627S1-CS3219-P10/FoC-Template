@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma administrator seed repository code (PrismaAdministratorSeedRepository).
+ * Author review: Validated PrismaAdministratorSeedRepository query parameters, record mappings, and returned values; clarified query formatting and local names.
+ */
+
 import { AdministratorSeedError } from '../../application/errors/administrator-seed.error.js';
 import type {
   AdministratorSeedRecord,

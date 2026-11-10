@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of start local script commands.
+# Author review: Validated the local startup commands, service paths, and parameter handling in start-local.ps1; edited command layout and status-message wording.
+
 param([switch]$Install)
 
 $ErrorActionPreference = 'Stop'
