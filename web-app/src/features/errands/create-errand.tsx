@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useCredits } from "@/features/credits/credit-provider";
+import { pickupSupplierDisplayName } from "@/features/suppliers/outlet-display";
 import { ApiError, authenticatedRequest } from "@/services/api";
 import type { ErrandOperation, Supplier } from "@/services/contracts";
 
@@ -218,7 +219,11 @@ export function CreateErrand({ onCreated }: { onCreated: () => void }) {
                 </option>
                 {locations.map((location) => (
                   <option key={location.id} value={location.id}>
-                    {location.supplierName} · {location.building} ·{" "}
+                    {pickupSupplierDisplayName(
+                      location.supplierName,
+                      location.building,
+                    )}{" "}
+                    · {location.building} ·{" "}
                     {location.floor === null
                       ? "Floor unknown"
                       : `Floor ${location.floor}`}
