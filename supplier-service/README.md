@@ -257,6 +257,21 @@ an errand, but this service remains the authority for their availability.
 
 ## Reimport the complete CSV
 
+CSV imports and administrator inputs trim leading/trailing whitespace and collapse
+repeated whitespace in supplier names, buildings and pickup descriptions before
+matching and saving. Thus `A  Hot Hideout ` matches `A Hot Hideout` when the stored
+record uses the normalized spelling. Genuine name differences are not merged.
+The importer also trims surrounding whitespace from other CSV cells.
+
+This change does not merge, delete or reassign existing records. Previously stored
+whitespace variants may still appear separately and need a reviewed cleanup that
+preserves pickup IDs referenced by errands. Existing records with non-normalized
+names/buildings/descriptions are not automatically reconciled.
+
+The default CSV is unchanged; to validate or import another file explicitly, use
+`node scripts/seed-csv-locations.mjs --file /path/to/suppliers.csv --check` or omit
+`--check` to import it into the configured database.
+
 From the Supplier Service directory:
 
 ```powershell

@@ -20,6 +20,8 @@ import { SupplierValidationError } from '../../domain/supplier-validation.error.
 import { CampusLocationNotFoundError } from '../errors/campus-location-not-found.error.js';
 import type { SupplierManagementRepositoryPort } from '../ports/supplier-management.repository.port.js';
 
+import { normalizeCatalogText } from '../../domain/catalog-text.js';
+
 export interface UpdateSupplierLocationInput {
   confirmDistinctOutlet?: boolean;
   campusLocationId?: string;
@@ -80,7 +82,9 @@ export class UpdateSupplierLocationUseCase {
       ...(input.confirmDistinctOutlet === true
         ? { confirmDistinctOutlet: true }
         : {}),
-      building: campusLocation?.building,
+      building: campusLocation
+        ? normalizeCatalogText(campusLocation.building)
+        : undefined,
       closesAt,
       floor: input.floor,
       imageUrl,

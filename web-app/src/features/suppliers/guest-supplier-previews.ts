@@ -73,8 +73,8 @@ export const guestSupplierPreviews: Supplier[] = [
     locations: [
       location(
         "20000000-0000-4000-8000-000000000004",
+        "Com 2",
         "Cool Spot",
-        "Com2",
       ),
     ],
   },

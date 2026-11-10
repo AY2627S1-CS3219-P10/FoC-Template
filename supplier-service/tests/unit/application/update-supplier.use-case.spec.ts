@@ -59,6 +59,13 @@ class StubSupplierManagementRepository implements SupplierManagementRepositoryPo
 }
 
 describe('UpdateSupplierUseCase', () => {
+  it('normalizes repeated whitespace when renaming a supplier', async () => {
+    const repository = new StubSupplierManagementRepository();
+    await new UpdateSupplierUseCase(repository).execute(SUPPLIER_ID, {
+      name: '  Campus\t Coffee   Shop  ',
+    });
+    expect(repository.records[0]?.name).toBe('Campus Coffee Shop');
+  });
   it('replaces tags with beverages only', async () => {
     const repository = new StubSupplierManagementRepository();
     await new UpdateSupplierUseCase(repository).execute(SUPPLIER_ID, {

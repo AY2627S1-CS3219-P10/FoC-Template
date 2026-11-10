@@ -8,8 +8,21 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { parseArgs } from 'node:util';
 import { Client } from 'pg';
 import 'dotenv/config';
+// Keep this standalone: the deployment seed image copies scripts, not app source.
+// Same whitespace policy as src/domain/catalog-text.ts.
+function normalizeCatalogText(value) {
+  return value.trim().replace(/\s+/gu, ' ');
+}
+
+const { values: options } = parseArgs({
+  options: {
+    check: { type: 'boolean', default: false },
+    file: { type: 'string' },
+  },
+});
 
 // Parse quoted commas, escaped quotes, CRLF and quoted multiline descriptions.
 function parseCsv(text) {
@@ -78,7 +91,8 @@ function time(value, row) {
 }
 const records = parseCsv(
   await readFile(
-    resolve(import.meta.dirname, '../../data/csv/supplier-seed-data.csv'),
+    options.file ??
+      resolve(import.meta.dirname, '../../data/csv/supplier-seed-data.csv'),
     'utf8',
   ),
 );
@@ -99,7 +113,9 @@ const rows = records.map((cells, index) => {
     opens,
     closes,
     imageUrl,
-  ] = cells;
+  ] = cells.map((cell, column) =>
+    [0, 2, 4].includes(column) ? normalizeCatalogText(cell) : cell.trim(),
+  );
   if (
     !name.trim() ||
     !building.trim() ||
@@ -128,7 +144,7 @@ const rows = records.map((cells, index) => {
     imageUrl: imageUrl || null,
   };
 });
-if (process.argv.includes('--check')) {
+if (options.check) {
   console.log(`Validated all ${rows.length} CSV supplier/location rows.`);
   process.exit(0);
 }
