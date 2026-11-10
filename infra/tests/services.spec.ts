@@ -33,18 +33,27 @@ function allContainers(templates: Templates): Container[] {
 
 describe('autoscaling', () => {
   it.each([
-    ['demo', 1, 3],
-    ['scale', 2, 20],
-  ] as const)('%s runs %i to %i tasks per service', (profile, min, max) => {
+    ['demo', 1, 2, 3],
+    ['scale', 2, 2, 20],
+  ] as const)('%s keeps a highly available web floor', (profile, serviceMin, webMin, max) => {
     const { app } = synthesize(profile);
     const targets = resources(
       app,
       'AWS::ApplicationAutoScaling::ScalableTarget',
     );
     expect(targets).toHaveLength(SERVICE_NAMES.length);
-    for (const target of targets) {
-      expect(target).toMatchObject({ MinCapacity: min, MaxCapacity: max });
-    }
+    const webTarget = targets.find((target) =>
+      JSON.stringify(target.ResourceId).includes('WebAppService'),
+    );
+    expect(webTarget).toMatchObject({
+      MinCapacity: webMin,
+      MaxCapacity: max,
+    });
+    for (const target of targets.filter((target) => target !== webTarget))
+      expect(target).toMatchObject({
+        MinCapacity: serviceMin,
+        MaxCapacity: max,
+      });
   });
 
   it('scales every service on CPU, and web-app on requests too', () => {
@@ -72,8 +81,12 @@ describe('autoscaling', () => {
     'keeps the minimum on Fargate and extra copies on Spot (%s)',
     (profile) => {
       const { app } = synthesize(profile);
-      const base = PROFILES[profile].minTasks;
       for (const service of resources(app, 'AWS::ECS::Service')) {
+        const name = String(service.ServiceName);
+        const base =
+          name === 'web-app'
+            ? Math.max(2, PROFILES[profile].minTasks)
+            : PROFILES[profile].minTasks;
         expect(service.CapacityProviderStrategy).toEqual([
           { CapacityProvider: 'FARGATE', Base: base, Weight: 0 },
           { CapacityProvider: 'FARGATE_SPOT', Weight: 1 },
@@ -355,6 +368,21 @@ describe('service configuration', () => {
   it('pulls application images by the given tag', () => {
     const container = mainContainer(app, 'foc-order-service');
     expect(JSON.stringify(container.Image)).toContain(':test-tag');
+  });
+
+  it('keeps web connections alive longer than the load balancer idle timeout', () => {
+    const web = mainContainer(app, 'foc-web-app');
+    expect(web.Command).toEqual([
+      'node',
+      'node_modules/next/dist/bin/next',
+      'start',
+      '--hostname',
+      '0.0.0.0',
+      '--port',
+      '3000',
+      '--keepAliveTimeout',
+      '65000',
+    ]);
   });
 
   it('sizes tasks as the plan says', () => {
