@@ -97,7 +97,7 @@ describe('CreateSupplierUseCase', () => {
       name: 'Campus Coffee Shop',
       location: {
         locationDescription: 'Near the entrance',
-        supplierAtLocation: 'Campus Coffee Shop@UTown',
+        supplierAtLocation: 'Campus Coffee Shop',
       },
     });
   });
