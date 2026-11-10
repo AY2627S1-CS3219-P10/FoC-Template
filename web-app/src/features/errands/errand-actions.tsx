@@ -10,13 +10,12 @@ import { useRef, useState } from "react";
 import { authenticatedRequest } from "@/services/api";
 import { useCredits } from "@/features/credits/credit-provider";
 import type { Errand, ErrandOperation } from "@/services/contracts";
-type Action = "accept" | "pickup" | "deliver" | "courier-cancel" | "confirm" | "dispute" | "cancel";
-const labels: Record<Action, string> = { accept: "Accept errand", pickup: "Mark as picked up", deliver: "Mark as delivered", "courier-cancel": "Release errand", confirm: "Confirm receipt", dispute: "Dispute delivery", cancel: "Cancel request" };
-const confirmationLabels: Partial<Record<Action, string>> = { "courier-cancel": "Confirm release", confirm: "Confirm receipt", dispute: "Confirm dispute", cancel: "Confirm cancellation" };
+type Action = "accept" | "pickup" | "deliver" | "courier-cancel" | "confirm" | "cancel";
+const labels: Record<Action, string> = { accept: "Accept errand", pickup: "Mark as picked up", deliver: "Mark as delivered", "courier-cancel": "Release errand", confirm: "Confirm receipt", cancel: "Cancel request" };
+const confirmationLabels: Partial<Record<Action, string>> = { "courier-cancel": "Confirm release", confirm: "Confirm receipt", cancel: "Confirm cancellation" };
 const confirmations: Partial<Record<Action, string>> = {
   "courier-cancel": "Release this errand? It will reopen for another courier, and you will not be able to accept it again.",
   confirm: "Confirm you received the item? This completes the errand and starts the credit transfer to the courier.",
-  dispute: "Dispute this delivery? Credits will remain reserved while the dispute is unresolved.",
   cancel: "Cancel this request? Reserved credits will be returned and the courier assignment will be released.",
 };
 export function ErrandActions({ errand, userId, disabled, onUpdated, onBusy, onRefresh }: { errand: Errand; userId: string; disabled: boolean; onUpdated: (errand: Errand) => void; onBusy: (busy: boolean) => void; onRefresh: () => void }) {
@@ -29,7 +28,6 @@ export function ErrandActions({ errand, userId, disabled, onUpdated, onBusy, onR
   if (courier && errand.status === "ACCEPTED") available.push("pickup", "courier-cancel");
   if (courier && errand.status === "PICKED_UP") available.push("deliver");
   if (owner && ["PICKED_UP", "DELIVERED"].includes(errand.status)) available.push("confirm");
-  if (owner && errand.status === "DELIVERED") available.push("dispute");
   if (owner && ["OPEN", "ACCEPTED"].includes(errand.status)) available.push("cancel");
   async function run(action?: Action) {
     if (lock.current) return; lock.current = true; setBusy(true); onBusy(true); setError(""); setNotice("");
@@ -51,6 +49,6 @@ export function ErrandActions({ errand, userId, disabled, onUpdated, onBusy, onR
     {errand.status === "DISPUTED" && <p>This delivery is disputed. Credits remain reserved until the dispute is resolved.</p>}
     {!owner && errand.status === "OPEN" && errand.availableForAcceptance === false && <p>This errand is not available for you to accept. It may have expired, or you may have previously released it or missed pickup.</p>}
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    {pending ? <button className="button button-dark" disabled={busy || disabled} onClick={() => void run()}>Check cancellation status</button> : confirmation ? <div className="errand-delete-confirm"><p>{confirmations[confirmation]}</p><button className={`button ${["cancel", "courier-cancel", "dispute"].includes(confirmation) ? "button-delete" : "button-edit"}`} disabled={busy || disabled} onClick={() => void run(confirmation)}>{confirmationLabels[confirmation]}</button><button className="button button-light" disabled={busy || disabled} onClick={() => setConfirmation(null)}>Go back</button></div> : <div className="errand-action-buttons">{available.map((action) => <button key={action} className={`button ${["cancel", "courier-cancel", "dispute"].includes(action) ? "button-delete" : "button-edit"}`} disabled={busy || disabled} onClick={() => { if (confirmations[action]) setConfirmation(action); else void run(action); }}>{busy ? "Updating…" : labels[action]}</button>)}</div>}
+    {pending ? <button className="button button-dark" disabled={busy || disabled} onClick={() => void run()}>Check cancellation status</button> : confirmation ? <div className="errand-delete-confirm"><p>{confirmations[confirmation]}</p><button className={`button ${["cancel", "courier-cancel"].includes(confirmation) ? "button-delete" : "button-edit"}`} disabled={busy || disabled} onClick={() => void run(confirmation)}>{confirmationLabels[confirmation]}</button><button className="button button-light" disabled={busy || disabled} onClick={() => setConfirmation(null)}>Go back</button></div> : <div className="errand-action-buttons">{available.map((action) => <button key={action} className={`button ${["cancel", "courier-cancel"].includes(action) ? "button-delete" : "button-edit"}`} disabled={busy || disabled} onClick={() => { if (confirmations[action]) setConfirmation(action); else void run(action); }}>{busy ? "Updating…" : labels[action]}</button>)}</div>}
   </section>;
 }

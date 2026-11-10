@@ -14,6 +14,7 @@ export const ERRAND_STATUSES = [
   'PICKED_UP',
   'DELIVERED',
   'DISPUTED',
+  'RESOLVED',
   'COMPLETED',
   'CANCELLED',
   'EXPIRED',

@@ -14,6 +14,7 @@ import { ApiError, authenticatedRequest } from "@/services/api";
 import type { Errand, ErrandOperation } from "@/services/contracts";
 import { ErrandStatus } from "./errand-status";
 import { ErrandActions } from "./errand-actions";
+import { ErrandDispute } from "./errand-dispute";
 import { CourierReviews } from "./courier-review";
 import { ReportUser, type ReportTarget } from "./report-user";
 type Mutation = { method: "PATCH" | "DELETE"; body: Record<string, unknown>; operationId?: string };
@@ -43,8 +44,15 @@ function ErrandDetailContent({ id }: { id: string }) {
     ...(errand.courierId && errand.courierId !== userId ? [{ id: errand.courierId, username: errand.courierUsername || "Unavailable user", role: "courier" as const }] : []),
   ] : [];
   const editable = owner && errand?.status === "OPEN" && !errand.courierId;
-  const ownerCanCancel = owner && ["OPEN", "ACCEPTED"].includes(errand?.status ?? "");
-  const deletable = admin && !ownerCanCancel;
+
+const ownerCanCancel =
+  owner && ["OPEN", "ACCEPTED"].includes(errand?.status ?? "");
+
+const deletable =
+  admin &&
+  !ownerCanCancel &&
+  !["DISPUTED", "RESOLVED"].includes(errand?.status ?? "");
+        
   async function apply(input: Mutation) {
     if (locked.current) return; locked.current = true; setBusy(true); setError(""); setMessage(""); setMutation(input);
     try {
@@ -77,6 +85,7 @@ function ErrandDetailContent({ id }: { id: string }) {
       ] as const).filter(([, value]) => value).map(([label, value]) => <p key={label}>{label}: <time dateTime={value!}>{new Date(value!).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}</time></p>)}</div>
       <button className="button button-light" disabled={busy || !!mutation || editing} onClick={() => setAttempt((value) => value + 1)}>Refresh status</button>
       <ErrandActions errand={errand} userId={auth.user.id} disabled={!!mutation || editing || confirmDelete} onBusy={setBusy} onRefresh={() => setAttempt((value) => value + 1)} onUpdated={(next) => { setState({ userId, errand: next, error: "", loading: false }); setEditing(false); setConfirmDelete(false); }} />
+      <ErrandDispute errand={errand} userId={auth.user.id} disabled={!!mutation || editing || confirmDelete} onBusy={setBusy} onUpdated={(next) => { setState({ userId, errand: next, error: "", loading: false }); setEditing(false); setConfirmDelete(false); }} />
       {message && <p role="status">{message}</p>}{error && <p role="alert">{error}</p>}
       {mutation ? <button className="button button-dark" disabled={busy} onClick={() => void apply(mutation)}>{busy ? "Processing…" : mutation.operationId ? "Check change status" : "Retry this change"}</button> : <>
         {editable && !editing && <button className="button button-edit" disabled={busy} onClick={() => { setEditing(true); setConfirmDelete(false); }}>Edit errand</button>}

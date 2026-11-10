@@ -102,7 +102,7 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
   let available = true;
   let accountActive = true;
   let outage = false;
-  let loseAck: 'reserve' | 'adjust' | 'release' | null = null;
+  let loseAck: 'reserve' | 'adjust' | 'release' | 'settle' | null = null;
   beforeAll(async () => {
     [orderDb, creditDb] = await Promise.all([
       new PostgreSqlContainer('postgres:17-alpine').start(),
@@ -171,7 +171,8 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
         upstream.ok &&
         ((loseAck === 'reserve' && req.url === '/v1/credit-reservations') ||
           (loseAck === 'adjust' && req.url?.endsWith('/adjustment')) ||
-          (loseAck === 'release' && req.url?.endsWith('/release')))
+          (loseAck === 'release' && req.url?.endsWith('/release')) ||
+          (loseAck === 'settle' && req.url?.endsWith('/settlement')))
       ) {
         loseAck = null;
         res.destroy();
@@ -583,7 +584,38 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
       method: 'POST',
       url: `/api/errands/${id}/${action}`,
       headers: { authorization: `Bearer ${token}` },
+      ...(action === 'dispute'
+        ? { payload: { statement: 'The delivery was not received as agreed.' } }
+        : action === 'respond-dispute'
+          ? { payload: { statement: 'I delivered it to the agreed location.' } }
+          : {}),
     });
+  const resolveDispute = (
+    id: string,
+    outcome: 'REFUND_REQUESTER' | 'PAY_COURIER',
+    key = randomUUID(),
+    token = 'admin',
+  ) =>
+    app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/resolve-dispute`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        'idempotency-key': key,
+      },
+      payload: { outcome },
+    });
+  const provisionCourier = async () => {
+    const response = await creditApp.inject({
+      method: 'POST',
+      url: '/v1/credit-accounts',
+      headers: {
+        authorization: `Bearer ${process.env.CREDIT_USER_SERVICE_TOKEN}`,
+      },
+      payload: { userId: courierId },
+    });
+    expect([200, 201]).toContain(response.statusCode);
+  };
   describe('courier reviews and ratings', () => {
     it('shows your own all-time average and only your three newest written comments', async () => {
       const comments = [
@@ -1024,6 +1056,197 @@ describe('FR4 with real independent Order/Credit PostgreSQL databases and HTTP c
     expect(await prisma.errandHistory.count({ where: { errandId: id } })).toBe(
       3,
     );
+  });
+  it('requires and persists the requester statement atomically with the dispute', async () => {
+    const id = await errandIn('DELIVERED');
+    const blank = await app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/dispute`,
+      headers: { authorization: 'Bearer requester' },
+      payload: { statement: '   ' },
+    });
+    expect(blank.statusCode).toBe(400);
+    expect(await statusOf(id)).toBe('DELIVERED');
+    expect(await prisma.errandDispute.count()).toBe(0);
+    expect((await act(id, 'dispute', 'courier')).statusCode).toBe(403);
+    const disputed = await act(id, 'dispute', 'requester');
+    expect(disputed.statusCode).toBe(200);
+    expect(disputed.json()).toMatchObject({
+      status: 'DISPUTED',
+      dispute: {
+        status: 'OPEN',
+        requesterId,
+        courierId,
+        requesterStatement: 'The delivery was not received as agreed.',
+        requesterSubmittedAt: expect.any(String),
+        courierStatement: null,
+      },
+    });
+    expect((await act(id, 'dispute', 'requester')).statusCode).toBe(200);
+    expect(await prisma.errandDispute.count()).toBe(1);
+  });
+  it('allows only the assigned courier to finalize one response', async () => {
+    const id = await errandIn('DELIVERED');
+    await act(id, 'dispute', 'requester');
+    expect((await act(id, 'respond-dispute', 'requester')).statusCode).toBe(
+      403,
+    );
+    expect((await act(id, 'respond-dispute', 'other')).statusCode).toBe(403);
+    const response = await act(id, 'respond-dispute', 'courier');
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      dispute: {
+        courierId,
+        courierStatement: 'I delivered it to the agreed location.',
+        courierSubmittedAt: expect.any(String),
+      },
+    });
+    expect((await act(id, 'respond-dispute', 'courier')).statusCode).toBe(200);
+    const changed = await app.inject({
+      method: 'POST',
+      url: `/api/errands/${id}/respond-dispute`,
+      headers: { authorization: 'Bearer courier' },
+      payload: { statement: 'A changed response.' },
+    });
+    expect(changed.statusCode).toBe(409);
+  });
+  it('blocks resolution until both statements exist and requires an administrator', async () => {
+    const id = await errandIn('DELIVERED');
+    await act(id, 'dispute', 'requester');
+    expect((await resolveDispute(id, 'REFUND_REQUESTER')).statusCode).toBe(409);
+    await act(id, 'respond-dispute', 'courier');
+    expect(
+      (await resolveDispute(id, 'REFUND_REQUESTER', randomUUID(), 'requester'))
+        .statusCode,
+    ).toBe(403);
+    expect(await statusOf(id)).toBe('DISPUTED');
+  });
+  it('refunds once and retains the complete final dispute audit record', async () => {
+    const id = await errandIn('DELIVERED');
+    await act(id, 'dispute', 'requester');
+    await act(id, 'respond-dispute', 'courier');
+    const key = randomUUID();
+    const resolved = await resolveDispute(id, 'REFUND_REQUESTER', key);
+    expect(resolved.statusCode).toBe(200);
+    expect(resolved.json()).toMatchObject({
+      status: 'SUCCEEDED',
+      errand: {
+        status: 'RESOLVED',
+        dispute: {
+          status: 'RESOLVED',
+          outcome: 'REFUND_REQUESTER',
+          resolvedBy: otherId,
+          resolvedAt: expect.any(String),
+          requesterStatement: 'The delivery was not received as agreed.',
+          courierStatement: 'I delivered it to the agreed location.',
+        },
+      },
+    });
+    expect((await resolveDispute(id, 'REFUND_REQUESTER', key)).statusCode).toBe(
+      200,
+    );
+    expect((await resolveDispute(id, 'PAY_COURIER')).statusCode).toBe(409);
+    expect(
+      (
+        await app.inject({
+          method: 'DELETE',
+          url: `/api/errands/${id}`,
+          headers: {
+            authorization: 'Bearer admin',
+            'idempotency-key': randomUUID(),
+          },
+        })
+      ).statusCode,
+    ).toBe(409);
+    expect(await balances()).toContainEqual({
+      userId: requesterId,
+      availableCredits: 100,
+      reservedCredits: 0,
+    });
+    expect(
+      await creditPrisma.ledgerEntry.count({
+        where: { errandId: id, type: 'RELEASE' },
+      }),
+    ).toBe(1);
+  });
+  it('pays the courier once through the Credit Service ledger', async () => {
+    await provisionCourier();
+    const id = await errandIn('DELIVERED');
+    await act(id, 'dispute', 'requester');
+    await act(id, 'respond-dispute', 'courier');
+    const key = randomUUID();
+    expect((await resolveDispute(id, 'PAY_COURIER', key)).json()).toMatchObject(
+      {
+        status: 'SUCCEEDED',
+        errand: {
+          status: 'RESOLVED',
+          dispute: { outcome: 'PAY_COURIER' },
+        },
+      },
+    );
+    expect((await resolveDispute(id, 'PAY_COURIER', key)).statusCode).toBe(200);
+    expect(await balances()).toContainEqual({
+      userId: requesterId,
+      availableCredits: 80,
+      reservedCredits: 0,
+    });
+    expect(
+      await creditPrisma.creditAccount.findUniqueOrThrow({
+        where: { userId: courierId },
+      }),
+    ).toMatchObject({ availableCredits: 120 });
+    expect(
+      await creditPrisma.ledgerEntry.count({
+        where: { errandId: id, type: 'SETTLE' },
+      }),
+    ).toBe(2);
+  });
+  it('serializes conflicting administrator decisions to one financial outcome', async () => {
+    await provisionCourier();
+    const id = await errandIn('DELIVERED');
+    await act(id, 'dispute', 'requester');
+    await act(id, 'respond-dispute', 'courier');
+    const results = await Promise.all([
+      resolveDispute(id, 'REFUND_REQUESTER'),
+      resolveDispute(id, 'PAY_COURIER'),
+    ]);
+    expect(results.map((result) => result.statusCode).sort()).toEqual([
+      200, 409,
+    ]);
+    const dispute = await prisma.errandDispute.findUniqueOrThrow({
+      where: { errandId: id },
+    });
+    expect(dispute.status).toBe('RESOLVED');
+    const reservation = await creditPrisma.creditReservation.findUniqueOrThrow({
+      where: { errandId: id },
+    });
+    expect([
+      ['REFUND_REQUESTER', 'RELEASED'],
+      ['PAY_COURIER', 'SETTLED'],
+    ]).toContainEqual([dispute.outcome, reservation.status]);
+  });
+  it('recovers a lost credit acknowledgement before recording resolution', async () => {
+    await provisionCourier();
+    const id = await errandIn('DELIVERED');
+    await act(id, 'dispute', 'requester');
+    await act(id, 'respond-dispute', 'courier');
+    loseAck = 'settle';
+    const pending = await resolveDispute(id, 'PAY_COURIER');
+    expect(pending.statusCode).toBe(202);
+    const operationId = pending.json().operationId as string;
+    expect(await statusOf(id)).toBe('DISPUTED');
+    expect(
+      await creditPrisma.creditReservation.findUniqueOrThrow({
+        where: { errandId: id },
+      }),
+    ).toMatchObject({ status: 'SETTLED' });
+    await service.process(operationId);
+    expect(await statusOf(id)).toBe('RESOLVED');
+    expect(
+      await creditPrisma.ledgerEntry.count({
+        where: { errandId: id, type: 'SETTLE' },
+      }),
+    ).toBe(2);
   });
   it('S5 race: 10 parallel pickups by the assigned courier apply once', async () => {
     const id = (await create()).json().errand.id;

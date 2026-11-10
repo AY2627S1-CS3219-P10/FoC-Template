@@ -125,7 +125,9 @@ Errand { id, requesterId, requesterUsername?, courierId | null, courierUsername?
 | `POST /api/errands/:id/accept` | any user except the requester | 200 `Errand` (ACCEPTED, `courierId`, `acceptedAt`); repeat by the same courier returns the current state | 401; 403 `ERRAND_ACTION_FORBIDDEN` (own errand); 404 `ERRAND_NOT_FOUND`; 409 `ERRAND_INVALID_TRANSITION` (taken / not OPEN), `ERRAND_OPERATION_PENDING` |
 | `POST /api/errands/:id/pickup` | assigned courier | 200 `Errand` (PICKED_UP, `pickedUpAt`) | 401; 403 `ERRAND_ACTION_FORBIDDEN`; 404; 409 `ERRAND_INVALID_TRANSITION` (not ACCEPTED) |
 | `POST /api/errands/:id/deliver` | assigned courier | 200 `Errand` (DELIVERED, `deliveredAt`) | same; 409 unless PICKED_UP |
-| `POST /api/errands/:id/dispute` | requester | 200 `Errand` (DISPUTED, `disputedAt`); credits stay reserved | same; 409 unless DELIVERED |
+| `POST /api/errands/:id/dispute` body `{statement}` | requester | 200 `Errand` (DISPUTED, `disputedAt`, `dispute`); credits stay reserved | 400 blank/>2000; 403 non-owner; 409 unless DELIVERED |
+| `POST /api/errands/:id/respond-dispute` body `{statement}` | assigned courier | 200 `Errand`; one finalized response | 400 blank/>2000; 403 wrong actor; 409 duplicate/resolved |
+| `POST /api/errands/:id/resolve-dispute` body `{outcome}` + `Idempotency-Key` | administrator | 200/202 `ErrandOperation`; outcome `REFUND_REQUESTER` or `PAY_COURIER` | 403 non-admin; 409 response missing/pending/already resolved |
 | `POST /api/errands/:id/confirm` | requester | 200 `Errand` (COMPLETED, `completedAt`, `completionMethod: REQUESTER_CONFIRMED`); courier paid via `errand.completed.v1` | same; 409 unless PICKED_UP or DELIVERED |
 | `POST /api/errands/:id/cancel` (no body, no header) | requester | 200 `ErrandOperation` (`errand.status` CANCELLED, `cancelledAt`, `courierId` null), 202 while the release is pending; whole reservation released; a repeat returns the same `operationId` | 401; 403 `ERRAND_OWNER_REQUIRED`; 404; 409 `ERRAND_INVALID_TRANSITION` (PICKED_UP or later), `ERRAND_OPERATION_PENDING` |
 | `POST /api/errands/:id/courier-cancel` | assigned courier | 200 `Errand` (OPEN, `courierId` null); credits stay reserved; this courier can never accept it again; repeat returns the current state | 401; 403 `ERRAND_ACTION_FORBIDDEN`; 404; 409 `ERRAND_INVALID_TRANSITION` (not ACCEPTED; after pickup is Q-020) |
@@ -166,6 +168,8 @@ current state returns 200 with the current errand and changes nothing.
 `Errand` also carries optional `acceptedAt`, `pickedUpAt`, `deliveredAt`, `disputedAt`,
 `completedAt`, `cancelledAt`, `expiredAt`, `completionMethod` (null until set), and
 always `itemType` and `expiresAt`. Statuses: OPEN, ACCEPTED, PICKED_UP, DELIVERED,
-DISPUTED, COMPLETED, CANCELLED, EXPIRED (no IN_PROGRESS, D-013). The assigned courier
+DISPUTED, RESOLVED, COMPLETED, CANCELLED, EXPIRED (no IN_PROGRESS, D-013). Details
+include optional `dispute` with both statements/actors/timestamps and the final
+outcome/resolver/timestamp. The assigned courier
 can `GET /api/errands/:id`.
 

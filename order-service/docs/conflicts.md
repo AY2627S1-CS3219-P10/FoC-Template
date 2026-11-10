@@ -25,7 +25,7 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
 | C11 | Admin DELETE beyond OPEN vs settlement | OPEN | Q-011 |
 | C12 | Courier credit account at accept | OPEN | Q-012 |
 | C13 | D1 lacks a confirm step | DECIDED → D-006 | — |
-| C14 | How DISPUTED is resolved | OPEN | Q-014 |
+| C14 | How DISPUTED is resolved | DECIDED → D-021 | Q-014 |
 | C15 | D1 numbering duplicated | OPEN (team) | Q-015 |
 
 ---
@@ -185,11 +185,13 @@ Status values: `OPEN` · `PARTIAL` (some of it decided) · `DECIDED → D-NNN` �
 - **Resp §5:** requester confirms DELIVERED → COMPLETED, or early from PICKED_UP.
 - **Decision:** D-006. D1 needs amending.
 
-## C14 — How DISPUTED is resolved · OPEN
+## C14 — How DISPUTED is resolved · DECIDED → D-021
 - **Resp:** DELIVERED → DISPUTED, "do not settle/release automatically". Nothing more.
-- **Open:** who resolves (admin? requester withdraws?), outcomes (pay courier →
+  - **Previously open:** who resolves (admin? requester withdraws?), outcomes (pay courier →
   `errand.completed.v1`; refund requester → HTTP release → CANCELLED), deadline.
-- **Until decided:** a DISPUTED errand holds its reservation indefinitely. That is safe.
+  - **Decision:** after both parties submit statements, an administrator chooses one
+    final `PAY_COURIER` or `REFUND_REQUESTER` outcome through the durable operation
+    journal; the retained errand state is RESOLVED. See D-021.
 - **Impact:** S12 (dispute resolution); does not block S5.
 - **Recommendation:** admin-only `POST /api/errands/:id/resolve-dispute`
   `{outcome: PAY_COURIER | REFUND_REQUESTER, note}`; no deadline in this project.

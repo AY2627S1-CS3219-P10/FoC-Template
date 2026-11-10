@@ -1786,6 +1786,12 @@ hr {
 .disputed-errand-heading .errand-status { flex-shrink: 0; }
 .disputed-errand-detail { border-color: #e4b7ac; background: #fff8f6; }
 .dispute-resolution-note { margin: 20px 0; padding: 16px; border-radius: 8px; background: #fff0ec; color: #8f3529 !important; }
+.errand-dispute-panel { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+.errand-dispute-panel h2 { margin: 0 0 14px; }
+.dispute-statement { margin: 12px 0; padding: 16px; border-radius: 10px; background: #fff8f6; border: 1px solid #efd3cc; }
+.dispute-statement h3 { margin: 0 0 8px; }
+.dispute-statement p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dispute-outcome { padding: 14px 16px; border-radius: 8px; background: #ecf8ef; color: #256438; font-weight: 700; }
 @media (max-width: 700px) {
   .admin-page {
     padding: 28px 0;

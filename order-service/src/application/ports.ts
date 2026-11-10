@@ -10,6 +10,7 @@ import type {
   EditErrand,
   ErrandDetails,
   ErrandRecord,
+  DisputeOutcome,
 } from '../domain/errand';
 import type { Transition } from '../domain/lifecycle';
 export const ORDER_REPOSITORY = Symbol('ORDER_REPOSITORY');
@@ -20,7 +21,14 @@ export interface OperationRecord {
   id: string;
   errandId: string;
   requesterId: string;
-  kind: 'CREATE' | 'EDIT' | 'DELETE' | 'CANCEL' | 'EXPIRE';
+  kind:
+    | 'CREATE'
+    | 'EDIT'
+    | 'DELETE'
+    | 'CANCEL'
+    | 'EXPIRE'
+    | 'RESOLVE_REFUND'
+    | 'RESOLVE_PAY';
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED';
   inputDigest: string;
   payload: ErrandDetails;
@@ -28,6 +36,7 @@ export interface OperationRecord {
   previousAmount: number | null;
   errorCode: string | null;
   errorStatus: number | null;
+  courierId?: string | null;
 }
 
 export interface CourierReviewRecord {
@@ -132,6 +141,23 @@ export interface OrderRepository {
     actorId: string | null,
     courierId?: string | null,
   ): Promise<boolean>;
+  openDispute(
+    id: string,
+    requesterId: string,
+    statement: string,
+  ): Promise<void>;
+  respondToDispute(
+    id: string,
+    courierId: string,
+    statement: string,
+  ): Promise<void>;
+  resolveDisputeIntent(
+    administratorId: string,
+    id: string,
+    key: string,
+    digest: string,
+    outcome: DisputeOutcome,
+  ): Promise<OperationRecord>;
   /** D-016/D-017: true when this courier was released from this errand before. */
   isExcluded(errandId: string, courierId: string): Promise<boolean>;
   /** Up to 100 DELIVERED errands whose auto-complete deadline has passed (DB clock). */
@@ -169,6 +195,17 @@ export interface ErrandServices {
   username(userId: string, token: string): Promise<string | null>;
   isAdministrator(token: string): Promise<boolean>;
   release(errandId: string, requesterId: string, amount: number): Promise<void>;
+  refundDispute(
+    errandId: string,
+    requesterId: string,
+    amount: number,
+  ): Promise<void>;
+  settleDispute(
+    errandId: string,
+    requesterId: string,
+    courierId: string,
+    amount: number,
+  ): Promise<void>;
   identity(token: string): Promise<string>;
   pickup(
     id: string,

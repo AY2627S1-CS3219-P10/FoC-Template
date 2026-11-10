@@ -18,7 +18,11 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import { ITEM_TYPES, MAX_OFFERED_CREDITS } from '../domain/errand';
+import {
+  DISPUTE_OUTCOMES,
+  ITEM_TYPES,
+  MAX_OFFERED_CREDITS,
+} from '../domain/errand';
 import type { ItemType } from '../domain/errand';
 import { ERRAND_STATUSES } from '../domain/lifecycle';
 const trim = ({ value }: { value: unknown }) =>
@@ -121,6 +125,35 @@ export class ManageErrandsDto extends ListErrandsDto {
   @IsUUID('4')
   requesterId?: string;
 }
+export class DisputeStatementDto {
+  @ApiProperty({ minLength: 1, maxLength: 2000 })
+  @Transform(trim)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  statement!: string;
+}
+export class ResolveDisputeDto {
+  @ApiProperty({ enum: DISPUTE_OUTCOMES })
+  @IsIn(DISPUTE_OUTCOMES)
+  outcome!: (typeof DISPUTE_OUTCOMES)[number];
+}
+export class DisputeResponse {
+  @ApiProperty({ enum: ['OPEN', 'RESOLVED'] }) status!: string;
+  @ApiProperty() requesterStatement!: string;
+  @ApiProperty({ format: 'uuid' }) requesterId!: string;
+  @ApiProperty({ format: 'date-time' }) requesterSubmittedAt!: string;
+  @ApiPropertyOptional({ nullable: true }) courierStatement!: string | null;
+  @ApiProperty({ format: 'uuid' }) courierId!: string;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  courierSubmittedAt!: string | null;
+  @ApiPropertyOptional({ enum: DISPUTE_OUTCOMES, nullable: true })
+  outcome!: string | null;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  resolvedBy!: string | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  resolvedAt!: string | null;
+}
 export class ErrandResponse extends CreateErrandDto {
   @ApiPropertyOptional({ type: Boolean })
   isStarred?: boolean;
@@ -168,6 +201,8 @@ export class ErrandResponse extends CreateErrandDto {
       'Details only (FR4.2.2): true while the errand is OPEN and unassigned',
   })
   availableForAcceptance?: boolean;
+  @ApiPropertyOptional({ type: DisputeResponse, nullable: true })
+  dispute?: DisputeResponse | null;
 }
 export class OperationResponse {
   @ApiProperty({ format: 'uuid' }) operationId!: string;

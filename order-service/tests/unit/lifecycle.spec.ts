@@ -64,7 +64,7 @@ function outcome(...args: Parameters<typeof transition>) {
 
 describe('lifecycle transition table (requirements.md §3)', () => {
   it('covers every status × action × actor', () =>
-    expect(matrix).toHaveLength(8 * 10 * 4));
+    expect(matrix).toHaveLength(9 * 10 * 4));
 
   it.each(matrix)('%s + %s by %s', (from, action, actor) => {
     const expected =

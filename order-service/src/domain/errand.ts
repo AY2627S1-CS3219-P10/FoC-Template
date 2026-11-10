@@ -54,6 +54,23 @@ export interface ErrandRecord extends ErrandDetails {
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
+  dispute?: DisputeRecord | null;
+}
+
+export const DISPUTE_OUTCOMES = ['REFUND_REQUESTER', 'PAY_COURIER'] as const;
+export type DisputeOutcome = (typeof DISPUTE_OUTCOMES)[number];
+export interface DisputeRecord {
+  errandId: string;
+  status: 'OPEN' | 'RESOLVED';
+  requesterStatement: string;
+  requesterId: string;
+  requesterSubmittedAt: Date;
+  courierStatement: string | null;
+  courierId: string;
+  courierSubmittedAt: Date | null;
+  outcome: DisputeOutcome | null;
+  resolvedBy: string | null;
+  resolvedAt: Date | null;
 }
 export class OrderError extends Error {
   constructor(

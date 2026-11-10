@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { Errand } from "../../src/services/contracts";
 
 const admin = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -15,7 +16,7 @@ const student = {
 };
 const requesterId = "10000000-0000-4000-8000-000000000003";
 const courierId = "10000000-0000-4000-8000-000000000004";
-const dispute = {
+const dispute: Errand = {
   id: "30000000-0000-4000-8000-000000000001",
   requesterId,
   requesterUsername: "Requester",
@@ -37,6 +38,18 @@ const dispute = {
   pickedUpAt: "2026-11-09T02:00:00Z",
   deliveredAt: "2026-11-09T03:00:00Z",
   disputedAt: "2026-11-09T03:30:00Z",
+  dispute: {
+    status: "OPEN" as const,
+    requesterStatement: "The parcel was left at the wrong lobby.",
+    requesterId,
+    requesterSubmittedAt: "2026-11-09T03:30:00Z",
+    courierStatement: "I followed the destination shown in the request.",
+    courierId,
+    courierSubmittedAt: "2026-11-09T03:45:00Z",
+    outcome: null,
+    resolvedBy: null,
+    resolvedAt: null,
+  },
 };
 
 async function session(page: Page, user: typeof admin | null) {
@@ -73,9 +86,23 @@ test("administrator reviews multiple disputed errands and refreshes new disputes
     listCalls++;
     return route.fulfill({ json: disputes });
   });
-  await page.route(`**/api/errands/${dispute.id}`, (route) =>
-    route.fulfill({ json: dispute }),
-  );
+  let detail: Errand = dispute;
+  await page.route(`**/api/errands/${dispute.id}`, (route) => route.fulfill({ json: detail }));
+  await page.route(`**/api/errands/${dispute.id}/resolve-dispute`, (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({ outcome: "PAY_COURIER" });
+    detail = {
+      ...detail,
+      status: "RESOLVED",
+      dispute: {
+        ...detail.dispute!,
+        status: "RESOLVED",
+        outcome: "PAY_COURIER",
+        resolvedBy: admin.id,
+        resolvedAt: "2026-11-09T04:00:00Z",
+      },
+    };
+    return route.fulfill({ json: { operationId: "resolution", status: "SUCCEEDED", errand: detail } });
+  });
 
   await page.goto("/admin");
   await page.getByRole("button", { name: "Disputed errands" }).click();
@@ -94,8 +121,13 @@ test("administrator reviews multiple disputed errands and refreshes new disputes
   await expect(details).toContainText("Call on arrival");
   await expect(details).toContainText("Disputed");
   await expect(details).toContainText("2026");
-  await expect(details).toContainText("Resolution actions are not available yet");
-  await expect(details.getByRole("button", { name: /resolve|refund|pay/i })).toHaveCount(0);
+  await expect(details).toContainText("The parcel was left at the wrong lobby.");
+  await expect(details).toContainText("I followed the destination shown in the request.");
+  await details.getByRole("button", { name: "Pay courier" }).click();
+  await expect(details).toContainText("This decision cannot be changed");
+  await details.getByRole("button", { name: "Confirm courier payment" }).click();
+  await expect(page.getByRole("status")).toContainText("credits were paid to the courier");
+  await expect(details).toContainText("Courier paid");
 
   disputes = [
     ...disputes,
@@ -129,7 +161,34 @@ test("disputed errands show empty and retryable error states", async ({ page }) 
   );
   fail = false;
   await page.getByRole("button", { name: "Refresh disputes" }).click();
-  await expect(page.getByText("No disputed errands.")).toBeVisible();
+  await expect(page.getByText("No open disputes.")).toBeVisible();
+});
+
+test("administrator cannot resolve before the courier responds", async ({ page }) => {
+  await session(page, admin);
+  await page.route("**/api/admin/suppliers**", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  const awaitingResponse: Errand = {
+    ...dispute,
+    dispute: {
+      ...dispute.dispute!,
+      courierStatement: null,
+      courierSubmittedAt: null,
+    },
+  };
+  await page.route("**/api/admin/disputed-errands", (route) =>
+    route.fulfill({ json: [awaitingResponse] }),
+  );
+  await page.route(`**/api/errands/${dispute.id}`, (route) =>
+    route.fulfill({ json: awaitingResponse }),
+  );
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Disputed errands" }).click();
+  await page.getByRole("button", { name: "View details" }).click();
+  const details = page.getByLabel("Disputed errand details");
+  await expect(details).toContainText("Awaiting the courier's response");
+  await expect(details.getByRole("button", { name: /refund requester|pay courier/i })).toHaveCount(0);
 });
 
 test("non-administrators cannot access the disputed errands dashboard tab", async ({ page }) => {

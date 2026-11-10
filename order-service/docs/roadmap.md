@@ -31,7 +31,7 @@ answered, re-evaluate every slice that lists it.
 | — | S7 Requester cancel + expiry | DONE (`6d61f77`, `24294b4`) | — | — |
 | — | S8 Courier cancel + 30 min reopen (no 1 h timer) | DONE except parked parts (`9296379`, `9cff3e2`) | — | after pickup: Q-020; reason: Q-021 |
 | — | S9 Notifications + Socket.IO | BLOCKED | — | Q-010 |
-| — | S12 Dispute resolution | BLOCKED | — | Q-014 |
+| 13 | S12 Dispute resolution | DONE | D-021 | statements, durable refund/pay outcome |
 
 ## Slice details
 
@@ -139,7 +139,13 @@ operation from a template with revalidation through the same journal.
 Ephemeral latest-location store (not authoritative), assigned-courier writes only,
 requester + courier reads, stale flag, purge at terminal state.
 
-### S12 — Dispute resolution — BLOCKED (Q-014)
+### S12 — Dispute resolution — DONE (D-021)
+
+- Requester statement is required and stored atomically with DELIVERED → DISPUTED.
+- The assigned courier may finalize one response.
+- After both statements, an administrator chooses REFUND_REQUESTER or PAY_COURIER.
+  The existing operation journal retries the idempotent Credit Service release or
+  settlement and records RESOLVED only after success. The full audit record remains.
 
 ### N2 — Single `/me` call · N3 — Latency review · N4 — Coverage gate
 See requirements.md §5 (K2, K3) and NFR9.

@@ -11,7 +11,11 @@ import type { OrderRepository, OperationRecord } from '../application/ports';
 import type { ErrandSort } from '../application/ports';
 import { assertEditable, OrderError } from '../domain/errand';
 import { DEFAULT_ITEM_TYPE, expiryFor } from '../domain/errand';
-import type { EditErrand, ErrandDetails } from '../domain/errand';
+import type {
+  DisputeOutcome,
+  EditErrand,
+  ErrandDetails,
+} from '../domain/errand';
 import {
   AUTO_COMPLETE_AFTER_HOURS,
   REOPEN_AFTER_MINUTES,
@@ -25,6 +29,7 @@ import type {
 import {
   Prisma,
   type Errand,
+  type ErrandDispute,
   type ErrandOperation,
 } from '../generated/prisma/client';
 import { PrismaService } from './prisma.service';
@@ -369,15 +374,20 @@ export class PrismaOrderRepository implements OrderRepository {
         const op = operationRecord(stored);
         if (op.status !== 'PENDING') return op;
         let creditOperation = op;
-        let errand: Errand | null = null;
+        let errand: (Errand & { dispute: ErrandDispute | null }) | null = null;
         if (op.kind !== 'CREATE') {
           await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${op.errandId}::uuid FOR UPDATE`;
           errand = await tx.errand.findUniqueOrThrow({
             where: { id: op.errandId },
+            include: { dispute: true },
           });
           if (
             (op.kind === 'EDIT' &&
               (errand.status !== 'OPEN' || errand.courierId !== null)) ||
+            ((op.kind === 'RESOLVE_REFUND' || op.kind === 'RESOLVE_PAY') &&
+              (errand.status !== 'DISPUTED' ||
+                errand.dispute?.status !== 'OPEN' ||
+                !errand.dispute.courierStatement)) ||
             errand.deletedAt ||
             errand.pendingOperationId !== op.id ||
             errand.version !== op.expectedVersion
@@ -389,11 +399,16 @@ export class PrismaOrderRepository implements OrderRepository {
             );
           // DELETE operations belong to the acting user for authorization and
           // idempotency, but Credit must validate the original errand owner.
-          if (op.kind === 'DELETE') {
+          if (
+            op.kind === 'DELETE' ||
+            op.kind === 'RESOLVE_REFUND' ||
+            op.kind === 'RESOLVE_PAY'
+          ) {
             creditOperation = {
               ...op,
               requesterId: errand.requesterId,
               previousAmount: errand.offeredCredits,
+              courierId: errand.courierId,
             };
           }
         }
@@ -463,6 +478,14 @@ export class PrismaOrderRepository implements OrderRepository {
               pendingOperationId: null,
             },
           });
+        else if (op.kind === 'RESOLVE_REFUND' || op.kind === 'RESOLVE_PAY')
+          await this.finishDisputeResolution(
+            tx,
+            errand!,
+            op.requesterId,
+            op.kind === 'RESOLVE_REFUND' ? 'REFUND_REQUESTER' : 'PAY_COURIER',
+            stored.correlationId,
+          );
         else
           await tx.errand.update({
             where: { id: op.errandId },
@@ -543,7 +566,249 @@ export class PrismaOrderRepository implements OrderRepository {
     });
   }
   find(id: string) {
-    return this.prisma.errand.findUnique({ where: { id } });
+    return this.prisma.errand.findUnique({
+      where: { id },
+      include: { dispute: true },
+    });
+  }
+
+  async openDispute(id: string, requesterId: string, statement: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const errand = await tx.errand.findUnique({
+        where: { id },
+        include: { dispute: true },
+      });
+      if (!errand || errand.deletedAt)
+        throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
+      if (errand.requesterId !== requesterId)
+        throw new OrderError(
+          'ERRAND_ACTION_FORBIDDEN',
+          'Only the requester may dispute this errand.',
+          403,
+        );
+      if (
+        errand.status === 'DISPUTED' &&
+        errand.dispute?.requesterStatement === statement
+      )
+        return;
+      if (errand.status !== 'DELIVERED')
+        throw new OrderError(
+          'ERRAND_INVALID_TRANSITION',
+          `Cannot dispute an errand that is ${errand.status}.`,
+          409,
+        );
+      if (!errand.courierId)
+        throw new OrderError(
+          'ERRAND_INVALID_TRANSITION',
+          'A delivered errand must have an assigned courier.',
+          409,
+        );
+      if (errand.pendingOperationId)
+        throw new OrderError(
+          'ERRAND_OPERATION_PENDING',
+          'Another change is still being processed.',
+          409,
+        );
+      const dispute = await tx.errandDispute.create({
+        data: {
+          errandId: id,
+          requesterId,
+          requesterStatement: statement,
+          courierId: errand.courierId,
+        },
+      });
+      await tx.errand.update({
+        where: { id },
+        data: {
+          status: 'DISPUTED',
+          disputedAt: dispute.requesterSubmittedAt,
+          version: { increment: 1 },
+        },
+      });
+      await tx.errandHistory.create({
+        data: {
+          errandId: id,
+          fromStatus: 'DELIVERED',
+          toStatus: 'DISPUTED',
+          action: 'dispute',
+          actorRole: 'REQUESTER',
+          actorId: requesterId,
+          courierId: errand.courierId,
+          correlationId: currentCorrelationId(),
+          occurredAt: dispute.requesterSubmittedAt,
+        },
+      });
+    });
+  }
+
+  async respondToDispute(id: string, courierId: string, statement: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const errand = await tx.errand.findUnique({
+        where: { id },
+        include: { dispute: true },
+      });
+      if (!errand || errand.deletedAt)
+        throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
+      if (errand.courierId !== courierId)
+        throw new OrderError(
+          'ERRAND_ACTION_FORBIDDEN',
+          'Only the assigned courier may respond to this dispute.',
+          403,
+        );
+      if (errand.status !== 'DISPUTED' || errand.dispute?.status !== 'OPEN')
+        throw new OrderError(
+          'DISPUTE_NOT_OPEN',
+          'This dispute is not open for responses.',
+          409,
+        );
+      if (errand.dispute.courierStatement) {
+        if (errand.dispute.courierStatement === statement) return;
+        throw new OrderError(
+          'DISPUTE_RESPONSE_EXISTS',
+          'The courier response has already been finalized.',
+          409,
+        );
+      }
+      await tx.errandDispute.update({
+        where: { errandId: id },
+        data: {
+          courierStatement: statement,
+          courierSubmittedAt: new Date(),
+        },
+      });
+      await tx.errand.update({
+        where: { id },
+        data: { version: { increment: 1 } },
+      });
+    });
+  }
+
+  async resolveDisputeIntent(
+    administratorId: string,
+    id: string,
+    key: string,
+    digest: string,
+    outcome: DisputeOutcome,
+  ) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const prior = await tx.errandOperation.findUnique({
+          where: {
+            requesterId_idempotencyKey: {
+              requesterId: administratorId,
+              idempotencyKey: key,
+            },
+          },
+        });
+        if (prior) return sameInput(operationRecord(prior), digest);
+        await tx.$queryRaw`SELECT "id" FROM "errands" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const errand = await tx.errand.findUnique({
+          where: { id },
+          include: { dispute: true },
+        });
+        if (!errand || errand.deletedAt || !errand.dispute)
+          throw new OrderError('ERRAND_NOT_FOUND', 'Dispute not found.', 404);
+        if (errand.dispute.status === 'RESOLVED') {
+          if (errand.dispute.outcome !== outcome)
+            throw new OrderError(
+              'DISPUTE_ALREADY_RESOLVED',
+              'This dispute already has a different final outcome.',
+              409,
+            );
+          const done = await tx.errandOperation.findFirst({
+            where: {
+              errandId: id,
+              kind:
+                outcome === 'REFUND_REQUESTER'
+                  ? 'RESOLVE_REFUND'
+                  : 'RESOLVE_PAY',
+              status: 'SUCCEEDED',
+            },
+          });
+          if (done) return operationRecord(done);
+        }
+        if (errand.status !== 'DISPUTED' || errand.dispute.status !== 'OPEN')
+          throw new OrderError(
+            'DISPUTE_NOT_OPEN',
+            'This dispute is no longer open.',
+            409,
+          );
+        if (!errand.dispute.courierStatement)
+          throw new OrderError(
+            'DISPUTE_RESPONSE_REQUIRED',
+            'The courier must submit a response before resolution.',
+            409,
+          );
+        if (errand.pendingOperationId)
+          throw new OrderError(
+            'ERRAND_OPERATION_PENDING',
+            'Another resolution is still being processed.',
+            409,
+          );
+        return this.lock(
+          tx,
+          errand,
+          administratorId,
+          key,
+          digest,
+          outcome === 'REFUND_REQUESTER' ? 'RESOLVE_REFUND' : 'RESOLVE_PAY',
+        );
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const prior = await this.findByKey(administratorId, key);
+        if (prior) return sameInput(prior, digest);
+      }
+      throw error;
+    }
+  }
+
+  private async finishDisputeResolution(
+    tx: Tx,
+    errand: Errand,
+    administratorId: string,
+    outcome: DisputeOutcome,
+    correlationId: string | null,
+  ) {
+    const resolvedAt = new Date();
+    await tx.errandDispute.update({
+      where: { errandId: errand.id },
+      data: {
+        status: 'RESOLVED',
+        outcome,
+        resolvedBy: administratorId,
+        resolvedAt,
+      },
+    });
+    await tx.errand.update({
+      where: { id: errand.id },
+      data: {
+        status: 'RESOLVED',
+        pendingOperationId: null,
+        version: { increment: 1 },
+      },
+    });
+    await tx.errandHistory.create({
+      data: {
+        errandId: errand.id,
+        fromStatus: 'DISPUTED',
+        toStatus: 'RESOLVED',
+        action:
+          outcome === 'REFUND_REQUESTER'
+            ? 'resolve-refund'
+            : 'resolve-pay-courier',
+        actorRole: 'ADMIN',
+        actorId: administratorId,
+        courierId: errand.courierId,
+        correlationId,
+        occurredAt: resolvedAt,
+      },
+    });
   }
   async dueAutoCompletions() {
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
@@ -707,6 +972,12 @@ export class PrismaOrderRepository implements OrderRepository {
         const errand = await tx.errand.findUnique({ where: { id } });
         if (!errand || errand.deletedAt)
           throw new OrderError('ERRAND_NOT_FOUND', 'Errand not found.', 404);
+        if (errand.status === 'DISPUTED' || errand.status === 'RESOLVED')
+          throw new OrderError(
+            'DISPUTE_AUDIT_REQUIRED',
+            'Disputed and resolved errands cannot be deleted.',
+            409,
+          );
         if (errand.pendingOperationId)
           throw new OrderError(
             'ERRAND_OPERATION_PENDING',
@@ -783,7 +1054,7 @@ export class PrismaOrderRepository implements OrderRepository {
     actorId: string,
     key: string,
     digest: string,
-    kind: 'DELETE' | 'CANCEL' | 'EXPIRE',
+    kind: 'DELETE' | 'CANCEL' | 'EXPIRE' | 'RESOLVE_REFUND' | 'RESOLVE_PAY',
   ) {
     const op = await tx.errandOperation.create({
       data: {

@@ -29,6 +29,7 @@ const baseErrand = {
 let isAdmin = true;
 let orderFailure = false;
 let manageOffsets: number[] = [];
+let actions: { path: string; body: unknown; idempotencyKey?: string }[] = [];
 let app: ChildProcess;
 let userServer: Server;
 let orderServer: Server;
@@ -74,13 +75,41 @@ test.beforeAll(async () => {
     }
     res.writeHead(404).end(JSON.stringify({ message: "Not found" }));
   });
-  orderServer = createServer((req, res) => {
+  orderServer = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json");
     if (orderFailure) {
       res.writeHead(500).end(JSON.stringify({ message: "Database unavailable" }));
       return;
     }
     const url = new URL(req.url ?? "/", "http://order.test");
+    if (
+      req.method === "POST" &&
+      /^\/api\/errands\/[0-9a-f-]+\/(dispute|resolve-dispute)$/.test(url.pathname) &&
+      req.headers.authorization === "Bearer test-session"
+    ) {
+      let raw = "";
+      for await (const chunk of req) raw += chunk;
+      const body = JSON.parse(raw);
+      actions.push({
+        path: url.pathname,
+        body,
+        ...(req.headers["idempotency-key"]
+          ? { idempotencyKey: String(req.headers["idempotency-key"]) }
+          : {}),
+      });
+      const errand = {
+        ...baseErrand,
+        status: url.pathname.endsWith("resolve-dispute") ? "RESOLVED" : "DISPUTED",
+      };
+      res.writeHead(200).end(
+        JSON.stringify(
+          url.pathname.endsWith("resolve-dispute")
+            ? { operationId: "50000000-0000-4000-8000-000000000001", status: "SUCCEEDED", errand }
+            : errand,
+        ),
+      );
+      return;
+    }
     if (
       url.pathname !== "/api/errands/manage" ||
       req.headers.authorization !== "Bearer test-session"
@@ -107,7 +136,7 @@ test.beforeAll(async () => {
         {
           ...baseErrand,
           id: "30000000-0000-4000-8000-000000000102",
-          status: "DISPUTED",
+          status: "RESOLVED",
           disputedAt: "2026-11-09T04:00:00Z",
         },
       ]),
@@ -168,6 +197,7 @@ test.beforeEach(() => {
   isAdmin = true;
   orderFailure = false;
   manageOffsets = [];
+  actions = [];
 });
 
 const headers = () => ({ Cookie: "foc_access=test-session" });
@@ -181,7 +211,7 @@ test("filters disputed errands across every populated management page", async ({
   expect(errands).toHaveLength(2);
   expect(errands.map((errand: { status: string }) => errand.status)).toEqual([
     "DISPUTED",
-    "DISPUTED",
+    "RESOLVED",
   ]);
   expect(errands[0]).toMatchObject({
     requesterUsername: "Requester",
@@ -208,4 +238,44 @@ test("propagates a safe Order Service failure", async ({ request }) => {
   expect(await response.json()).toMatchObject({
     message: "The request could not be completed. Please try again.",
   });
+});
+
+test("validates and forwards dispute statements and resolution idempotency", async ({ request }) => {
+  const dispute = await request.post(
+    `${origin}/api/errands/${baseErrand.id}/dispute`,
+    {
+      headers: { ...headers(), Origin: origin },
+      data: { explanation: "The delivery was incomplete." },
+    },
+  );
+  expect(dispute.status()).toBe(200);
+  const key = "50000000-0000-4000-8000-000000000002";
+  const resolution = await request.post(
+    `${origin}/api/errands/${baseErrand.id}/resolve-dispute`,
+    {
+      headers: { ...headers(), Origin: origin },
+      data: { outcome: "REFUND_REQUESTER", idempotencyKey: key },
+    },
+  );
+  expect(resolution.status()).toBe(200);
+  expect(actions).toEqual([
+    {
+      path: `/api/errands/${baseErrand.id}/dispute`,
+      body: { statement: "The delivery was incomplete." },
+    },
+    {
+      path: `/api/errands/${baseErrand.id}/resolve-dispute`,
+      body: { outcome: "REFUND_REQUESTER" },
+      idempotencyKey: key,
+    },
+  ]);
+  const invalid = await request.post(
+    `${origin}/api/errands/${baseErrand.id}/dispute`,
+    {
+      headers: { ...headers(), Origin: origin },
+      data: { explanation: "   " },
+    },
+  );
+  expect(invalid.status()).toBe(400);
+  expect(actions).toHaveLength(2);
 });
