@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of suppliers controller test cases.
+ * Author review: Validated the assertions and setup for "returns fixed NUS campus locations without a request body"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   Controller,
   Get,

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of resend verification email code (ResendVerificationEmailDependencies, ResendVerificationEmailInput, ResendVerificationEmailUseCase).
+ * Author review: Validated ResendVerificationEmailDependencies, ResendVerificationEmailInput input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { NusEmail } from '../../domain/nus-email.js';
 import { EmailVerificationError } from '../errors/email-verification.error.js';
 import { VerificationEmailRateLimitError } from '../errors/verification-email-rate-limit.error.js';

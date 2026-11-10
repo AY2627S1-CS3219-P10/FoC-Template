@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit service code (CreditService).
+ * Author review: Validated CreditService value handling and returned results in credit-service/credit.service.ts; edited naming and formatting for readability.
+ */
+
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {

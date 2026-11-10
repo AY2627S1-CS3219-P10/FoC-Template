@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier validation error code (SupplierValidationField, SupplierValidationError).
+ * Author review: Checked SupplierValidationField, SupplierValidationError error messages and exposed properties; standardized exception naming and formatting.
+ */
+
 export type SupplierValidationField =
   | 'campusLocationId'
   | 'category'

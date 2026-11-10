@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of enforce public endpoint rate limit code (enforcePublicEndpointRateLimit).
+ * Author review: Validated enforcePublicEndpointRateLimit existing type members and constant values in user-service/enforce-public-endpoint-rate-limit.ts; edited naming and formatting for readability.
+ */
+
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 import { PublicEndpointRateLimitError } from '../../../application/errors/public-endpoint-rate-limit.error.js';

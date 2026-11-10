@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# AI Assistance Disclosure:
+# Tool: GPT-6.1 Sol.
+# Scope: AI-assisted implementation of check scope script commands.
+# Author review: Validated the changed-path checks and allowed-scope conditions in check-scope.sh; edited command layout and status-message wording.
+
 # Enforces the order-service GATES before a commit.
 #
 # Usage (from anywhere inside the repo):

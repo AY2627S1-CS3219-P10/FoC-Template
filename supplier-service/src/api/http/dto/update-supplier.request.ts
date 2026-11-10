@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update supplier request code (UpdateSupplierRequest).
+ * Author review: Checked UpdateSupplierRequest validation decorators (IsOptional, IsBoolean, IsString) and optional fields; standardized property formatting and annotations.
+ */
+
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,

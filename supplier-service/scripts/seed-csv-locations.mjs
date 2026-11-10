@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier-service/scripts/seed-csv-locations.mjs tooling configuration.
+ * Author review: Validated supplier-service/seed-csv-locations.mjs settings and referenced paths; edited configuration layout and naming for consistency.
+ */
+
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';

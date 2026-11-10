@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610120003_add_event_reliability (create table, create index).
+-- Author review: Validated the SQL statements for processed_events, outbox_events in migration 202610120003_add_event_reliability; edited SQL layout and comments for readability.
+
 CREATE TABLE "processed_events" (
     "event_id" UUID NOT NULL,
     "event_type" TEXT NOT NULL,

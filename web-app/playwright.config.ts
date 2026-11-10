@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of web-app/playwright.config.ts tooling configuration.
+ * Author review: Validated web-app/playwright.config.ts settings for testDir, fullyParallel, workers; edited configuration layout and naming for consistency.
+ */
+
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({

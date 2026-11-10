@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of configuration values and helpers.
+ * Author review: Checked REGION, INTERNAL_DOMAIN property values and existing resource references in config.ts; edited declaration naming and TypeScript formatting.
+ */
+
 export const REGION = 'ap-southeast-1';
 
 /** Private DNS zone for service discovery: `<service>.foc.internal`. */

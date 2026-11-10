@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of configuration test cases.
+ * Author review: Validated the assertions and setup for "uses bounded database recovery and pool defaults"; clarified test descriptions and assertion formatting.
+ */
+
 import configuration from '../../src/infrastructure/configuration';
 
 describe('credit service configuration', () => {

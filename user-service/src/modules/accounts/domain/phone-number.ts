@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of phone number code (PhoneNumber).
+ * Author review: Validated PhoneNumber input handling, return values, and thrown errors in user-service/phone-number.ts; edited naming and formatting for readability.
+ */
+
 import { AccountValidationError } from './account-validation.error.js';
 
 const PHONE_NUMBER_PATTERN = /^[0-9]{8,15}$/;

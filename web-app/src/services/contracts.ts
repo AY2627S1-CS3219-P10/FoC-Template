@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of contracts code (ErrandOperation, Errand, CourierReview).
+ * Author review: Checked existing ErrandOperation, Errand parameter and return types against their callers; edited type declaration layout and member naming.
+ */
+
 // HTTP contracts from the backend service response DTOs.
 export interface ErrandOperation {
   operationId: string;

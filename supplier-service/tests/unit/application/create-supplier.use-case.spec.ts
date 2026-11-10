@@ -1,5 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
-import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of create supplier use case test cases.
+ * Author review: Validated the assertions and setup for "shows matches and allows a confirmed different pickup description"; clarified test descriptions and assertion formatting.
+ */
+
 import type {
   CreateSupplierRecord,
   PossibleSupplierDuplicate,
@@ -8,6 +13,7 @@ import type {
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { CreateSupplierUseCase } from '../../../src/application/use-cases/create-supplier.use-case.js';
+import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
 import type {
   CampusLocationCatalogEntry,
   SupplierCatalogEntry,

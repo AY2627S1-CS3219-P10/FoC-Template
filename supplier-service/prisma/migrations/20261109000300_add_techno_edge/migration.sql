@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL statements in migration 20261109000300_add_techno_edge.
+-- Author review: Checked 20261109000300_add_techno_edge statements and affected record values for consistency; edited SQL formatting and comments.
+
 BEGIN;
 
 UPDATE "suppliers"

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier matches code (SupplierMatch, supplierMatches).
+ * Author review: Validated SupplierMatch, supplierMatches existing type members and constant values in web-app/supplier-matches.ts; edited naming and formatting for readability.
+ */
+
 export interface SupplierMatch {
   supplierId: string;
   supplierName: string;

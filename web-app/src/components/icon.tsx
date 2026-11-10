@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of icon rendering and interaction code (Icon).
+ * Author review: Validated Icon rendered content, props usage in web-app/icon.tsx; refined JSX layout and user-facing wording.
+ */
+
 const paths = {
   coin: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM16 12a4 4 0 1 1-1.2-2.8",
   arrow: "M5 12h14m-6-6 6 6-6 6",

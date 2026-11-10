@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit errors test cases.
+ * Author review: Validated the credit errors assertions and fixture values; clarified test descriptions and assertion formatting.
+ */
+
 import {
   AccountNotFoundError,
   BalanceLimitExceededError,

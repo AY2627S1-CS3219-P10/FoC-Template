@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier-tag rendering.
+ * Author review: Checked SupplierTags tag labels, rendering conditions, and props usage; refined JSX formatting and displayed text.
+ */
+
 import { categoryLabels, type Supplier } from "@/services/contracts";
 import { supplierCategories } from "@/services/supplier-categories";
 

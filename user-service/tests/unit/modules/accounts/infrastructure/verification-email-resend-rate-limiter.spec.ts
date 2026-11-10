@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of verification email resend rate limiter test cases.
+ * Author review: Validated the assertions and setup for "atomically applies the cooldown and hourly limit without exposing email keys"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   MAXIMUM_VERIFICATION_EMAIL_RESENDS_PER_WINDOW,
   type RedisRateLimitClient,

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of credit types code (ReservationStatus, CreditLedgerEntryType, CreditTransaction).
+ * Author review: Validated ReservationStatus, CreditLedgerEntryType existing type members and constant values in credit-service/credit.types.ts; edited naming and formatting for readability.
+ */
+
 export type ReservationStatus = 'RESERVED' | 'SETTLED' | 'RELEASED';
 
 export type CreditLedgerEntryType =

@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610120001_complete_credit_contract (alter table, update, create table).
+-- Author review: Validated the SQL statements for ledger_entries, credit_reservation_adjustments, credit_reservations in migration 202610120001_complete_credit_contract; edited SQL layout and comments for readability.
+
 ALTER TYPE "LedgerEntryType" ADD VALUE IF NOT EXISTS 'ADJUST_RESERVE';
 ALTER TYPE "LedgerEntryType" ADD VALUE IF NOT EXISTS 'ADJUST_RELEASE';
 

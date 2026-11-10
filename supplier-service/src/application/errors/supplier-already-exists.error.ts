@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier already exists error code (DuplicateSupplierField, SupplierAlreadyExistsError).
+ * Author review: Checked DuplicateSupplierField, SupplierAlreadyExistsError error messages and codes SUPPLIER_ALREADY_EXISTS; standardized exception naming and formatting.
+ */
+
 export type DuplicateSupplierField = 'name' | 'supplierAtLocation' | 'location';
 
 export class SupplierAlreadyExistsError extends Error {

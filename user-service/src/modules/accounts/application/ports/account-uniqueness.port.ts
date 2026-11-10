@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of account uniqueness port code (AccountUniquenessPort).
+ * Author review: Checked existing AccountUniquenessPort parameter and return types against their callers; edited type declaration layout and member naming.
+ */
+
 import type { NusEmail } from '../../domain/nus-email.js';
 import type { PhoneNumber } from '../../domain/phone-number.js';
 import type { Username } from '../../domain/username.js';

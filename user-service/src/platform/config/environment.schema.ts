@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of environment schema code (EnvironmentVariables, environmentSchema, validateEnvironment).
+ * Author review: Checked EnvironmentVariables, environmentSchema environment-value parsing, defaults, and validation failures; standardized configuration-key formatting (user-service/src/platform/config/environment.schema.ts).
+ */
+
 import Joi from 'joi';
 
 export interface EnvironmentVariables {

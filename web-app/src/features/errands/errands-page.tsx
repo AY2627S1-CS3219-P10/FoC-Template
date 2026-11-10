@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errands page rendering and interaction code (ErrandsPage).
+ * Author review: Validated ErrandsPage state updates, click handlers, request results in web-app/errands-page.tsx; refined JSX layout and user-facing wording. Additional review item: Check loading and error states, and displayed values after successful actions.
+ */
+
 "use client";
 
 import Link from "next/link";

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of courier review rendering and interaction code (CourierReviews, CourierReviewForm).
+ * Author review: Validated CourierReviews, CourierReviewForm state updates, form submission, click handlers in web-app/courier-review.tsx; refined JSX layout and user-facing wording. Additional review item: Check invalid-input messages and repeated submissions.
+ */
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of HTTP smoke-check scenarios.
+ * Author review: Validated smoke.js request values, response checks, and fixture handling where used; edited helper naming and script formatting.
+ */
+
 import http from 'k6/http';
 import { check } from 'k6';
 import { Rate } from 'k6/metrics';

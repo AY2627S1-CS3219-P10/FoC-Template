@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier input code (SUPPLIER_CATEGORIES, SupplierCategory, assertUuid).
+ * Author review: Validated SUPPLIER_CATEGORIES, SupplierCategory existing type members and constant values in supplier-service/supplier-input.ts; edited naming and formatting for readability.
+ */
+
 import {
   type SupplierValidationField,
   SupplierValidationError,

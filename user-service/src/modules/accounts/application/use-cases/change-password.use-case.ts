@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of change password code (ChangePasswordInput, ChangePasswordDependencies, ChangePasswordUseCase).
+ * Author review: Validated ChangePasswordInput, ChangePasswordDependencies input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import { assertPasswordMeetsPolicy } from '../../domain/password-policy.js';
 import { AuthenticationError } from '../errors/authentication.error.js';
 import type { ClockPort } from '../ports/clock.port.js';

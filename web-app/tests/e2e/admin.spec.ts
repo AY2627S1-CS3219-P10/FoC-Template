@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of admin test cases.
+ * Author review: Validated the assertions and setup for "admin supplier workflows submit service contracts and show failures" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { expect, test, type Page } from "@playwright/test";
 
 const admin = {

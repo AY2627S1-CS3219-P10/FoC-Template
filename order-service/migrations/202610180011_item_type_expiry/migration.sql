@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202610180011_item_type_expiry (alter table, update, create index).
+-- Author review: Validated the SQL statements for errands in migration 202610180011_item_type_expiry; edited SQL layout and comments for readability.
+
 -- D-018: the requester picks the item type at creation, which fixes the expiry deadline
 -- once: FOOD 2 h, NON_PERISHABLE 24 h after created_at. Existing rows were created
 -- without a choice, so they get the default. EXPIRE journals the credit release (D-019).

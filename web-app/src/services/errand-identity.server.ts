@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errand identity server code (withCourierUsername).
+ * Author review: Validated withCourierUsername existing type members and constant values in web-app/errand-identity.server.ts; edited naming and formatting for readability.
+ */
+
 import "server-only";
 import { backend } from "./backend.server";
 import type { Errand, ErrandOperation } from "./contracts";

@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma administrator privilege repository test cases.
+ * Author review: Validated the assertions and setup for "promotes a student and revokes every active session atomically" against the service calls and test data; clarified test descriptions and assertion formatting.
+ */
+
 import { readFile } from 'node:fs/promises';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';

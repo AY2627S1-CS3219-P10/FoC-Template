@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of moderation dto code (CreateReportRequest, ListReportsQuery, SuspendAccountRequest).
+ * Author review: Checked CreateReportRequest, ListReportsQuery validation decorators (IsUUID, IsString, MaxLength) and optional fields; standardized property formatting and annotations.
+ */
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import {

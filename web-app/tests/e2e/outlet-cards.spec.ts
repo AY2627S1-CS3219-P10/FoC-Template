@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of outlet cards test cases.
+ * Author review: Validated the assertions and setup for "guests can preview suppliers but must log in to view locations" against the browser actions and mocked responses; clarified test descriptions and assertion formatting.
+ */
+
 import { expect, test } from "@playwright/test";
 
 const supplierId = "20000000-0000-4000-8000-000000000001";

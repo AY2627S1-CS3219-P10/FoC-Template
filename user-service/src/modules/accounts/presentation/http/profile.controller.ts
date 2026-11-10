@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of profile controller code (ProfileController).
+ * Author review: Validated ProfileController Get, Patch handlers, parameter handling, and returned values; edited handler naming and formatting. Additional review item: Check invalid-request responses and HTTP status codes for unsuccessful operations.
+ */
+
 import {
   BadRequestException,
   Body,

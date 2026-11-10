@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of prisma supplier catalog repository code (PrismaSupplierCatalogRepository).
+ * Author review: Validated PrismaSupplierCatalogRepository query parameters, record mappings, and returned values for findActiveSuppliers, findCampusLocations, deactivateSupplier; clarified query formatting and local names. Additional review item: Check missing-record handling and mapping of optional database values.
+ */
+
 import type { SupplierCatalogRepositoryPort } from '../../application/ports/supplier-catalog.repository.port.js';
 import { SupplierAlreadyExistsError } from '../../application/errors/supplier-already-exists.error.js';
 import { SupplierLocationNotFoundError } from '../../application/errors/supplier-location-not-found.error.js';

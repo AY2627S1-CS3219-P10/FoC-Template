@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of errand actions rendering and interaction code (ErrandActions).
+ * Author review: Validated ErrandActions state updates, click handlers, request results in web-app/errand-actions.tsx; refined JSX layout and user-facing wording. Additional review item: Check loading and error states, and displayed values after successful actions.
+ */
+
 "use client";
 import { useRef, useState } from "react";
 import { authenticatedRequest } from "@/services/api";

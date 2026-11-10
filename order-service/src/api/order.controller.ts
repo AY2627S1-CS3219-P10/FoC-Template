@@ -1,4 +1,10 @@
-// AI-assisted portions: courier review guidance (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of order controller code (OrderController, OperationController).
+ * Author review: Validated OrderController, OperationController Get, Post, Delete handlers, parameter handling, and returned values; edited handler naming and formatting. Additional review item: Check invalid-request responses and HTTP status codes for unsuccessful operations.
+ */
+
 import {
   BadRequestException,
   Body,

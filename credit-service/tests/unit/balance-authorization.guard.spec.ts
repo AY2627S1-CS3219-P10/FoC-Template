@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of balance authorization guard test cases.
+ * Author review: Validated the assertions and setup for "allows a user to read their own balance"; clarified test descriptions and assertion formatting.
+ */
+
 import {
   ExecutionContext,
   ForbiddenException,

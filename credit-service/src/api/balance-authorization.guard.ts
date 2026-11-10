@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of balance authorization guard code (BalanceAuthorizationGuard).
+ * Author review: Checked BalanceAuthorizationGuard request checks, accepted credentials, and rejection branches; clarified condition layout and error wording.
+ */
+
 import {
   CanActivate,
   ExecutionContext,

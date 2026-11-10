@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of stack initialization and references.
+ * Author review: Checked FocStacksProps, FocStacks property values and existing resource references in stacks.ts; edited declaration naming and TypeScript formatting.
+ */
+
 import { Tags } from 'aws-cdk-lib';
 import type { App, Environment } from 'aws-cdk-lib';
 import { AppStack } from './app-stack';

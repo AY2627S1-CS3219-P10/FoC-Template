@@ -1,4 +1,10 @@
-// AI-assisted portions: courier review guidance (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of review code (MAX_REVIEW_COMMENT_LENGTH, assertReviewable, normaliseReview).
+ * Author review: Validated MAX_REVIEW_COMMENT_LENGTH, assertReviewable existing type members and constant values in order-service/review.ts; edited naming and formatting for readability.
+ */
+
 import { OrderError, type ErrandRecord } from './errand';
 
 export const MAX_REVIEW_COMMENT_LENGTH = 1000;

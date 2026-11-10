@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of find administrator accounts code (ADMINISTRATOR_ACCOUNT_RESULT_LIMIT, FindAdministratorAccountsInput, FindAdministratorAccountsUseCase).
+ * Author review: Validated ADMINISTRATOR_ACCOUNT_RESULT_LIMIT, FindAdministratorAccountsInput input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import type {
   AdministratorAccountDiscoveryRepositoryPort,
   AdministratorAccountSummary,

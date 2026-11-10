@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of page rendering and interaction code (HomePage).
+ * Author review: Validated HomePage rendered content, props usage in web-app/page.tsx; refined JSX layout and user-facing wording.
+ */
+
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { MyCourierRating } from "@/features/errands/my-courier-rating";

@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier catalog code (CampusLocationCatalogEntry, SupplierLocationCatalogEntry, SupplierCatalogEntry).
+ * Author review: Validated CampusLocationCatalogEntry, SupplierLocationCatalogEntry existing type members and constant values in supplier-service/supplier-catalog.ts; edited naming and formatting for readability.
+ */
+
 import type { SupplierCategory } from './supplier-input.js';
 import type { SupplierTag } from './supplier-categories.js';
 

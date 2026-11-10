@@ -1,4 +1,10 @@
-// AI-assisted portions: courier review guidance (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of review test cases.
+ * Author review: Validated the assertions and setup for "allows the requester to review a completed errand"; clarified test descriptions and assertion formatting.
+ */
+
 import { assertReviewable, normaliseReview } from '../../src/domain/review';
 import type { ErrandRecord } from '../../src/domain/errand';
 

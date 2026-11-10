@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of existing test-account seed method declarations.
+ * Author review: Checked existing TestAccountSeedRecord, TestAccountSeedResult parameter and result types against their callers; standardized type-member formatting.
+ */
+
 import type { AccountStatus } from '../../domain/account-status.js';
 
 export interface TestAccountSeedRecord {

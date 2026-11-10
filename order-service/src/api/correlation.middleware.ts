@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of correlation middleware code (CorrelationMiddleware).
+ * Author review: Validated CorrelationMiddleware value handling and returned results in order-service/correlation.middleware.ts; edited naming and formatting for readability.
+ */
+
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {

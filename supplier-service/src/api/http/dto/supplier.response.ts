@@ -1,4 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of supplier response code (SupplierResponse).
+ * Author review: Checked SupplierResponse field values and response mappings; standardized property formatting and annotations.
+ */
+
 import { ApiProperty } from '@nestjs/swagger';
 
 import type { SupplierCategory } from '../../../domain/supplier-catalog.js';

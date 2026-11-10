@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of http exception filter code (HttpExceptionFilter).
+ * Author review: Validated HttpExceptionFilter value handling and returned results in credit-service/http-exception.filter.ts; edited naming and formatting for readability.
+ */
+
 import {
   ArgumentsHost,
   Catch,

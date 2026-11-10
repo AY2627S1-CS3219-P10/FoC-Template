@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update supplier location code (UpdateSupplierLocationInput, UpdateSupplierLocationUseCase).
+ * Author review: Validated UpdateSupplierLocationInput, UpdateSupplierLocationUseCase input handling, dependency calls, and success/error return paths; clarified local naming and control-flow formatting.
+ */
+
 import type {
   CampusLocationCatalogEntry,
   SupplierLocationCatalogEntry,

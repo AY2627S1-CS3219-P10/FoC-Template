@@ -1,4 +1,10 @@
-// AI-assisted portions: courier review guidance (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of order service code (derivedKey, OrderService).
+ * Author review: Validated derivedKey, OrderService input handling, return values, and thrown errors in order-service/order.service.ts; edited naming and formatting for readability.
+ */
+
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { ORDER_REPOSITORY, SERVICE_CLIENTS } from './ports';

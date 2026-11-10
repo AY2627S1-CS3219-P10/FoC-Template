@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of health controller test cases.
+ * Author review: Validated the assertions and setup for "reports liveness without touching the database"; clarified test descriptions and assertion formatting.
+ */
+
 import { ServiceUnavailableException } from '@nestjs/common';
 
 import type { PrismaService } from '../../../src/platform/database/prisma.service.js';

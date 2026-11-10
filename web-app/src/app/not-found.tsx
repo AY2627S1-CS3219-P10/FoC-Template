@@ -1,3 +1,10 @@
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of not found rendering and interaction code (NotFound).
+ * Author review: Validated NotFound rendered content, props usage in web-app/not-found.tsx; refined JSX layout and user-facing wording.
+ */
+
 import Link from "next/link";
 
 export default function NotFound() {

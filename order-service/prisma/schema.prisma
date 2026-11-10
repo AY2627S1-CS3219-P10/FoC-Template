@@ -1,4 +1,8 @@
-// AI-assisted portions: courier review guidance (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
+// AI Assistance Disclosure:
+// Tool: GPT-6.1 Sol.
+// Scope: AI-assisted implementation of C:\ Prisma declarations.
+// Author review: Checked the existing Errand, ErrandBookmark, ErrandOperation declarations in order-service for field, relation, and mapping consistency; standardized declaration formatting.
+
 generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"

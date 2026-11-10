@@ -1,3 +1,8 @@
+-- AI Assistance Disclosure:
+-- Tool: GPT-6.1 Sol.
+-- Scope: AI-assisted implementation of SQL migration 202609200001_init (create table, create unique index, create index).
+-- Author review: Validated the SQL statements for credit_accounts, credit_reservations, credit_ledger_entries in migration 202609200001_init; edited SQL layout and comments for readability.
+
 CREATE TYPE "ReservationStatus" AS ENUM ('RESERVED', 'SETTLED', 'RELEASED');
 CREATE TYPE "LedgerEntryType" AS ENUM ('INITIAL_CREDIT', 'RESERVATION', 'RELEASE', 'TRANSFER_DEBIT', 'TRANSFER_CREDIT');
 

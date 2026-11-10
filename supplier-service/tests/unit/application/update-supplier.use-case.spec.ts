@@ -1,5 +1,10 @@
-// AI-assisted portions: supplier categories (OpenAI Codex, GPT-6.1). Human review confirmed by the team, 2026-11-10. See /ai/usage-log.md.
-import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
+/*
+ * AI Assistance Disclosure:
+ * Tool: GPT-6.1 Sol.
+ * Scope: AI-assisted implementation of update supplier use case test cases.
+ * Author review: Validated the assertions and setup for "normalizes and updates a supplier name and category"; clarified test descriptions and assertion formatting.
+ */
+
 import type {
   CreateSupplierRecord,
   SupplierManagementRepositoryPort,
@@ -7,6 +12,7 @@ import type {
   UpdateSupplierRecord,
 } from '../../../src/application/ports/supplier-management.repository.port.js';
 import { UpdateSupplierUseCase } from '../../../src/application/use-cases/update-supplier.use-case.js';
+import { categoriesFromLegacy } from '../../../src/domain/supplier-categories.js';
 import type { SupplierCatalogEntry } from '../../../src/domain/supplier-catalog.js';
 
 const SUPPLIER_ID = '30000000-0000-4000-8000-000000000001';
